@@ -13,14 +13,9 @@
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; background: #F8FAFC; touch-action: none; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; background: #F8FAFC; }
         
-        /* 🌟 关键修复：禁止浏览器默认触摸行为，让 Plotly 接管所有手势 */
-        #plotly-div { 
-            width: 100%; 
-            height: 100vh; 
-            touch-action: none; 
-        }
+        #plotly-div { width: 100%; height: 100vh; }
         
         #data-timestamp-box { 
             position: absolute; top: 20px; right: 20px; 
@@ -72,14 +67,8 @@
             pointer-events: auto;
         }
         
-        #panel-expand-strip:hover {
-            width: 32px;
-            background: rgba(59, 130, 246, 1);
-        }
-        
-        #panel-expand-strip.show {
-            display: flex;
-        }
+        #panel-expand-strip:hover { width: 32px; background: rgba(59, 130, 246, 1); }
+        #panel-expand-strip.show { display: flex; }
         
         #menu-toggle-btn {
             position: absolute; top: 20px; left: 20px;
@@ -87,8 +76,7 @@
             border-radius: 8px; padding: 12px 16px; font-size: 14px;
             font-weight: bold; cursor: pointer; z-index: 9998;
             box-shadow: 0 4px 12px rgba(59,130,246,0.3);
-            display: none;
-            pointer-events: auto;
+            display: none; pointer-events: auto;
         }
         
         #fullscreen-btn {
@@ -97,8 +85,7 @@
             border-radius: 8px; padding: 12px 16px; font-size: 14px;
             font-weight: bold; cursor: pointer; z-index: 9998;
             box-shadow: 0 4px 12px rgba(16,185,129,0.3);
-            display: none;
-            pointer-events: auto;
+            display: none; pointer-events: auto;
         }
         
         #edit-mode-btn {
@@ -109,7 +96,6 @@
             box-shadow: 0 4px 12px rgba(245,158,11,0.3);
             pointer-events: auto;
         }
-        
         #edit-mode-btn.active { background: #10B981; }
         
         .switch-btn { flex: 1; padding: 8px; font-size: 11px; font-weight: bold; border: 2px solid #CBD5E1; cursor: pointer; transition: all 0.2s ease; text-align: center; border-radius: 6px; background: #FFFFFF; color: #64748B; }
@@ -136,7 +122,6 @@
             border: 1px dashed #5B7B9C; margin-bottom: 12px;
             display: none;
         }
-        
         #planning-tools-box.show { display: block; }
         
         #password-modal {
@@ -164,6 +149,46 @@
         .password-box .btn-cancel { background: #E2E8F0; color: #64748B; }
         .password-error { color: #EF4444; font-size: 12px; margin-bottom: 10px; display: none; }
         
+        /* 🌟 方案 2：模式切换按钮样式 */
+        #mode-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(15,23,42,0.15);
+            padding: 8px;
+            z-index: 9998;
+            display: flex;
+            gap: 6px;
+            border: 1px solid #E2E8F0;
+            pointer-events: auto;
+        }
+        
+        .mode-btn {
+            padding: 10px 16px;
+            border: 1px solid #CBD5E1;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            color: #475569;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .mode-btn:hover { background: #F1F5F9; }
+        
+        .mode-btn.active {
+            background: #3B82F6;
+            color: white;
+            border-color: #2563EB;
+            box-shadow: 0 2px 8px rgba(59,130,246,0.3);
+        }
+        
         @media (max-width: 768px) {
             #menu-toggle-btn { display: block; }
             #fullscreen-btn { display: block; top: 70px; }
@@ -177,15 +202,23 @@
             #super-legend-panel.show { transform: translateX(0); }
             #super-legend-panel.collapsed { transform: translateX(-100%); }
             
-            #panel-expand-strip {
-                width: 24px; height: 60px; font-size: 14px;
-            }
-            
+            #panel-expand-strip { width: 24px; height: 60px; font-size: 14px; }
             #data-timestamp-box { top: 10px; right: 10px; padding: 8px 10px; display: none; }
             .legend-row { padding: 10px; }
             .legend-label { font-size: 13px; }
             .action-btn { font-size: 14px; padding: 4px 8px; }
             .switch-btn { padding: 12px; font-size: 13px; }
+            
+            #mode-controls {
+                bottom: 10px;
+                right: 10px;
+                padding: 6px;
+                gap: 4px;
+            }
+            .mode-btn {
+                padding: 12px 14px;
+                font-size: 16px;
+            }
         }
         
         body.fullscreen #data-timestamp-box,
@@ -193,7 +226,8 @@
         body.fullscreen #menu-toggle-btn,
         body.fullscreen #fullscreen-btn,
         body.fullscreen #edit-mode-btn,
-        body.fullscreen #panel-expand-strip {
+        body.fullscreen #panel-expand-strip,
+        body.fullscreen #mode-controls {
             display: none !important;
         }
         
@@ -233,7 +267,7 @@
             <button onclick="collapsePanel()" style="background: #64748B; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;" title="收起看板">◀ 收起</button>
         </div>
         <div style="background: #F1F5F9; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 12px; border: 1px solid #E2E8F0;">
-            <div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')">🟢 规划预期分布</div>
+            <div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')"> 规划预期分布</div>
             <div id="view-actual-btn" class="switch-btn" onclick="switchGlobalView('ACTUAL')">🔵 实际库存大盘</div>
         </div>
         <div style="border-bottom: 2px solid #F1F5F9; padding-bottom: 6px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
@@ -264,6 +298,13 @@
                 <button class="btn-confirm" onclick="confirmPassword()">确认</button>
             </div>
         </div>
+    </div>
+    
+    <!-- 🌟 方案 2：模式切换按钮 -->
+    <div id="mode-controls">
+        <button class="mode-btn active" id="btn-rotate" onclick="setDragMode('turntable', 'btn-rotate')"> 旋转</button>
+        <button class="mode-btn" id="btn-pan" onclick="setDragMode('pan', 'btn-pan')"> 平移</button>
+        <button class="mode-btn" id="btn-zoom" onclick="setDragMode('zoom', 'btn-zoom')"> 缩放</button>
     </div>
     
     <script>
@@ -694,22 +735,27 @@
                     xaxis: {visible: false}, yaxis: {visible: false}, zaxis: {visible: false},
                     aspectmode: 'data',
                     camera: {projection: {type: "orthographic"}, eye: {x: -0.8, y: -0.8, z: 3.5}, up: {x: 0, y: 0, z: 1}},
-                    hovermode: 'closest'
-                },
-                dragmode: "turntable"
+                    hovermode: 'closest',
+                    dragmode: 'turntable' // 默认旋转模式
+                }
             }, {
                 responsive: true, 
-                displayModeBar: true, 
-                displaylogo: false,
-                modeBarButtonsToRemove: ['toImage', 'sendDataToCloud'],
+                displayModeBar: false, // 隐藏原生工具栏，使用我们自定义的按钮
                 scrollZoom: true, 
-                doubleClick: 'reset',
-                // 🌟 确保移动端手势启用
-                staticPlot: false
+                doubleClick: 'reset'
             });
             
             applyAllDBCacheToCanvas();
             renderControlPanel();
+        }
+        
+        //  方案 2：模式切换功能
+        function setDragMode(mode, btnId) {
+            Plotly.relayout('plotly-div', { 'scene.dragmode': mode });
+            
+            // 更新按钮样式
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(btnId).classList.add('active');
         }
         
         function toggleMenu() {
@@ -744,7 +790,7 @@
                 const activeActualBrands = {};
                 server_data_cache.forEach(node => {
                     (node.slices || []).forEach(sl => {
-                        if (sl.brand && sl.brand !== '[当前空置]' && sl.brand !== '[⚠️超过4品牌严重混放]') {
+                        if (sl.brand && sl.brand !== '[当前空置]' && sl.brand !== '[️超过4品牌严重混放]') {
                             const c = GLOBAL_BRAND_COLORS[sl.brand];
                             if (c) activeActualBrands[sl.brand] = c;
                         }
@@ -803,7 +849,7 @@
                 
                 const delBtn = document.createElement("button");
                 delBtn.className = "action-btn delete-btn";
-                delBtn.innerText = "🗑️";
+                delBtn.innerText = "️";
                 delBtn.title = "从看板中彻底删除该品牌";
                 delBtn.onclick = function(e) {
                     e.stopPropagation();
@@ -1009,7 +1055,7 @@
                             else currentZArray[v] = sliceMaxZ;
                         }
                         const sliceColor = GLOBAL_BRAND_COLORS[currentSlice.brand] || currentSlice.color;
-                        let hoverHTML = `<b>库位: ${locID} 【实际库存大盘】</b><br>🎨 局部切片品牌: ${currentSlice.brand}<br>----------------------------<br>`;
+                        let hoverHTML = `<b>库位: ${locID} 【实际库存大盘】</b><br> 局部切片品牌: ${currentSlice.brand}<br>----------------------------<br>`;
                         if (!currentSlice.items || currentSlice.items.length === 0) {
                             hoverHTML += `<i>🫙 当前格子实盘空置</i>`;
                         } else {
@@ -1085,132 +1131,6 @@
         });
         
         console.log('💡 提示：在控制台运行 generatePasswordHash("你的新密码") 可以生成新密码的哈希值');
-        // =======================================================
-        //  方案 1：自定义双指手势 - 绝对状态同步版 (终极修复)
-        // =======================================================
-        const plotDiv = document.getElementById('plotly-div');
-        
-        // 🌟 核心 1：全局维护最新的相机状态
-        let myCamera = null; 
-        let baseCamera = null; 
-        let startDist = 0;
-        let startMid = { x: 0, y: 0 };
-        let isPinching = false;
-
-        // 辅助函数
-        function getDist(t1, t2) {
-            return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-        }
-        function getMid(t1, t2) {
-            return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
-        }
-
-        // 从 Plotly 同步最新相机状态到我们的全局变量
-        function syncCameraFromPlotly() {
-            if (plotDiv && plotDiv.layout && plotDiv.layout.scene && plotDiv.layout.scene.camera) {
-                myCamera = JSON.parse(JSON.stringify(plotDiv.layout.scene.camera));
-            }
-        }
-
-        // 🌟 核心 2：监听 Plotly 的原生更新（解决单指旋转后，双指回到原点的问题）
-        // 当 Plotly 自己因为单指旋转更新了相机时，立刻同步到 myCamera
-        plotDiv.on('plotly_relayout', function() {
-            syncCameraFromPlotly();
-        });
-
-        // 初始化 myCamera
-        syncCameraFromPlotly();
-
-        // --- 触摸事件开始 ---
-        plotDiv.addEventListener('touchstart', function(e) {
-            if (e.touches.length === 2) {
-                isPinching = true;
-                startDist = getDist(e.touches[0], e.touches[1]);
-                startMid = getMid(e.touches[0], e.touches[1]);
-                
-                // 确保 myCamera 有值，然后冻结为本次操作的基准
-                if (!myCamera) syncCameraFromPlotly();
-                baseCamera = JSON.parse(JSON.stringify(myCamera));
-                
-                e.preventDefault();
-            }
-        }, { passive: false });
-
-        plotDiv.addEventListener('touchmove', function(e) {
-            if (!isPinching || e.touches.length !== 2 || !baseCamera) return;
-            e.preventDefault();
-
-            const currDist = getDist(e.touches[0], e.touches[1]);
-            const currMid = getMid(e.touches[0], e.touches[1]);
-
-            const scale = currDist / startDist;
-            const dx = currMid.x - startMid.x;
-            const dy = currMid.y - startMid.y;
-
-            // 基于基准状态计算新状态
-            let newCam = JSON.parse(JSON.stringify(baseCamera));
-
-            // --- 1. 处理平移 (完全采用您修改的正确方向逻辑) ---
-            const sensitivity = 0.005; 
-            const panOffsetX = -dx * sensitivity; // 屏幕向右 -> 3D向左
-            const panOffsetY = dy * sensitivity;  // 屏幕向上 -> 3D向上
-
-            // 先计算平移后的 Center 和 Eye
-            let translatedCenter = {
-                x: baseCamera.center.x + panOffsetX,
-                y: baseCamera.center.y + panOffsetY,
-                z: baseCamera.center.z
-            };
-            let translatedEye = {
-                x: baseCamera.eye.x + panOffsetX,
-                y: baseCamera.eye.y + panOffsetY,
-                z: baseCamera.eye.z
-            };
-
-            // --- 2. 处理缩放 (基于平移后的 Center 进行缩放) ---
-            // 限制缩放范围，防止画面消失 (0.2倍 到 5倍)
-            const safeScale = Math.max(0.2, Math.min(scale, 5.0));
-            
-            // 计算【基准状态】下 eye 到 center 的向量
-            const vx = baseCamera.eye.x - baseCamera.center.x;
-            const vy = baseCamera.eye.y - baseCamera.center.y;
-            const vz = baseCamera.eye.z - baseCamera.center.z;
-            
-            // 最终的 Eye = 平移后的 Center + 缩放后的向量
-            newCam.center = translatedCenter;
-            newCam.eye = {
-                x: translatedCenter.x + vx * safeScale,
-                y: translatedCenter.y + vy * safeScale,
-                z: translatedCenter.z + vz * safeScale
-            };
-
-            // --- 3. 安全检查 ---
-            const dist = Math.hypot(
-                newCam.eye.x - newCam.center.x,
-                newCam.eye.y - newCam.center.y,
-                newCam.eye.z - newCam.center.z
-            );
-            if (dist < 0.1) {
-                newCam.eye.z = newCam.center.z + 1.0; 
-            }
-
-            // --- 4. 更新 Plotly 和 全局状态 ---
-            // 🌟 核心 3：立刻更新全局状态，绝不依赖 Plotly 的异步回调
-            myCamera = newCam; 
-
-            // 使用标准的对象格式更新 Plotly
-            Plotly.relayout(plotDiv, {
-                'scene.camera': newCam
-            });
-
-        }, { passive: false });
-
-        plotDiv.addEventListener('touchend', function(e) {
-            if (e.touches.length < 2) {
-                isPinching = false;
-                baseCamera = null; 
-            }
-        }, { passive: false });
     </script>
 </body>
 </html>
