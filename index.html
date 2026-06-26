@@ -149,7 +149,7 @@
         .password-box .btn-cancel { background: #E2E8F0; color: #64748B; }
         .password-error { color: #EF4444; font-size: 12px; margin-bottom: 10px; display: none; }
         
-        /* 🌟 方案 2：模式切换按钮样式 */
+        /* 🌟 模式切换按钮样式 */
         #mode-controls {
             position: absolute;
             bottom: 20px;
@@ -251,7 +251,7 @@
     <div id="plotly-div"></div>
     
     <button id="menu-toggle-btn" onclick="toggleMenu()">☰ 菜单</button>
-    <button id="fullscreen-btn" onclick="toggleFullscreen()">⛶ 全屏</button>
+    <button id="fullscreen-btn" onclick="toggleFullscreen()"> 全屏</button>
     <button id="edit-mode-btn" onclick="toggleEditMode()">🔒 编辑模式</button>
     <button id="exit-fullscreen-btn" onclick="toggleFullscreen()">✕ 退出全屏</button>
     
@@ -267,7 +267,7 @@
             <button onclick="collapsePanel()" style="background: #64748B; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;" title="收起看板">◀ 收起</button>
         </div>
         <div style="background: #F1F5F9; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 12px; border: 1px solid #E2E8F0;">
-            <div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')"> 规划预期分布</div>
+            <div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')">🟢 规划预期分布</div>
             <div id="view-actual-btn" class="switch-btn" onclick="switchGlobalView('ACTUAL')">🔵 实际库存大盘</div>
         </div>
         <div style="border-bottom: 2px solid #F1F5F9; padding-bottom: 6px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
@@ -300,11 +300,11 @@
         </div>
     </div>
     
-    <!-- 🌟 方案 2：模式切换按钮 -->
+    <!-- 🌟 模式切换按钮 -->
     <div id="mode-controls">
-        <button class="mode-btn active" id="btn-rotate" onclick="setDragMode('turntable', 'btn-rotate')"> 旋转</button>
-        <button class="mode-btn" id="btn-pan" onclick="setDragMode('pan', 'btn-pan')"> 平移</button>
-        <button class="mode-btn" id="btn-zoom" onclick="setDragMode('zoom', 'btn-zoom')"> 缩放</button>
+        <button class="mode-btn active" id="btn-rotate" onclick="setMode('rotate', 'btn-rotate')">🔄 旋转</button>
+        <button class="mode-btn" id="btn-pan" onclick="setMode('pan', 'btn-pan')">✋ 平移</button>
+        <button class="mode-btn" id="btn-zoom" onclick="setMode('zoom', 'btn-zoom')">🔍 缩放</button>
     </div>
     
     <script>
@@ -434,7 +434,7 @@
             const btn = document.getElementById('edit-mode-btn');
             const tools = document.getElementById('planning-tools-box');
             if (isEditMode) {
-                btn.innerText = '🔓 退出编辑';
+                btn.innerText = ' 退出编辑';
                 btn.classList.add('active');
                 tools.classList.add('show');
             } else {
@@ -736,26 +736,125 @@
                     aspectmode: 'data',
                     camera: {projection: {type: "orthographic"}, eye: {x: -0.8, y: -0.8, z: 3.5}, up: {x: 0, y: 0, z: 1}},
                     hovermode: 'closest',
-                    dragmode: 'turntable' // 默认旋转模式
+                    dragmode: 'turntable'
                 }
             }, {
                 responsive: true, 
-                displayModeBar: false, // 隐藏原生工具栏，使用我们自定义的按钮
+                displayModeBar: false,
                 scrollZoom: true, 
                 doubleClick: 'reset'
             });
+            
+            // 🌟 初始化自定义手势监听
+            initCustomGestures();
             
             applyAllDBCacheToCanvas();
             renderControlPanel();
         }
         
-        //  方案 2：模式切换功能
-        function setDragMode(mode, btnId) {
-            Plotly.relayout('plotly-div', { 'scene.dragmode': mode });
+        // =======================================================
+        // 🌟 方案 2 增强版：自定义慢速平移 + 滑动缩放
+        // =======================================================
+        let currentMode = 'rotate'; // 'rotate', 'pan', 'zoom'
+        let myCamera = null; // 全局维护最新相机状态
+        let touchStartPos = { x: 0, y: 0 };
+        const plotDiv = document.getElementById('plotly-div');
+
+        // 同步 Plotly 的相机状态到 myCamera
+        function syncCamera() {
+            if (plotDiv.layout && plotDiv.layout.scene && plotDiv.layout.scene.camera) {
+                myCamera = JSON.parse(JSON.stringify(plotDiv.layout.scene.camera));
+            }
+        }
+
+        // 监听 Plotly 的原生更新（比如旋转模式下的拖动）
+        plotDiv.on('plotly_relayout', function() {
+            syncCamera();
+        });
+
+        function initCustomGestures() {
+            syncCamera(); // 初始化
+            
+            // 触摸开始
+            plotDiv.addEventListener('touchstart', function(e) {
+                if (currentMode !== 'rotate' && e.touches.length === 1) {
+                    touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                    e.preventDefault(); // 阻止浏览器默认滚动
+                }
+            }, { passive: false });
+
+            // 触摸移动
+            plotDiv.addEventListener('touchmove', function(e) {
+                if (currentMode === 'rotate' || e.touches.length !== 1) return;
+                e.preventDefault();
+
+                const currX = e.touches[0].clientX;
+                const currY = e.touches[0].clientY;
+                const dx = currX - touchStartPos.x;
+                const dy = currY - touchStartPos.y;
+
+                if (!myCamera) syncCamera();
+                let newCam = JSON.parse(JSON.stringify(myCamera));
+
+                if (currentMode === 'pan') {
+                    //  慢速平移：系数 0.002 (比原生慢很多)
+                    const speed = 0.002;
+                    const moveX = -dx * speed; // 您的方向逻辑
+                    const moveY = dy * speed;
+                    
+                    newCam.center.x += moveX;
+                    newCam.center.y += moveY;
+                    newCam.eye.x += moveX;
+                    newCam.eye.y += moveY;
+                } else if (currentMode === 'zoom') {
+                    //  滑动缩放：向上滑 (dy<0) 放大，向下滑 (dy>0) 缩小
+                    const zoomSpeed = 0.005;
+                    const scale = 1 + dy * zoomSpeed;
+                    const safeScale = Math.max(0.1, Math.min(scale, 5.0)); // 限制范围
+                    
+                    const vx = newCam.eye.x - newCam.center.x;
+                    const vy = newCam.eye.y - newCam.center.y;
+                    const vz = newCam.eye.z - newCam.center.z;
+                    
+                    newCam.eye.x = newCam.center.x + vx * safeScale;
+                    newCam.eye.y = newCam.center.y + vy * safeScale;
+                    newCam.eye.z = newCam.center.z + vz * safeScale;
+                }
+
+                // 更新 myCamera
+                myCamera = newCam;
+
+                // 更新 Plotly (使用扁平化键名，确保生效)
+                Plotly.relayout(plotDiv, {
+                    'scene.camera.eye.x': newCam.eye.x,
+                    'scene.camera.eye.y': newCam.eye.y,
+                    'scene.camera.eye.z': newCam.eye.z,
+                    'scene.camera.center.x': newCam.center.x,
+                    'scene.camera.center.y': newCam.center.y,
+                    'scene.camera.center.z': newCam.center.z
+                });
+
+                // 更新起点，实现平滑增量
+                touchStartPos = { x: currX, y: currY };
+            }, { passive: false });
+        }
+
+        // 模式切换函数
+        function setMode(mode, btnId) {
+            currentMode = mode;
             
             // 更新按钮样式
             document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(btnId).classList.add('active');
+            
+            if (mode === 'rotate') {
+                // 旋转模式：交还给 Plotly 原生处理
+                Plotly.relayout(plotDiv, { 'scene.dragmode': 'turntable' });
+            } else {
+                // 平移/缩放模式：禁用 Plotly 原生拖拽，由我们接管
+                Plotly.relayout(plotDiv, { 'scene.dragmode': false });
+                syncCamera(); // 同步最新状态，防止跳变
+            }
         }
         
         function toggleMenu() {
@@ -790,7 +889,7 @@
                 const activeActualBrands = {};
                 server_data_cache.forEach(node => {
                     (node.slices || []).forEach(sl => {
-                        if (sl.brand && sl.brand !== '[当前空置]' && sl.brand !== '[️超过4品牌严重混放]') {
+                        if (sl.brand && sl.brand !== '[当前空置]' && sl.brand !== '[⚠️超过4品牌严重混放]') {
                             const c = GLOBAL_BRAND_COLORS[sl.brand];
                             if (c) activeActualBrands[sl.brand] = c;
                         }
@@ -849,7 +948,7 @@
                 
                 const delBtn = document.createElement("button");
                 delBtn.className = "action-btn delete-btn";
-                delBtn.innerText = "️";
+                delBtn.innerText = "🗑️";
                 delBtn.title = "从看板中彻底删除该品牌";
                 delBtn.onclick = function(e) {
                     e.stopPropagation();
@@ -859,7 +958,7 @@
                 
                 const resetBtn = document.createElement("button");
                 resetBtn.className = "action-btn reset-btn";
-                resetBtn.innerText = "🔄";
+                resetBtn.innerText = "";
                 resetBtn.title = "恢复该品牌的初始规划区域";
                 resetBtn.onclick = function(e) {
                     e.stopPropagation();
@@ -1036,7 +1135,7 @@
                     templateCube.opacity = targetColor === 'transparent' ? 0 : 1;
                     templateCube.name = '_SHELF_CUBE_';
                     templateCube.z = node.orig_z;
-                    templateCube.text = Array(8).fill(`<b>库位编码: ${locID} 【规划分布】</b><br>📍 货架区域: ${zChar} 货区<br>📦 预设管理品牌: ${targetLabel}`);
+                    templateCube.text = Array(8).fill(`<b>库位编码: ${locID} 【规划分布】</b><br>📍 货架区域: ${zChar} 货区<br> 预设管理品牌: ${targetLabel}`);
                     finalDynamicTraces.push(templateCube);
                 } else {
                     const slices = node.slices || [];
@@ -1055,7 +1154,7 @@
                             else currentZArray[v] = sliceMaxZ;
                         }
                         const sliceColor = GLOBAL_BRAND_COLORS[currentSlice.brand] || currentSlice.color;
-                        let hoverHTML = `<b>库位: ${locID} 【实际库存大盘】</b><br> 局部切片品牌: ${currentSlice.brand}<br>----------------------------<br>`;
+                        let hoverHTML = `<b>库位: ${locID} 【实际库存大盘】</b><br>🎨 局部切片品牌: ${currentSlice.brand}<br>----------------------------<br>`;
                         if (!currentSlice.items || currentSlice.items.length === 0) {
                             hoverHTML += `<i>🫙 当前格子实盘空置</i>`;
                         } else {
