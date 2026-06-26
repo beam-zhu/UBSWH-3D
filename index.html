@@ -78,19 +78,16 @@
     
     <script>
         // =======================================================
-        // 🌟 核心配置 - 请填入您的完整 URL（包括 https://）
+        // 🌟 核心配置 - 请填入您的完整 URL
         // =======================================================
         const PLAN_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vStLtLccpDSfrf_yU_T9WrNcZufN29BqkDsVS2r9ql1INK_61uA8UetkiW4DZ4_dv63o-DHzFz0tOAq/pub?gid=1276542862&single=true&output=csv";
         
         // 🌟 重要：请填入完整的 URL（包括 https:// 开头）
-        // 例如：https://docs.google.com/spreadsheets/d/您的文件ID/export?format=xlsx
         const ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-egK5kKzjLVZx/export?format=xlsx";
         
-        // 🌟 CORS 代理服务列表（按优先级排序，第一个失败会自动尝试下一个）
         const CORS_PROXIES = [
             "https://corsproxy.io/?",
-            "https://api.allorigins.win/raw?url=",
-            "https://cors-anywhere.herokuapp.com/"
+            "https://api.allorigins.win/raw?url="
         ];
         
         const GLOBAL_BRAND_COLORS = {
@@ -150,29 +147,24 @@
         const XWT_ZONE_COL_ORDER = {5: 0, 1: 1, 2: 2, 3: 3, 4: 4};
         const AISLE_GAP = 6.0, SHRINK = 1.0;
         
-        // =======================================================
-        // 🌟 CORS 代理请求函数（自动尝试多个代理）
-        // =======================================================
         async function fetchWithProxy(url, isBinary = false) {
             console.log(`🔗 尝试直接请求: ${url}`);
             
-            // 先尝试直接请求（如果在 GitHub Pages 上运行，可能不需要代理）
             try {
                 const response = await fetch(url);
                 if (response.ok) {
-                    console.log("✅ 直接请求成功（无需代理）");
+                    console.log("✅ 直接请求成功");
                     return isBinary ? await response.arrayBuffer() : await response.text();
                 }
             } catch (e) {
                 console.log("⚠️ 直接请求失败，尝试使用 CORS 代理...");
             }
             
-            // 尝试所有 CORS 代理
             for (let i = 0; i < CORS_PROXIES.length; i++) {
                 const proxy = CORS_PROXIES[i];
                 const proxyUrl = proxy + encodeURIComponent(url);
                 
-                console.log(`🔄 尝试代理 ${i + 1}/${CORS_PROXIES.length}: ${proxy}`);
+                console.log(`🔄 尝试代理 ${i + 1}/${CORS_PROXIES.length}`);
                 
                 try {
                     const response = await fetch(proxyUrl);
@@ -184,23 +176,21 @@
                     
                     const result = isBinary ? await response.arrayBuffer() : await response.text();
                     
-                    // 验证返回的数据是否有效
                     if (isBinary) {
-                        // 检查是否是有效的 xlsx 文件（前 4 字节应该是 PK）
                         const bytes = new Uint8Array(result);
                         if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4B) {
                             console.log(`❌ 代理 ${i + 1} 返回的不是有效的 xlsx 文件`);
                             continue;
                         }
+                        console.log(`✅ 代理 ${i + 1} 成功，文件大小: ${bytes.length} 字节`);
                     } else {
-                        // 检查是否是有效的 CSV（应该包含逗号）
                         if (!result.includes(',')) {
                             console.log(`❌ 代理 ${i + 1} 返回的不是有效的 CSV`);
                             continue;
                         }
+                        console.log(`✅ 代理 ${i + 1} 成功`);
                     }
                     
-                    console.log(`✅ 代理 ${i + 1} 成功`);
                     return result;
                     
                 } catch (e) {
@@ -209,7 +199,7 @@
                 }
             }
             
-            throw new Error("所有 CORS 代理都失败了。请检查网络连接，或将此文件部署到 GitHub Pages。");
+            throw new Error("所有数据源都失败了。请检查网络连接或 URL 配置。");
         }
         
         function getPlannedInfo(zone, col, lvl, isGround = false) {
@@ -458,6 +448,7 @@
             const min_y = Math.min(...locations.map(l => l.Y)) - 25;
             const max_y = Math.max(...locations.map(l => l.Y)) + 25;
             
+            // 地面
             traces.push({
                 type: 'mesh3d',
                 x: [min_x, max_x, max_x, min_x, min_x, max_x, max_x, min_x],
@@ -472,6 +463,49 @@
                 hoverinfo: 'skip'
             });
             
+            // 🌟 边框线（分割线）
+            const border_x = [], border_y = [], border_z = [];
+            locations.forEach(loc => {
+                const is_v = ['H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q'].includes(loc.zone);
+                let cw, cd, h;
+                
+                if (loc.is_ground) {
+                    cw = 2.0 * SHRINK;
+                    cd = 2.0 * SHRINK;
+                    h = LVL_HEIGHT * 0.92;
+                } else {
+                    cw = (is_v ? DEPTH : COL_WIDTH) * 0.47 * SHRINK;
+                    cd = (is_v ? COL_WIDTH : DEPTH) * 0.47 * SHRINK;
+                    h = LVL_HEIGHT * 0.92;
+                }
+                
+                const cx = loc.X, cy = loc.Y, cz = loc.Z;
+                const x0 = cx-cw, x1 = cx+cw, y0 = cy-cd, y1 = cy+cd, z0 = cz, z1 = cz+h;
+                
+                const edges = [
+                    [x0,y0,z0,x1,y0,z0], [x1,y0,z0,x1,y1,z0], [x1,y1,z0,x0,y1,z0], [x0,y1,z0,x0,y0,z0],
+                    [x0,y0,z1,x1,y0,z1], [x1,y0,z1,x1,y1,z1], [x1,y1,z1,x0,y1,z1], [x0,y1,z1,x0,y0,z1],
+                    [x0,y0,z0,x0,y0,z1], [x1,y0,z0,x1,y0,z1], [x1,y1,z0,x1,y1,z1], [x0,y1,z0,x0,y1,z1]
+                ];
+                
+                edges.forEach(e => {
+                    border_x.push(e[0], e[3], null);
+                    border_y.push(e[1], e[4], null);
+                    border_z.push(e[2], e[5], null);
+                });
+            });
+            
+            traces.push({
+                type: 'scatter3d',
+                x: border_x, y: border_y, z: border_z,
+                mode: 'lines',
+                line: {color: '#1E293B', width: 2},
+                hoverinfo: 'skip',
+                showlegend: false,
+                name: '_BORDERS_'
+            });
+            
+            // 货架色块
             locations.forEach(loc => {
                 const is_v = ['H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q'].includes(loc.zone);
                 let cw, cd, h;
@@ -521,6 +555,7 @@
                 }
             });
             
+            // 区域标签
             const ZONE_Z_OFFSET_MAP = {'A': 2.0, 'B': 16.0, 'C': 2.0, 'D': 11.0, 'E': 2.0, 'F': 7.0, 'G': 2.0, 'H': 2.0, 'J': 6.0, 'K': 10.0, 'L': 2.0, 'M': 6.0, 'N': 2.0, 'P': 6.0, 'Q': 2.0, 'T': 2.0, 'W': 6.0, 'X': 10.0, 'Y': 2.0};
             
             const zones = [...new Set(locations.filter(l => !l.is_ground).map(l => l.zone))];
@@ -869,7 +904,7 @@
             } catch (e) {
                 console.error("加载数据失败:", e);
                 document.getElementById('loading-text').innerText = '加载失败';
-                document.getElementById('error-message').innerText = e.message + '\n\n💡 建议：将此文件部署到 GitHub Pages 可以彻底解决 CORS 问题';
+                document.getElementById('error-message').innerText = e.message;
             }
         }
         
