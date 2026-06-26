@@ -1086,9 +1086,13 @@
         
         console.log('💡 提示：在控制台运行 generatePasswordHash("你的新密码") 可以生成新密码的哈希值');
         // =======================================================
-        //  方案 1：自定义双指手势监听 - 增量修复版
+        //  方案 1：自定义双指手势监听 - 终极修复版 (采用您的平移逻辑)
         // =======================================================
         const plotDiv = document.getElementById('plotly-div');
+        
+        // 🌟 核心修复：全局维护最新的相机状态，解决 Plotly 异步更新导致的“回到原点”
+        let liveCamera = null; 
+        let baseCamera = null; // 每次捏合开始时的基准状态
         let startDist = 0;
         let startMid = { x: 0, y: 0 };
         let isPinching = false;
@@ -1104,83 +1108,98 @@
             };
         }
 
+        // 确保 liveCamera 有初始值
+        function ensureLiveCamera() {
+            if (!liveCamera) {
+                const gd = document.getElementById('plotly-div');
+                if (gd && gd.layout && gd.layout.scene && gd.layout.scene.camera) {
+                    liveCamera = JSON.parse(JSON.stringify(gd.layout.scene.camera));
+                } else {
+                    liveCamera = {
+                        eye: { x: -0.8, y: -0.8, z: 3.5 },
+                        center: { x: 0, y: 0, z: 0 },
+                        up: { x: 0, y: 0, z: 1 }
+                    };
+                }
+            }
+        }
+
         plotDiv.addEventListener('touchstart', function(e) {
             if (e.touches.length === 2) {
                 isPinching = true;
                 startDist = getDist(e.touches[0], e.touches[1]);
                 startMid = getMid(e.touches[0], e.touches[1]);
+                
+                ensureLiveCamera();
+                // 🌟 将全局维护的最新状态冻结为本次操作的基准
+                baseCamera = JSON.parse(JSON.stringify(liveCamera));
+                
                 e.preventDefault();
             }
         }, { passive: false });
 
         plotDiv.addEventListener('touchmove', function(e) {
-            if (!isPinching || e.touches.length !== 2) return;
+            if (!isPinching || e.touches.length !== 2 || !baseCamera) return;
             e.preventDefault();
 
             const currDist = getDist(e.touches[0], e.touches[1]);
             const currMid = getMid(e.touches[0], e.touches[1]);
 
-            // 1. 获取 Plotly 当前的最新相机状态（关键：解决回到起点问题）
-            const gd = document.getElementById('plotly-div');
-            if (!gd.layout || !gd.layout.scene || !gd.layout.scene.camera) return;
-            
-            // 深拷贝当前相机，防止修改原始对象
-            let cam = JSON.parse(JSON.stringify(gd.layout.scene.camera));
-            if (!cam.center) cam.center = { x: 0, y: 0, z: 0 };
-            if (!cam.eye) cam.eye = { x: -0.8, y: -0.8, z: 3.5 };
-
-            // 2. 计算增量
             const scale = currDist / startDist;
             const dx = currMid.x - startMid.x;
             const dy = currMid.y - startMid.y;
 
-            // 3. 应用缩放 (限制范围防止画面消失)
-            const safeScale = Math.max(0.5, Math.min(scale, 2.0));
-            
-            const vx = cam.eye.x - cam.center.x;
-            const vy = cam.eye.y - cam.center.y;
-            const vz = cam.eye.z - cam.center.z;
-            
-            cam.eye.x = cam.center.x + vx * safeScale;
-            cam.eye.y = cam.center.y + vy * safeScale;
-            cam.eye.z = cam.center.z + vz * safeScale;
+            let newCam = JSON.parse(JSON.stringify(baseCamera));
 
-            // 4. 应用平移 (修正方向)
-            const sensitivity = 0.005; // 灵敏度，可根据需要微调
-            
-            // 屏幕 X 向右 (dx>0) -> 3D X 向右
-            // 屏幕 Y 向上 (dy<0) -> 3D Y 向上 (所以 dy 前面必须加负号)
-            cam.center.x -= dx * sensitivity;
-            cam.center.y += dy * sensitivity; 
-            cam.eye.x -= dx * sensitivity;
-            cam.eye.y += dy * sensitivity;
+            // --- 1. 处理平移 (完全采用您修改的正确逻辑) ---
+            const sensitivity = 0.005; 
+            newCam.center.x -= dx * sensitivity;
+            newCam.center.y += dy * sensitivity; 
+            newCam.eye.x -= dx * sensitivity;
+            newCam.eye.y += dy * sensitivity;
 
-            // 5. 安全检查：防止 eye 和 center 重合导致画面消失
+            // --- 2. 处理缩放 ---
+            // 限制缩放范围，防止画面消失或无限放大
+            const safeScale = Math.max(0.2, Math.min(scale, 5.0));
+            
+            // 计算【基准状态】下 eye 到 center 的向量
+            const vx = baseCamera.eye.x - baseCamera.center.x;
+            const vy = baseCamera.eye.y - baseCamera.center.y;
+            const vz = baseCamera.eye.z - baseCamera.center.z;
+            
+            // 基于【平移后的新 center】应用缩放向量
+            newCam.eye.x = newCam.center.x + vx * safeScale;
+            newCam.eye.y = newCam.center.y + vy * safeScale;
+            newCam.eye.z = newCam.center.z + vz * safeScale;
+
+            // --- 3. 安全检查 ---
             const dist = Math.hypot(
-                cam.eye.x - cam.center.x,
-                cam.eye.y - cam.center.y,
-                cam.eye.z - cam.center.z
+                newCam.eye.x - newCam.center.x,
+                newCam.eye.y - newCam.center.y,
+                newCam.eye.z - newCam.center.z
             );
-            if (dist < 0.5) {
-                // 如果距离太近，强制把相机向上拉
-                cam.eye.z = cam.center.z + 1.0;
+            if (dist < 0.1) {
+                newCam.eye.z = newCam.center.z + 1.0; 
             }
 
-            // 6. 更新 Plotly
+            // --- 4. 更新全局状态和 Plotly ---
+            liveCamera = newCam; // 🌟 同步更新全局状态，彻底解决“回到原点”
+
+            // 🌟 使用极度扁平化的键名更新 Plotly，强制触发重绘，确保缩放生效
             Plotly.relayout('plotly-div', {
-                'scene.camera.eye': cam.eye,
-                'scene.camera.center': cam.center
+                'scene.camera.eye.x': newCam.eye.x,
+                'scene.camera.eye.y': newCam.eye.y,
+                'scene.camera.eye.z': newCam.eye.z,
+                'scene.camera.center.x': newCam.center.x,
+                'scene.camera.center.y': newCam.center.y,
+                'scene.camera.center.z': newCam.center.z
             });
-
-            // 7. 更新起始点（关键：实现平滑的增量移动）
-            startDist = currDist;
-            startMid = currMid;
-
         }, { passive: false });
 
         plotDiv.addEventListener('touchend', function(e) {
             if (e.touches.length < 2) {
                 isPinching = false;
+                baseCamera = null; 
             }
         }, { passive: false });
     </script>
