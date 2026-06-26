@@ -1151,9 +1151,9 @@
             // 屏幕 X 向右 (dx>0) -> 3D X 向右
             // 屏幕 Y 向上 (dy<0) -> 3D Y 向上 (所以 dy 前面必须加负号)
             cam.center.x += dx * sensitivity;
-            cam.center.y -= dy * sensitivity; 
+            cam.center.y += dy * sensitivity; 
             cam.eye.x += dx * sensitivity;
-            cam.eye.y -= dy * sensitivity;
+            cam.eye.y += dy * sensitivity;
 
             // 5. 安全检查：防止 eye 和 center 重合导致画面消失
             const dist = Math.hypot(
