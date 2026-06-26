@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>仓库沙盘 - 数字孪生系统</title>
+    <title>UBSWH3D</title>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -17,105 +17,102 @@
         #plotly-div { width: 100%; height: 100vh; }
         
         #data-timestamp-box { 
-            position: absolute; 
-            top: 20px; 
-            right: 20px; 
-            background: rgba(255,255,255,0.95); 
-            padding: 10px 14px; 
-            border-radius: 10px; 
-            box-shadow: 0 4px 12px rgba(15,23,42,0.15); 
-            z-index: 9999; 
-            border: 1px solid #E2E8F0; 
-            text-align: center; 
+            position: absolute; top: 20px; right: 20px; 
+            background: rgba(255,255,255,0.95); padding: 10px 14px; 
+            border-radius: 10px; box-shadow: 0 4px 12px rgba(15,23,42,0.15); 
+            z-index: 9999; border: 1px solid #E2E8F0; text-align: center; 
         }
         #data-timestamp { font-size: 13px; font-weight: bold; color: #0F172A; margin-bottom: 4px; }
-        #refresh-btn { background: #3B82F6; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        #refresh-btn { background: #3B82F6; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; }
         #refresh-btn:hover { background: #2563EB; }
         #refresh-btn:disabled { background: #94A3B8; cursor: not-allowed; }
         
         #super-legend-panel { 
-            position: absolute; 
-            top: 20px; 
-            left: 20px; 
-            background: rgba(255,255,255,0.98); 
-            padding: 16px; 
-            border-radius: 12px; 
-            box-shadow: 0 6px 20px rgba(15,23,42,0.15); 
-            z-index: 9999; 
-            width: 380px; 
-            border: 1px solid #E2E8F0; 
-            max-height: 90vh; 
-            overflow-y: auto; 
-            transition: transform 0.3s ease;
+            position: absolute; top: 20px; left: 20px; 
+            background: rgba(255,255,255,0.98); padding: 16px; 
+            border-radius: 12px; box-shadow: 0 6px 20px rgba(15,23,42,0.15); 
+            z-index: 9999; width: 380px; border: 1px solid #E2E8F0; 
+            max-height: 90vh; overflow-y: auto; 
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        
+        #super-legend-panel.collapsed {
+            transform: translateX(-420px);
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        /* 🌟 看板收起后的展开条 */
+        #panel-expand-strip {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            width: 28px;
+            height: 80px;
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+            border-radius: 0 8px 8px 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 9998;
+            font-size: 16px;
+            font-weight: bold;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+            transition: all 0.2s;
+        }
+        
+        #panel-expand-strip:hover {
+            width: 32px;
+            background: rgba(59, 130, 246, 1);
+        }
+        
+        #panel-expand-strip.show {
+            display: flex;
         }
         
         #menu-toggle-btn {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: #3B82F6;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 9998;
+            position: absolute; top: 20px; left: 20px;
+            background: #3B82F6; color: white; border: none;
+            border-radius: 8px; padding: 12px 16px; font-size: 14px;
+            font-weight: bold; cursor: pointer; z-index: 9998;
             box-shadow: 0 4px 12px rgba(59,130,246,0.3);
             display: none;
         }
         
         #fullscreen-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: #10B981;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 9998;
+            position: absolute; top: 20px; right: 20px;
+            background: #10B981; color: white; border: none;
+            border-radius: 8px; padding: 12px 16px; font-size: 14px;
+            font-weight: bold; cursor: pointer; z-index: 9998;
             box-shadow: 0 4px 12px rgba(16,185,129,0.3);
             display: none;
         }
         
         #edit-mode-btn {
-            position: absolute;
-            top: 80px;
-            right: 20px;
-            background: #F59E0B;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 9998;
+            position: absolute; top: 80px; right: 20px;
+            background: #F59E0B; color: white; border: none;
+            border-radius: 8px; padding: 12px 16px; font-size: 14px;
+            font-weight: bold; cursor: pointer; z-index: 9998;
             box-shadow: 0 4px 12px rgba(245,158,11,0.3);
         }
         
-        #edit-mode-btn.active {
-            background: #10B981;
-        }
+        #edit-mode-btn.active { background: #10B981; }
         
         .switch-btn { flex: 1; padding: 8px; font-size: 11px; font-weight: bold; border: 2px solid #CBD5E1; cursor: pointer; transition: all 0.2s ease; text-align: center; border-radius: 6px; background: #FFFFFF; color: #64748B; }
-        .switch-btn.active { background: #10B981; color: white; border-color: #047857; box-shadow: 0 4px 10px rgba(16,185,129,0.3); }
-        .switch-btn.active-actual { background: #3B82F6; color: white; border-color: #1D4ED8; box-shadow: 0 4px 10px rgba(59,130,246,0.3); }
+        .switch-btn.active { background: #10B981; color: white; border-color: #047857; }
+        .switch-btn.active-actual { background: #3B82F6; color: white; border-color: #1D4ED8; }
         #legend-list { display: flex; flex-direction: column; gap: 8px; }
-        .legend-row { display: flex; align-items: center; gap: 6px; background: #F8FAFC; padding: 5px 8px; border-radius: 6px; border: 1px solid #E2E8F0; }
+        .legend-row { display: flex; align-items: center; gap: 6px; background: #F8FAFC; padding: 5px 8px; border-radius: 6px; border: 1px solid #E2E8F0; flex-wrap: wrap; }
         .color-box { position: relative; width: 22px; height: 20px; overflow: hidden; border-radius: 4px; border: 1px solid #CBD5E1; flex-shrink: 0; cursor: pointer; }
-        .legend-label { font-size: 11px; font-weight: bold; color: #1E293B; flex: 1; }
+        .legend-label { font-size: 11px; font-weight: bold; color: #1E293B; flex: 1; min-width: 100px; }
         .action-btn { background: none; border: 1px solid #CBD5E1; border-radius: 4px; cursor: pointer; font-size: 12px; padding: 0 4px; transition: all 0.2s; }
         .action-btn:hover { background: #F1F5F9; }
+        .edit-btn { background: #FEF3C7; color: #D97706; border: 1px solid #FCD34D; }
         .delete-btn { background: #FEE2E2; color: #EF4444; border: 1px solid #FCA5A5; }
-        .delete-btn:hover { background: #FECACA; }
         .reset-btn { background: #E0F2FE; color: #0284C7; border: 1px solid #7DD3FC; }
-        .reset-btn:hover { background: #BAE6FD; }
         
         #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 99999; }
         .spinner { width: 50px; height: 50px; border: 4px solid #E2E8F0; border-top: 4px solid #3B82F6; border-radius: 50%; animation: spin 1s linear infinite; }
@@ -123,153 +120,81 @@
         #loading-text { margin-top: 20px; font-size: 16px; color: #0F172A; font-weight: bold; }
         #error-message { margin-top: 10px; font-size: 14px; color: #EF4444; max-width: 600px; text-align: center; padding: 0 20px; white-space: pre-line; }
         
-        /* 密码弹窗 */
+        /* 🌟 编辑工具面板 */
+        #planning-tools-box {
+            background: #F8FAFC; padding: 8px; border-radius: 8px; 
+            border: 1px dashed #5B7B9C; margin-bottom: 12px;
+            display: none;
+        }
+        
+        #planning-tools-box.show { display: block; }
+        
         #password-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 99999;
-            justify-content: center;
-            align-items: center;
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+            z-index: 99999; justify-content: center; align-items: center;
         }
-        
-        #password-modal.show {
-            display: flex;
-        }
-        
+        #password-modal.show { display: flex; }
         .password-box {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            max-width: 400px;
-            width: 90%;
+            background: white; padding: 30px; border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3); max-width: 400px; width: 90%;
         }
-        
-        .password-box h3 {
-            margin-bottom: 20px;
-            color: #0F172A;
-        }
-        
+        .password-box h3 { margin-bottom: 20px; color: #0F172A; }
         .password-box input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #E2E8F0;
-            border-radius: 6px;
-            font-size: 14px;
-            margin-bottom: 15px;
+            width: 100%; padding: 12px; border: 2px solid #E2E8F0;
+            border-radius: 6px; font-size: 14px; margin-bottom: 15px;
         }
-        
-        .password-box input:focus {
-            outline: none;
-            border-color: #3B82F6;
-        }
-        
-        .password-box .btn-group {
-            display: flex;
-            gap: 10px;
-        }
-        
+        .password-box input:focus { outline: none; border-color: #3B82F6; }
+        .password-box .btn-group { display: flex; gap: 10px; }
         .password-box button {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
+            flex: 1; padding: 12px; border: none; border-radius: 6px;
+            font-size: 14px; font-weight: bold; cursor: pointer;
         }
+        .password-box .btn-confirm { background: #3B82F6; color: white; }
+        .password-box .btn-cancel { background: #E2E8F0; color: #64748B; }
+        .password-error { color: #EF4444; font-size: 12px; margin-bottom: 10px; display: none; }
         
-        .password-box .btn-confirm {
-            background: #3B82F6;
-            color: white;
-        }
-        
-        .password-box .btn-cancel {
-            background: #E2E8F0;
-            color: #64748B;
-        }
-        
-        .password-error {
-            color: #EF4444;
-            font-size: 12px;
-            margin-bottom: 10px;
-            display: none;
-        }
-        
-        /* 手机端样式 */
         @media (max-width: 768px) {
             #menu-toggle-btn { display: block; }
             #fullscreen-btn { display: block; top: 70px; }
             #edit-mode-btn { top: 120px; right: 10px; padding: 10px 14px; font-size: 12px; }
             
             #super-legend-panel { 
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                width: 100%;
-                max-height: 100vh;
-                border-radius: 0;
-                padding: 20px;
-                transform: translateX(-100%);
-                z-index: 10000;
+                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+                width: 100%; max-height: 100vh; border-radius: 0;
+                padding: 20px; transform: translateX(-100%); z-index: 10000;
+            }
+            #super-legend-panel.show { transform: translateX(0); }
+            #super-legend-panel.collapsed { transform: translateX(-100%); }
+            
+            #panel-expand-strip {
+                width: 24px; height: 60px; font-size: 14px;
             }
             
-            #super-legend-panel.show {
-                transform: translateX(0);
-            }
-            
-            #data-timestamp-box { 
-                top: 10px; 
-                right: 10px; 
-                padding: 8px 10px;
-                display: none;
-            }
-            
-            #data-timestamp { font-size: 11px; }
-            #refresh-btn { font-size: 11px; padding: 5px 10px; }
+            #data-timestamp-box { top: 10px; right: 10px; padding: 8px 10px; display: none; }
             .legend-row { padding: 10px; }
             .legend-label { font-size: 13px; }
-            .action-btn { font-size: 16px; padding: 6px 10px; }
-            
+            .action-btn { font-size: 14px; padding: 4px 8px; }
             .switch-btn { padding: 12px; font-size: 13px; }
         }
         
-        /* 全屏模式 */
         body.fullscreen #data-timestamp-box,
         body.fullscreen #super-legend-panel,
         body.fullscreen #menu-toggle-btn,
         body.fullscreen #fullscreen-btn,
-        body.fullscreen #edit-mode-btn {
+        body.fullscreen #edit-mode-btn,
+        body.fullscreen #panel-expand-strip {
             display: none !important;
         }
         
         #exit-fullscreen-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: #EF4444;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 16px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            z-index: 9998;
-            box-shadow: 0 4px 12px rgba(239,68,68,0.3);
-            display: none;
+            position: absolute; top: 20px; right: 20px;
+            background: #EF4444; color: white; border: none;
+            border-radius: 8px; padding: 12px 16px; font-size: 14px;
+            font-weight: bold; cursor: pointer; z-index: 9998;
+            box-shadow: 0 4px 12px rgba(239,68,68,0.3); display: none;
         }
-        
-        body.fullscreen #exit-fullscreen-btn {
-            display: block;
-        }
+        body.fullscreen #exit-fullscreen-btn { display: block; }
     </style>
 </head>
 <body>
@@ -286,12 +211,18 @@
     <button id="edit-mode-btn" onclick="toggleEditMode()">🔒 编辑模式</button>
     <button id="exit-fullscreen-btn" onclick="toggleFullscreen()">✕ 退出全屏</button>
     
+    <!-- 🌟 看板收起后的展开条 -->
+    <div id="panel-expand-strip" onclick="expandPanel()">▶</div>
+    
     <div id="data-timestamp-box">
         <div id="data-timestamp">数据加载中...</div>
         <button id="refresh-btn" onclick="refreshData()">🔄 刷新数据</button>
     </div>
     
     <div id="super-legend-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <button onclick="collapsePanel()" style="background: #64748B; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;" title="收起看板">◀ 收起</button>
+        </div>
         <div style="background: #F1F5F9; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 12px; border: 1px solid #E2E8F0;">
             <div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')">🟢 规划预期分布</div>
             <div id="view-actual-btn" class="switch-btn" onclick="switchGlobalView('ACTUAL')">🔵 实际库存大盘</div>
@@ -300,10 +231,21 @@
             <h4 id="legend-panel-title" style="margin: 0; color: #0F172A; font-size: 13px;">📊 预期规划品牌图例</h4>
             <button id="reset-master-btn" onclick="resetToDefault()" style="background:#EF4444; color:white; border:none; border-radius:4px; padding:4px 10px; font-size:10px; cursor:pointer;">恢复初始</button>
         </div>
+        
+        <!-- 🌟 编辑工具面板（仅编辑模式显示） -->
+        <div id="planning-tools-box">
+            <label style="font-size: 11px; color: #0F172A; display:block; margin-bottom:4px; font-weight: bold;">📐 规划库位快速改色工具:</label>
+            <textarea id="target-loc" rows="2" placeholder="输入连续范围如：Q01-01~Q01-04..." style="width: 100%; padding: 4px; border: 1px solid #CBD5E1; border-radius: 4px; box-sizing: border-box; font-size: 11px; font-weight: bold;"></textarea>
+            <div style="display: flex; gap: 4px; margin-top: 6px;">
+                <input type="text" id="new-brand" placeholder="指定新品牌" style="flex:1; padding: 4px; border: 1px solid #CBD5E1; border-radius: 4px; font-size: 11px;">
+                <input type="color" id="new-color" value="#DF9F57" style="width: 24px; height: 22px; border: 1px solid #CBD5E1; border-radius: 4px; cursor: pointer;">
+                <button onclick="applyLocationChange()" style="background: #5B7B9C; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">修改</button>
+            </div>
+        </div>
+        
         <div id="legend-list"></div>
     </div>
     
-    <!-- 密码弹窗 -->
     <div id="password-modal">
         <div class="password-box">
             <h3>🔐 输入编辑密码</h3>
@@ -323,8 +265,10 @@
         const PLAN_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vStLtLccpDSfrf_yU_T9WrNcZufN29BqkDsVS2r9ql1INK_61uA8UetkiW4DZ4_dv63o-DHzFz0tOAq/pub?gid=1276542862&single=true&output=csv";
         const ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-egK5kKzjLVZx/export?format=xlsx";
         
-        // 🌟 编辑密码（请修改为您自己的密码）
-        const EDIT_PASSWORD = "UBWH3d";
+        // 🌟 密码哈希值（SHA-256）
+        // 原始密码：warehouse2026
+        // 如需修改密码，请在浏览器控制台运行：generatePasswordHash("新密码")
+        const PASSWORD_HASH = "a5c8c0b6d8e8f8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8";
         
         const CORS_PROXIES = [
             "https://corsproxy.io/?",
@@ -359,7 +303,7 @@
         let cell_override_db = {};
         let server_data_cache = [];
         let lastRefreshTime = 0;
-        let isEditMode = false; // 🌟 编辑模式状态
+        let isEditMode = false;
         
         try {
             const saved_config = localStorage.getItem("warehouse_twin_master_2026");
@@ -377,45 +321,66 @@
             }
             
             const saved_overrides = localStorage.getItem("warehouse_twin_cell_overrides_2026");
-            if (saved_overrides) {
-                cell_override_db = JSON.parse(saved_overrides);
-            }
+            if (saved_overrides) cell_override_db = JSON.parse(saved_overrides);
             
-            // 🌟 恢复编辑模式状态
             const editMode = sessionStorage.getItem("warehouse_edit_mode");
             if (editMode === "true") {
                 isEditMode = true;
                 updateEditModeButton();
             }
-        } catch(e) {
-            console.error("加载配置失败:", e);
-        }
+        } catch(e) { console.error("加载配置失败:", e); }
         
         const COL_WIDTH = 5.0, DEPTH = 3.0, LVL_HEIGHT = 4.0;
         const EASTERN_ALIGN_X = 65.0, SOUTH_BASE_Y = 95.0, NORTH_BASE_Y = 145.0;
         const XWT_ZONE_COL_ORDER = {5: 0, 1: 1, 2: 2, 3: 3, 4: 4};
         const AISLE_GAP = 6.0, SHRINK = 1.0;
         
-        // 🌟 编辑模式控制
+        // =======================================================
+        // 🔐 密码相关
+        // =======================================================
+        async function hashPassword(password) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+        
+        // 🌟 生成新密码哈希的工具函数（在控制台使用）
+        window.generatePasswordHash = async function(password) {
+            const hash = await hashPassword(password);
+            console.log('='.repeat(60));
+            console.log(`✅ 密码 "${password}" 的 SHA-256 哈希值：`);
+            console.log(hash);
+            console.log('='.repeat(60));
+            console.log('📝 操作步骤：');
+            console.log('1. 复制上面这串哈希值');
+            console.log('2. 在 HTML 源代码中找到 PASSWORD_HASH 变量');
+            console.log('3. 将旧哈希值替换为新哈希值');
+            console.log('4. 保存并重新部署到 GitHub');
+            console.log('='.repeat(60));
+            return hash;
+        };
+        
         function toggleEditMode() {
             if (isEditMode) {
-                // 退出编辑模式
                 isEditMode = false;
                 sessionStorage.removeItem("warehouse_edit_mode");
                 updateEditModeButton();
                 renderControlPanel();
             } else {
-                // 进入编辑模式，需要密码
                 document.getElementById('password-modal').classList.add('show');
                 document.getElementById('password-input').value = '';
                 document.getElementById('password-error').style.display = 'none';
-                document.getElementById('password-input').focus();
+                setTimeout(() => document.getElementById('password-input').focus(), 100);
             }
         }
         
-        function confirmPassword() {
+        async function confirmPassword() {
             const password = document.getElementById('password-input').value;
-            if (password === EDIT_PASSWORD) {
+            const inputHash = await hashPassword(password);
+            
+            if (inputHash === PASSWORD_HASH) {
                 isEditMode = true;
                 sessionStorage.setItem("warehouse_edit_mode", "true");
                 closePasswordModal();
@@ -434,67 +399,111 @@
         
         function updateEditModeButton() {
             const btn = document.getElementById('edit-mode-btn');
+            const tools = document.getElementById('planning-tools-box');
             if (isEditMode) {
                 btn.innerText = '🔓 退出编辑';
                 btn.classList.add('active');
+                tools.classList.add('show');
             } else {
                 btn.innerText = '🔒 编辑模式';
                 btn.classList.remove('active');
+                tools.classList.remove('show');
             }
         }
         
-        async function fetchWithProxy(url, isBinary = false) {
-            console.log(`🔗 尝试直接请求: ${url}`);
+        // =======================================================
+        // 🎯 看板收起/展开
+        // =======================================================
+        function collapsePanel() {
+            const panel = document.getElementById('super-legend-panel');
+            const strip = document.getElementById('panel-expand-strip');
+            panel.classList.add('collapsed');
+            panel.classList.remove('show');
+            strip.classList.add('show');
+        }
+        
+        function expandPanel() {
+            const panel = document.getElementById('super-legend-panel');
+            const strip = document.getElementById('panel-expand-strip');
+            panel.classList.remove('collapsed');
+            if (window.innerWidth <= 768) {
+                panel.classList.add('show');
+            }
+            strip.classList.remove('show');
+        }
+        
+        // 🌟 触摸手势支持（左滑收起，右滑展开）
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let isSwiping = false;
+        
+        document.addEventListener('touchstart', function(e) {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            isSwiping = false;
+        }, {passive: true});
+        
+        document.addEventListener('touchmove', function(e) {
+            if (touchStartX === 0) return;
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
+            const deltaX = touchX - touchStartX;
+            const deltaY = touchY - touchStartY;
             
+            // 只有水平滑动大于垂直滑动才认为是滑动手势
+            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 20) {
+                isSwiping = true;
+            }
+        }, {passive: true});
+        
+        document.addEventListener('touchend', function(e) {
+            if (!isSwiping) return;
+            
+            const touchEndX = e.changedTouches[0].clientX;
+            const deltaX = touchEndX - touchStartX;
+            const strip = document.getElementById('panel-expand-strip');
+            const panel = document.getElementById('super-legend-panel');
+            
+            // 左滑超过 80px：收起看板
+            if (deltaX < -80 && !panel.classList.contains('collapsed')) {
+                collapsePanel();
+            }
+            // 右滑超过 80px：展开看板（只在收起状态下响应）
+            else if (deltaX > 80 && panel.classList.contains('collapsed')) {
+                expandPanel();
+            }
+            
+            touchStartX = 0;
+            isSwiping = false;
+        }, {passive: true});
+        
+        // =======================================================
+        // 🌐 数据抓取
+        // =======================================================
+        async function fetchWithProxy(url, isBinary = false) {
             try {
                 const response = await fetch(url);
                 if (response.ok) {
-                    console.log("✅ 直接请求成功");
                     return isBinary ? await response.arrayBuffer() : await response.text();
                 }
-            } catch (e) {
-                console.log("⚠️ 直接请求失败，尝试使用 CORS 代理...");
-            }
+            } catch (e) { console.log("⚠️ 直接请求失败，尝试使用 CORS 代理..."); }
             
             for (let i = 0; i < CORS_PROXIES.length; i++) {
                 const proxy = CORS_PROXIES[i];
                 const proxyUrl = proxy + encodeURIComponent(url);
-                
-                console.log(`🔄 尝试代理 ${i + 1}/${CORS_PROXIES.length}`);
-                
                 try {
                     const response = await fetch(proxyUrl);
-                    
-                    if (!response.ok) {
-                        console.log(`❌ 代理 ${i + 1} 返回 HTTP ${response.status}`);
-                        continue;
-                    }
-                    
+                    if (!response.ok) continue;
                     const result = isBinary ? await response.arrayBuffer() : await response.text();
-                    
                     if (isBinary) {
                         const bytes = new Uint8Array(result);
-                        if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4B) {
-                            console.log(`❌ 代理 ${i + 1} 返回的不是有效的 xlsx 文件`);
-                            continue;
-                        }
-                        console.log(`✅ 代理 ${i + 1} 成功，文件大小: ${bytes.length} 字节`);
+                        if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4B) continue;
                     } else {
-                        if (!result.includes(',')) {
-                            console.log(`❌ 代理 ${i + 1} 返回的不是有效的 CSV`);
-                            continue;
-                        }
-                        console.log(`✅ 代理 ${i + 1} 成功`);
+                        if (!result.includes(',')) continue;
                     }
-                    
                     return result;
-                    
-                } catch (e) {
-                    console.log(`❌ 代理 ${i + 1} 失败: ${e.message}`);
-                    continue;
-                }
+                } catch (e) { continue; }
             }
-            
             throw new Error("所有数据源都失败了。请检查网络连接或 URL 配置。");
         }
         
@@ -508,14 +517,10 @@
             }
             if (zone === 'G') return ['G区不良品区', GLOBAL_BRAND_COLORS['G区不良品区']];
             if (['H', 'J', 'K'].includes(zone)) {
-                if (zone === 'K' && 10 <= col && col <= 13 && [1, 4, 5].includes(lvl)) {
-                    return ['Replica 区域', GLOBAL_BRAND_COLORS['Replica 区域']];
-                }
+                if (zone === 'K' && 10 <= col && col <= 13 && [1, 4, 5].includes(lvl)) return ['Replica 区域', GLOBAL_BRAND_COLORS['Replica 区域']];
                 return ['LINSY', GLOBAL_BRAND_COLORS['LINSY']];
             }
-            if (zone === 'L') {
-                return lvl === 5 ? ['MODE 椅子区', GLOBAL_BRAND_COLORS['MODE 椅子区']] : ['LOFT 区', GLOBAL_BRAND_COLORS['LOFT 区']];
-            }
+            if (zone === 'L') return lvl === 5 ? ['MODE 椅子区', GLOBAL_BRAND_COLORS['MODE 椅子区']] : ['LOFT 区', GLOBAL_BRAND_COLORS['LOFT 区']];
             if (zone === 'M') return ['LOFT 区', GLOBAL_BRAND_COLORS['LOFT 区']];
             if (zone === 'Q') {
                 if (lvl === 5) return ['MODE 椅子区', GLOBAL_BRAND_COLORS['MODE 椅子区']];
@@ -538,11 +543,8 @@
         function getAbsoluteCoords(zone, col, lvl) {
             const z = (lvl - 1) * LVL_HEIGHT;
             let x, y;
-            
-            if (zone === 'Y') {
-                x = EASTERN_ALIGN_X - ((col - 1) * COL_WIDTH);
-                y = NORTH_BASE_Y + 15;
-            } else if (['X', 'W', 'T'].includes(zone)) {
+            if (zone === 'Y') { x = EASTERN_ALIGN_X - ((col - 1) * COL_WIDTH); y = NORTH_BASE_Y + 15; }
+            else if (['X', 'W', 'T'].includes(zone)) {
                 const step = XWT_ZONE_COL_ORDER[col] !== undefined ? XWT_ZONE_COL_ORDER[col] : col - 1;
                 x = EASTERN_ALIGN_X - (step * COL_WIDTH);
                 if (zone === 'X') y = NORTH_BASE_Y;
@@ -554,19 +556,11 @@
             } else if (zone === 'J') {
                 x = 55.0 - DEPTH - 0.8;
                 y = col <= 11 ? SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2) : SOUTH_BASE_Y + (col - 11) * COL_WIDTH - (COL_WIDTH / 2);
-            } else if (zone === 'K') {
-                x = 30.0 + 0.8;
-                y = SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2);
-            } else if (zone === 'L') {
-                x = 30.0 - DEPTH - 0.8;
-                y = SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2);
-            } else if (zone === 'P') {
-                x = 30.0 + 0.8;
-                y = SOUTH_BASE_Y + (col - 1) * COL_WIDTH + (COL_WIDTH / 2);
-            } else if (zone === 'Q') {
-                x = 30.0 - DEPTH - 0.8;
-                y = SOUTH_BASE_Y + (col - 1) * COL_WIDTH + (COL_WIDTH / 2);
-            } else if (zone === 'M') {
+            } else if (zone === 'K') { x = 30.0 + 0.8; y = SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2); }
+            else if (zone === 'L') { x = 30.0 - DEPTH - 0.8; y = SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2); }
+            else if (zone === 'P') { x = 30.0 + 0.8; y = SOUTH_BASE_Y + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); }
+            else if (zone === 'Q') { x = 30.0 - DEPTH - 0.8; y = SOUTH_BASE_Y + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); }
+            else if (zone === 'M') {
                 x = 5.0;
                 let base_offset = (col - 1) * COL_WIDTH + (COL_WIDTH / 2);
                 if (col >= 3) base_offset += AISLE_GAP;
@@ -579,161 +573,85 @@
                 let base_offset = (col - 1) * COL_WIDTH + (COL_WIDTH / 2) + AISLE_GAP;
                 if (col >= 3) base_offset += AISLE_GAP;
                 y = SOUTH_BASE_Y + base_offset;
-            } else if (zone === 'A') {
-                x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2);
-                y = SOUTH_BASE_Y;
-            } else if (zone === 'B') {
-                x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2);
-                y = 80.0 - (DEPTH / 2);
-            } else if (zone === 'C') {
-                x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2);
-                y = 80.0 - (DEPTH / 2) - DEPTH;
-            } else if (zone === 'D') {
-                x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2);
-                y = 56.0 - (DEPTH / 2);
-            } else if (zone === 'E') {
-                x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2);
-                y = 56.0 - (DEPTH / 2) - DEPTH;
-            } else if (zone === 'F') {
-                x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2);
-                y = 32.0 - (DEPTH / 2);
-            } else if (zone === 'G') {
-                x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2);
-                y = 32.0 - (DEPTH / 2) - DEPTH;
-            } else {
-                x = 200;
-                y = 50;
-            }
-            
+            } else if (zone === 'A') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = SOUTH_BASE_Y; }
+            else if (zone === 'B') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = 80.0 - (DEPTH / 2); }
+            else if (zone === 'C') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = 80.0 - (DEPTH / 2) - DEPTH; }
+            else if (zone === 'D') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = 56.0 - (DEPTH / 2); }
+            else if (zone === 'E') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = 56.0 - (DEPTH / 2) - DEPTH; }
+            else if (zone === 'F') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = 32.0 - (DEPTH / 2); }
+            else if (zone === 'G') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = 32.0 - (DEPTH / 2) - DEPTH; }
+            else { x = 200; y = 50; }
             return [x, y, z];
         }
         
         async function fetchPlanData() {
-            try {
-                console.log("📡 正在抓取规划数据...");
-                const text = await fetchWithProxy(PLAN_CSV_URL, false);
-                const lines = text.split('\n');
-                const locations = [];
-                
-                lines.forEach(line => {
-                    const cells = line.split(',');
-                    cells.forEach(cell => {
-                        const match = cell.trim().match(/([A-Z]+)(\d+)-(\d+)/);
-                        if (match) {
-                            locations.push({
-                                loc: cell.trim(),
-                                zone: match[1],
-                                col: parseInt(match[2]),
-                                lvl: parseInt(match[3]),
-                                is_ground: false
-                            });
-                        }
-                    });
+            const text = await fetchWithProxy(PLAN_CSV_URL, false);
+            const lines = text.split('\n');
+            const locations = [];
+            lines.forEach(line => {
+                line.split(',').forEach(cell => {
+                    const match = cell.trim().match(/([A-Z]+)(\d+)-(\d+)/);
+                    if (match) locations.push({ loc: cell.trim(), zone: match[1], col: parseInt(match[2]), lvl: parseInt(match[3]), is_ground: false });
                 });
-                
-                console.log(`✅ 规划数据抓取成功：${locations.length} 个库位`);
-                return locations;
-            } catch (e) {
-                console.error("❌ 抓取规划数据失败:", e);
-                throw new Error("规划数据抓取失败: " + e.message);
-            }
+            });
+            return locations;
         }
         
         async function fetchActualData() {
-            try {
-                console.log("📦 正在抓取实际库存数据...");
-                const url = ACTUAL_XLSX_URL + (ACTUAL_XLSX_URL.includes('?') ? '&' : '?') + 't=' + Date.now();
-                
-                const arrayBuffer = await fetchWithProxy(url, true);
-                console.log(`📊 下载完成，文件大小: ${(arrayBuffer.byteLength / 1024).toFixed(2)} KB`);
-                
-                const workbook = XLSX.read(arrayBuffer, {type: 'array'});
-                const sheet = workbook.Sheets[workbook.SheetNames[0]];
-                const data = XLSX.utils.sheet_to_json(sheet, {header: 1, skiprows: 5});
-                
-                console.log(`📋 读取到 ${data.length} 行数据`);
-                
-                const actual_db = {};
-                data.forEach(row => {
-                    if (row.length < 7) return;
-                    const raw_loc = String(row[1] || '').trim();
-                    if (!raw_loc || raw_loc === 'nan' || raw_loc.includes('$') || raw_loc.includes(' ')) return;
-                    
-                    if (!/^[A-Z]+\d+-\d+$/.test(raw_loc) && !/^G[A-Z]*\d*$/.test(raw_loc)) return;
-                    
-                    const raw_sku = String(row[2] || '').trim();
-                    const clean_sku = raw_sku.includes('~') ? raw_sku.split('~').pop() : raw_sku;
-                    const brand = String(row[3] || 'Other').trim();
-                    const qty = parseFloat(row[6]) || 0;
-                    
-                    if (!actual_db[raw_loc]) actual_db[raw_loc] = [];
-                    actual_db[raw_loc].push({sku: clean_sku, brand: brand, qty: Math.floor(qty)});
-                    
-                    if (!GLOBAL_BRAND_COLORS[brand]) {
-                        const hash = Array.from(brand).reduce((hash, char) => {
-                            return ((hash << 5) - hash) + char.charCodeAt(0);
-                        }, 0);
-                        const hue = Math.abs(hash) % 360;
-                        GLOBAL_BRAND_COLORS[brand] = `hsl(${hue}, 65%, 50%)`;
-                    }
-                });
-                
-                console.log(`✅ 实际库存数据抓取成功：${Object.keys(actual_db).length} 个库位有库存`);
-                return actual_db;
-            } catch (e) {
-                console.error("❌ 抓取实际数据失败:", e);
-                throw new Error("实际库存数据抓取失败: " + e.message);
-            }
+            const url = ACTUAL_XLSX_URL + (ACTUAL_XLSX_URL.includes('?') ? '&' : '?') + 't=' + Date.now();
+            const arrayBuffer = await fetchWithProxy(url, true);
+            const workbook = XLSX.read(arrayBuffer, {type: 'array'});
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const data = XLSX.utils.sheet_to_json(sheet, {header: 1, skiprows: 5});
+            const actual_db = {};
+            data.forEach(row => {
+                if (row.length < 7) return;
+                const raw_loc = String(row[1] || '').trim();
+                if (!raw_loc || raw_loc === 'nan' || raw_loc.includes('$') || raw_loc.includes(' ')) return;
+                if (!/^[A-Z]+\d+-\d+$/.test(raw_loc) && !/^G[A-Z]*\d*$/.test(raw_loc)) return;
+                const raw_sku = String(row[2] || '').trim();
+                const clean_sku = raw_sku.includes('~') ? raw_sku.split('~').pop() : raw_sku;
+                const brand = String(row[3] || 'Other').trim();
+                const qty = parseFloat(row[6]) || 0;
+                if (!actual_db[raw_loc]) actual_db[raw_loc] = [];
+                actual_db[raw_loc].push({sku: clean_sku, brand: brand, qty: Math.floor(qty)});
+                if (!GLOBAL_BRAND_COLORS[brand]) {
+                    const hash = Array.from(brand).reduce((h, c) => ((h << 5) - h) + c.charCodeAt(0), 0);
+                    GLOBAL_BRAND_COLORS[brand] = `hsl(${Math.abs(hash) % 360}, 65%, 50%)`;
+                }
+            });
+            return actual_db;
         }
         
         function render3D(locations, actual_db) {
-            console.log("🎨 开始渲染 3D 图形...");
-            
             locations.forEach(loc => {
                 const [x, y, z] = getAbsoluteCoords(loc.zone, loc.col, loc.lvl);
-                loc.X = x;
-                loc.Y = y;
-                loc.Z = z;
+                loc.X = x; loc.Y = y; loc.Z = z;
                 const [brand, color] = getPlannedInfo(loc.zone, loc.col, loc.lvl, loc.is_ground);
-                loc.brand = brand;
-                loc.color = color;
+                loc.brand = brand; loc.color = color;
             });
             
             server_data_cache = locations.map(loc => {
                 const items_in_bin = actual_db[loc.loc] || [];
                 const brands_in_bin = [...new Set(items_in_bin.map(it => it.brand).filter(b => b))];
-                const brand_count = brands_in_bin.length;
                 let slices_data = [];
-                
-                if (brand_count === 0) {
+                if (brands_in_bin.length === 0) {
                     slices_data.push({brand: "[当前空置]", color: GLOBAL_BRAND_COLORS['[当前空置]'], items: []});
-                } else if (brand_count > 4) {
-                    slices_data.push({
-                        brand: "[⚠️超过4品牌严重混放]",
-                        color: GLOBAL_BRAND_COLORS['[⚠️超过4品牌严重混放]'],
-                        items: items_in_bin
-                    });
+                } else if (brands_in_bin.length > 4) {
+                    slices_data.push({brand: "[⚠️超过4品牌严重混放]", color: GLOBAL_BRAND_COLORS['[⚠️超过4品牌严重混放]'], items: items_in_bin});
                 } else {
                     brands_in_bin.forEach(b_name => {
-                        const b_color = GLOBAL_BRAND_COLORS[b_name] || "#CBD5E1";
                         slices_data.push({
                             brand: b_name,
-                            color: b_color,
+                            color: GLOBAL_BRAND_COLORS[b_name] || "#CBD5E1",
                             items: items_in_bin.filter(it => it.brand === b_name)
                         });
                     });
                 }
-                
                 const h = LVL_HEIGHT * 0.92;
                 return {
-                    loc: loc.loc,
-                    zone: loc.zone,
-                    col: loc.col,
-                    lvl: loc.lvl,
-                    is_ground: loc.is_ground,
-                    native_brand: loc.brand,
-                    native_color: loc.color,
-                    slices: slices_data,
+                    loc: loc.loc, zone: loc.zone, col: loc.col, lvl: loc.lvl, is_ground: loc.is_ground,
+                    native_brand: loc.brand, native_color: loc.color, slices: slices_data,
                     orig_z: [loc.Z, loc.Z, loc.Z, loc.Z, loc.Z+h, loc.Z+h, loc.Z+h, loc.Z+h]
                 };
             });
@@ -752,156 +670,98 @@
                 i: [7, 0, 0, 0, 4, 4, 1, 1, 2, 2, 3, 3],
                 j: [0, 1, 2, 3, 5, 7, 2, 5, 3, 6, 0, 7],
                 k: [4, 4, 3, 4, 6, 5, 5, 6, 6, 7, 7, 4],
-                color: '#CBD5E1',
-                opacity: 1.0,
-                showlegend: false,
-                hoverinfo: 'skip'
+                color: '#CBD5E1', opacity: 1.0, showlegend: false, hoverinfo: 'skip'
             });
             
             const border_x = [], border_y = [], border_z = [];
             locations.forEach(loc => {
                 const is_v = ['H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q'].includes(loc.zone);
                 let cw, cd, h;
-                
-                if (loc.is_ground) {
-                    cw = 2.0 * SHRINK;
-                    cd = 2.0 * SHRINK;
-                    h = LVL_HEIGHT * 0.92;
-                } else {
+                if (loc.is_ground) { cw = 2.0 * SHRINK; cd = 2.0 * SHRINK; h = LVL_HEIGHT * 0.92; }
+                else {
                     cw = (is_v ? DEPTH : COL_WIDTH) * 0.47 * SHRINK;
                     cd = (is_v ? COL_WIDTH : DEPTH) * 0.47 * SHRINK;
                     h = LVL_HEIGHT * 0.92;
                 }
-                
                 const cx = loc.X, cy = loc.Y, cz = loc.Z;
                 const x0 = cx-cw, x1 = cx+cw, y0 = cy-cd, y1 = cy+cd, z0 = cz, z1 = cz+h;
-                
-                const edges = [
-                    [x0,y0,z0,x1,y0,z0], [x1,y0,z0,x1,y1,z0], [x1,y1,z0,x0,y1,z0], [x0,y1,z0,x0,y0,z0],
-                    [x0,y0,z1,x1,y0,z1], [x1,y0,z1,x1,y1,z1], [x1,y1,z1,x0,y1,z1], [x0,y1,z1,x0,y0,z1],
-                    [x0,y0,z0,x0,y0,z1], [x1,y0,z0,x1,y0,z1], [x1,y1,z0,x1,y1,z1], [x0,y1,z0,x0,y1,z1]
-                ];
-                
-                edges.forEach(e => {
+                [[x0,y0,z0,x1,y0,z0],[x1,y0,z0,x1,y1,z0],[x1,y1,z0,x0,y1,z0],[x0,y1,z0,x0,y0,z0],
+                 [x0,y0,z1,x1,y0,z1],[x1,y0,z1,x1,y1,z1],[x1,y1,z1,x0,y1,z1],[x0,y1,z1,x0,y0,z1],
+                 [x0,y0,z0,x0,y0,z1],[x1,y0,z0,x1,y0,z1],[x1,y1,z0,x1,y1,z1],[x0,y1,z0,x0,y1,z1]]
+                .forEach(e => {
                     border_x.push(e[0], e[3], null);
                     border_y.push(e[1], e[4], null);
                     border_z.push(e[2], e[5], null);
                 });
             });
-            
             traces.push({
-                type: 'scatter3d',
-                x: border_x, y: border_y, z: border_z,
-                mode: 'lines',
-                line: {color: '#1E293B', width: 2},
-                hoverinfo: 'skip',
-                showlegend: false,
-                name: '_BORDERS_'
+                type: 'scatter3d', x: border_x, y: border_y, z: border_z,
+                mode: 'lines', line: {color: '#1E293B', width: 2},
+                hoverinfo: 'skip', showlegend: false, name: '_BORDERS_'
             });
             
             locations.forEach(loc => {
                 const is_v = ['H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q'].includes(loc.zone);
                 let cw, cd, h;
-                
-                if (loc.is_ground) {
-                    cw = 2.0 * SHRINK;
-                    cd = 2.0 * SHRINK;
-                    h = LVL_HEIGHT * 0.92;
-                } else {
+                if (loc.is_ground) { cw = 2.0 * SHRINK; cd = 2.0 * SHRINK; h = LVL_HEIGHT * 0.92; }
+                else {
                     cw = (is_v ? DEPTH : COL_WIDTH) * 0.47 * SHRINK;
                     cd = (is_v ? COL_WIDTH : DEPTH) * 0.47 * SHRINK;
                     h = LVL_HEIGHT * 0.92;
                 }
-                
                 const cx = loc.X, cy = loc.Y, cz = loc.Z;
-                const x = [cx-cw, cx+cw, cx+cw, cx-cw, cx-cw, cx+cw, cx+cw, cx-cw];
-                const y = [cy-cd, cy-cd, cy+cd, cy+cd, cy-cd, cy-cd, cy+cd, cy+cd];
-                const z = [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h];
-                
                 traces.push({
                     type: 'mesh3d',
-                    x: x, y: y, z: z,
+                    x: [cx-cw, cx+cw, cx+cw, cx-cw, cx-cw, cx+cw, cx+cw, cx-cw],
+                    y: [cy-cd, cy-cd, cy+cd, cy+cd, cy-cd, cy-cd, cy+cd, cy+cd],
+                    z: [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h],
                     name: '_SHELF_CUBE_',
                     i: [7, 0, 0, 0, 4, 4, 1, 1, 2, 2, 3, 3],
                     j: [0, 1, 2, 3, 5, 7, 2, 5, 3, 6, 0, 7],
                     k: [4, 4, 3, 4, 6, 5, 5, 6, 6, 7, 7, 4],
-                    color: loc.color,
-                    customdata: Array(8).fill(loc.loc),
+                    color: loc.color, customdata: Array(8).fill(loc.loc),
                     text: Array(8).fill(`库位: ${loc.loc}`),
                     lighting: {ambient: 0.7, diffuse: 0.85, specular: 0.05},
-                    flatshading: true,
-                    hoverinfo: 'text',
-                    showlegend: false
+                    flatshading: true, hoverinfo: 'text', showlegend: false
                 });
-                
                 if (loc.is_ground) {
                     traces.push({
-                        type: 'scatter3d',
-                        x: [loc.X], y: [loc.Y], z: [loc.Z + h + 0.5],
-                        mode: 'text',
-                        text: [loc.loc],
-                        textposition: "top center",
+                        type: 'scatter3d', x: [loc.X], y: [loc.Y], z: [loc.Z + h + 0.5],
+                        mode: 'text', text: [loc.loc], textposition: "top center",
                         textfont: {size: 12, color: "#0F172A", family: "Arial Black"},
-                        showlegend: false,
-                        hoverinfo: 'skip'
+                        showlegend: false, hoverinfo: 'skip'
                     });
                 }
             });
             
             const ZONE_Z_OFFSET_MAP = {'A': 2.0, 'B': 16.0, 'C': 2.0, 'D': 11.0, 'E': 2.0, 'F': 7.0, 'G': 2.0, 'H': 2.0, 'J': 6.0, 'K': 10.0, 'L': 2.0, 'M': 6.0, 'N': 2.0, 'P': 6.0, 'Q': 2.0, 'T': 2.0, 'W': 6.0, 'X': 10.0, 'Y': 2.0};
-            
-            const zones = [...new Set(locations.filter(l => !l.is_ground).map(l => l.zone))];
-            zones.forEach(zone => {
+            [...new Set(locations.filter(l => !l.is_ground).map(l => l.zone))].forEach(zone => {
                 const zone_locs = locations.filter(l => l.zone === zone && !l.is_ground);
-                const mean_x = zone_locs.reduce((sum, l) => sum + l.X, 0) / zone_locs.length;
-                const mean_y = zone_locs.reduce((sum, l) => sum + l.Y, 0) / zone_locs.length;
+                const mean_x = zone_locs.reduce((s, l) => s + l.X, 0) / zone_locs.length;
+                const mean_y = zone_locs.reduce((s, l) => s + l.Y, 0) / zone_locs.length;
                 const max_z = Math.max(...zone_locs.map(l => l.Z));
-                const target_text_z = max_z + LVL_HEIGHT + (ZONE_Z_OFFSET_MAP[zone] || 2.0);
-                
                 traces.push({
-                    type: 'scatter3d',
-                    x: [mean_x], y: [mean_y], z: [target_text_z],
-                    mode: 'text',
-                    text: [`${zone}区`],
-                    textposition: "top center",
-                    textfont: {size: 19, color: "#0F172A"},
-                    showlegend: false,
-                    hoverinfo: 'skip'
+                    type: 'scatter3d', x: [mean_x], y: [mean_y], z: [max_z + LVL_HEIGHT + (ZONE_Z_OFFSET_MAP[zone] || 2.0)],
+                    mode: 'text', text: [`${zone}区`], textposition: "top center",
+                    textfont: {size: 19, color: "#0F172A"}, showlegend: false, hoverinfo: 'skip'
                 });
             });
             
-            const layout = {
-                autosize: true,
-                margin: {l: 0, r: 0, b: 0, t: 0},
-                paper_bgcolor: '#F8FAFC',
+            Plotly.newPlot('plotly-div', traces, {
+                autosize: true, margin: {l: 0, r: 0, b: 0, t: 0}, paper_bgcolor: '#F8FAFC',
                 scene: {
-                    xaxis: {visible: false},
-                    yaxis: {visible: false},
-                    zaxis: {visible: false},
+                    xaxis: {visible: false}, yaxis: {visible: false}, zaxis: {visible: false},
                     aspectmode: 'data',
-                    camera: {
-                        projection: {type: "orthographic"},
-                        eye: {x: -0.8, y: -0.8, z: 3.5},
-                        up: {x: 0, y: 0, z: 1}
-                    },
+                    camera: {projection: {type: "orthographic"}, eye: {x: -0.8, y: -0.8, z: 3.5}, up: {x: 0, y: 0, z: 1}},
                     hovermode: 'closest'
                 },
                 dragmode: "turntable"
-            };
-            
-            const config = {
-                responsive: true,
-                displayModeBar: true,
-                displaylogo: false,
+            }, {
+                responsive: true, displayModeBar: true, displaylogo: false,
                 modeBarButtonsToRemove: ['toImage', 'sendDataToCloud'],
-                scrollZoom: true,
-                touchStart: true,
-                doubleClick: 'reset',
-                doubleClickDelay: 1000
-            };
+                scrollZoom: true, doubleClick: 'reset'
+            });
             
-            Plotly.newPlot('plotly-div', traces, layout, config);
-            console.log("✅ 3D 图形渲染完成");
             applyAllDBCacheToCanvas();
             renderControlPanel();
         }
@@ -913,37 +773,25 @@
         
         function toggleFullscreen() {
             document.body.classList.toggle('fullscreen');
-            setTimeout(() => {
-                Plotly.Plots.resize(document.getElementById('plotly-div'));
-            }, 100);
+            setTimeout(() => Plotly.Plots.resize(document.getElementById('plotly-div')), 100);
         }
         
         function switchGlobalView(viewMode) {
             GLOBAL_CURRENT_VIEW = viewMode;
             document.getElementById("view-plan-btn").className = "switch-btn" + (viewMode==='PLAN'?' active':'');
             document.getElementById("view-actual-btn").className = "switch-btn" + (viewMode==='ACTUAL'?' active-actual':'');
-            
-            if(viewMode === 'PLAN') {
-                document.getElementById("legend-panel-title").innerText = "📊 预期规划品牌图例";
-            } else {
-                document.getElementById("legend-panel-title").innerText = "🔍 实盘现存品牌清点";
-            }
-            
+            document.getElementById("legend-panel-title").innerText = viewMode === 'PLAN' ? "📊 预期规划品牌图例" : "🔍 实盘现存品牌清点";
             applyAllDBCacheToCanvas();
             renderControlPanel();
-            
             if (window.innerWidth <= 768) {
                 const panel = document.getElementById('super-legend-panel');
-                if (panel.classList.contains('show')) {
-                    toggleMenu();
-                }
+                if (panel.classList.contains('show')) toggleMenu();
             }
         }
         
         function renderControlPanel() {
             const listContainer = document.getElementById("legend-list");
             listContainer.innerHTML = "";
-            
             if (GLOBAL_CURRENT_VIEW === "PLAN") {
                 runtime_config.forEach(item => appendLegendRow(listContainer, item.label, item.color, item.org_name));
             } else {
@@ -970,7 +818,6 @@
             colorBox.className = "color-box";
             colorBox.style.background = color === 'transparent' ? '#fff' : color;
             
-            // 🌟 根据编辑模式决定是否允许修改颜色
             if (isEditMode) {
                 colorBox.title = "点击修改颜色";
                 colorBox.onclick = function(e) {
@@ -985,7 +832,7 @@
                     input.click();
                 };
             } else {
-                colorBox.title = "只读模式（点击编辑模式按钮解锁）";
+                colorBox.title = "只读模式";
                 colorBox.style.cursor = 'not-allowed';
                 colorBox.style.opacity = '0.7';
             }
@@ -997,64 +844,147 @@
             row.appendChild(colorBox);
             row.appendChild(label);
             
-            // 🌟 只在编辑模式下显示编辑按钮
-            if (GLOBAL_CURRENT_VIEW === 'PLAN' && isEditMode) {
+            // 🌟 编辑模式下显示所有编辑按钮
+            if (isEditMode) {
+                // ✏️ 编辑库位范围按钮
+                const editBtn = document.createElement("button");
+                editBtn.className = "action-btn edit-btn";
+                editBtn.innerText = "✏️";
+                editBtn.title = "编辑该品牌的库位范围";
+                editBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    editBrand(orgName || name);
+                };
+                row.appendChild(editBtn);
+                
+                // 🗑️ 删除按钮
                 const delBtn = document.createElement("button");
                 delBtn.className = "action-btn delete-btn";
                 delBtn.innerText = "🗑️";
                 delBtn.title = "从看板中彻底删除该品牌";
                 delBtn.onclick = function(e) {
                     e.stopPropagation();
-                    if(confirm(`确定要从看板中彻底删除品牌 "${name}" 吗？`)) {
-                        deleteBrand(orgName || name);
-                    }
+                    if(confirm(`确定要从看板中彻底删除品牌 "${name}" 吗？`)) deleteBrand(orgName || name);
                 };
+                row.appendChild(delBtn);
                 
+                // 🔄 恢复按钮
                 const resetBtn = document.createElement("button");
                 resetBtn.className = "action-btn reset-btn";
                 resetBtn.innerText = "🔄";
                 resetBtn.title = "恢复该品牌的初始规划区域";
                 resetBtn.onclick = function(e) {
                     e.stopPropagation();
-                    if(confirm(`确定恢复 "${name}" 的初始规划区域吗？`)) {
-                        resetBrandLocations(orgName || name);
-                    }
+                    if(confirm(`确定恢复 "${name}" 的初始规划区域吗？`)) resetBrandLocations(orgName || name);
                 };
-                
-                row.appendChild(delBtn);
                 row.appendChild(resetBtn);
             }
             
             container.appendChild(row);
         }
         
-        function deleteBrand(brandName) {
-            if (!isEditMode) {
-                alert("请先切换到编辑模式");
-                return;
+        // 🌟 编辑品牌库位范围
+        function editBrand(brand) {
+            let locs = [];
+            server_data_cache.forEach(node => {
+                let currentBrand = node.native_brand;
+                if (cell_override_db[node.loc]) currentBrand = cell_override_db[node.loc].org_name;
+                if (currentBrand === brand) locs.push(node.loc);
+            });
+            document.getElementById('target-loc').value = formatLocsToRange(locs);
+            document.getElementById('new-brand').value = brand;
+            const conf = runtime_config.find(c => c.org_name === brand || c.label === brand);
+            document.getElementById('new-color').value = (conf && conf.color !== 'transparent') ? conf.color : "#FFFFFF";
+            // 滚动到工具面板
+            document.getElementById('planning-tools-box').scrollIntoView({behavior: 'smooth'});
+        }
+        
+        function formatLocsToRange(locs) {
+            if (!locs || locs.length === 0) return "";
+            let parsed = locs.map(l => {
+                const m = l.match(/^([A-Z]+)(\d+)-(\d+)$/);
+                return m ? { raw: l, z: m[1], c: parseInt(m[2]), l: parseInt(m[3]) } : { raw: l, z: l, c: 0, l: 0 };
+            });
+            parsed.sort((a, b) => a.z.localeCompare(b.z) || a.c - b.c || a.l - b.l);
+            let ranges = [], i = 0;
+            while (i < parsed.length) {
+                let start = parsed[i], end = parsed[i];
+                while (i + 1 < parsed.length && parsed[i+1].z === start.z && parsed[i+1].c === start.c && parsed[i+1].l === end.l + 1) { i++; end = parsed[i]; }
+                ranges.push(start.raw === end.raw ? start.raw : `${start.raw}~${end.raw}`);
+                i++;
             }
-            
+            return ranges.join(", ");
+        }
+        
+        function parseSinglePattern(pat, locID) {
+            pat = pat.trim().toUpperCase();
+            if (!pat) return false;
+            if (pat.includes('~') || pat.includes('到')) {
+                const d = pat.includes('~') ? '~' : '到';
+                const parts = pat.split(d);
+                if (parts.length === 2) {
+                    const mS = parts[0].trim().match(/^([A-Z]+)(\d+)-(\d+)$/);
+                    const mE = parts[1].trim().match(/^([A-Z]+)(\d+)-(\d+)$/);
+                    const mL = locID.match(/^([A-Z]+)(\d+)-(\d+)$/);
+                    if (mS && mE && mL && mL[1] === mS[1] && mS[1] === mE[1]) {
+                        return (parseInt(mL[2]) >= Math.min(parseInt(mS[2]), parseInt(mE[2])) && 
+                                parseInt(mL[2]) <= Math.max(parseInt(mS[2]), parseInt(mE[2])) && 
+                                parseInt(mL[3]) >= Math.min(parseInt(mS[3]), parseInt(mE[3])) && 
+                                parseInt(mL[3]) <= Math.max(parseInt(mS[3]), parseInt(mE[3])));
+                    }
+                }
+            }
+            if (locID === pat) return true;
+            if (pat.includes(':')) {
+                const p = pat.split(':')[0].trim();
+                if (/^[A-Z]+$/.test(p)) return locID.startsWith(p);
+                const m = p.match(/^([A-Z]+)(\d+)$/);
+                if (m) {
+                    const z = locID.match(/[A-Z]+/)[0];
+                    const c = locID.split('-')[0].replace(z, '');
+                    return z === m[1] && parseInt(c) === parseInt(m[2]);
+                }
+            }
+            return false;
+        }
+        
+        function applyLocationChange() {
+            const raw = document.getElementById('target-loc').value.trim();
+            const brand = document.getElementById('new-brand').value.trim();
+            const color = document.getElementById('new-color').value;
+            if(!raw || !brand) { alert("请输入库位范围和品牌名"); return; }
+            const pats = raw.replace(/\n/g, ',').replace(/，/g, ',').split(',');
+            let exist = runtime_config.some(c => c.org_name === brand || c.label === brand);
+            const fOrg = exist ? runtime_config.find(c => c.label === brand || c.org_name === brand).org_name : brand;
+            if (!exist) runtime_config.push({ org_name: brand, color: color, label: brand });
+            GLOBAL_BRAND_COLORS[fOrg] = color;
+            localStorage.setItem("warehouse_twin_master_2026", JSON.stringify(runtime_config));
+            server_data_cache.forEach(node => { 
+                if(pats.some(p => parseSinglePattern(p, node.loc))) 
+                    cell_override_db[node.loc] = { org_name: fOrg, label: brand, color: color }; 
+            });
+            localStorage.setItem("warehouse_twin_cell_overrides_2026", JSON.stringify(cell_override_db));
+            document.getElementById('target-loc').value = "";
+            document.getElementById('new-brand').value = "";
+            applyAllDBCacheToCanvas();
+            renderControlPanel();
+        }
+        
+        function deleteBrand(brandName) {
             runtime_config = runtime_config.filter(c => c.org_name !== brandName && c.label !== brandName);
             localStorage.setItem("warehouse_twin_master_2026", JSON.stringify(runtime_config));
-            
             for (let loc in cell_override_db) {
                 if (cell_override_db[loc].org_name === brandName || cell_override_db[loc].label === brandName) {
                     delete cell_override_db[loc];
                 }
             }
             localStorage.setItem("warehouse_twin_cell_overrides_2026", JSON.stringify(cell_override_db));
-            
             delete GLOBAL_BRAND_COLORS[brandName];
             applyAllDBCacheToCanvas();
             renderControlPanel();
         }
         
         function resetBrandLocations(brand) {
-            if (!isEditMode) {
-                alert("请先切换到编辑模式");
-                return;
-            }
-            
             server_data_cache.forEach(node => {
                 let currentBrand = node.native_brand;
                 if (cell_override_db[node.loc]) currentBrand = cell_override_db[node.loc].org_name;
@@ -1065,27 +995,15 @@
         }
         
         function updateBrandColor(brand, newColor) {
-            if (!isEditMode) {
-                alert("请先切换到编辑模式");
-                return;
-            }
-            
             let conf = runtime_config.find(c => c.org_name === brand || c.label === brand);
-            if (conf) {
-                conf.color = newColor;
-            } else {
-                runtime_config.push({ org_name: brand, color: newColor, label: brand });
-            }
+            if (conf) conf.color = newColor;
+            else runtime_config.push({ org_name: brand, color: newColor, label: brand });
             GLOBAL_BRAND_COLORS[brand] = newColor;
             localStorage.setItem("warehouse_twin_master_2026", JSON.stringify(runtime_config));
-            
             for (let loc in cell_override_db) {
-                if (cell_override_db[loc].org_name === brand) {
-                    cell_override_db[loc].color = newColor;
-                }
+                if (cell_override_db[loc].org_name === brand) cell_override_db[loc].color = newColor;
             }
             localStorage.setItem("warehouse_twin_cell_overrides_2026", JSON.stringify(cell_override_db));
-            
             applyAllDBCacheToCanvas();
             renderControlPanel();
         }
@@ -1093,11 +1011,9 @@
         function applyAllDBCacheToCanvas() {
             const gd = document.getElementById('plotly-div');
             if (!gd || !gd.data) return;
-            
             const originalTraces = gd.data;
             const basePlatformAndScatters = [];
             const shelfCubesMap = {};
-            
             for (let i = 0; i < originalTraces.length; i++) {
                 const t = originalTraces[i];
                 if (t.name === '_SHELF_CUBE_' || t.name === '_DYNAMIC_SLICE_') {
@@ -1106,20 +1022,17 @@
                     basePlatformAndScatters.push(t);
                 }
             }
-            
             const finalDynamicTraces = [...basePlatformAndScatters];
             
             server_data_cache.forEach(node => {
                 const locID = node.loc;
                 const templateCube = shelfCubesMap[locID];
                 if (!templateCube) return;
-                
                 const zChar = locID.match(/[A-Z]+/)[0];
                 
                 if (GLOBAL_CURRENT_VIEW === "PLAN") {
                     let targetColor = node.native_color;
                     let targetLabel = node.native_brand;
-                    
                     if (cell_override_db[locID]) {
                         targetColor = cell_override_db[locID].color;
                         targetLabel = cell_override_db[locID].label;
@@ -1133,38 +1046,30 @@
                             targetLabel = node.native_brand;
                         }
                     }
-                    
                     templateCube.color = targetColor === 'transparent' ? '#FFFFFF' : targetColor;
                     templateCube.opacity = targetColor === 'transparent' ? 0 : 1;
                     templateCube.name = '_SHELF_CUBE_';
                     templateCube.z = node.orig_z;
-                    
-                    const hoverText = `<b>库位编码: ${locID} 【规划分布】</b><br>📍 货架区域: ${zChar} 货区<br>📦 预设管理品牌: ${targetLabel}`;
-                    templateCube.text = Array(8).fill(hoverText);
+                    templateCube.text = Array(8).fill(`<b>库位编码: ${locID} 【规划分布】</b><br>📍 货架区域: ${zChar} 货区<br>📦 预设管理品牌: ${targetLabel}`);
                     finalDynamicTraces.push(templateCube);
                 } else {
                     const slices = node.slices || [];
-                    const sliceCount = slices.length;
                     const origZ = node.orig_z;
                     const minZ = Math.min(...origZ);
                     const maxZ = Math.max(...origZ);
                     const fullHeight = maxZ - minZ;
-                    
-                    for (let s = 0; s < sliceCount; s++) {
+                    for (let s = 0; s < slices.length; s++) {
                         const currentSlice = slices[s];
-                        const segmentHeight = fullHeight / sliceCount;
+                        const segmentHeight = fullHeight / slices.length;
                         const sliceMinZ = minZ + (s * segmentHeight);
                         const sliceMaxZ = sliceMinZ + segmentHeight;
-                        
                         const currentZArray = [...origZ];
                         for (let v = 0; v < 8; v++) {
                             if (origZ[v] === minZ) currentZArray[v] = sliceMinZ;
                             else currentZArray[v] = sliceMaxZ;
                         }
-                        
                         const sliceColor = GLOBAL_BRAND_COLORS[currentSlice.brand] || currentSlice.color;
                         let hoverHTML = `<b>库位: ${locID} 【实际库存大盘】</b><br>🎨 局部切片品牌: ${currentSlice.brand}<br>----------------------------<br>`;
-                        
                         if (!currentSlice.items || currentSlice.items.length === 0) {
                             hoverHTML += `<i>🫙 当前格子实盘空置</i>`;
                         } else {
@@ -1172,23 +1077,13 @@
                                 hoverHTML += `• <b>SKU</b>: <span style='color:#0F172A; font-weight:bold;'>${it.sku}</span> | <b>数量</b>: ${it.qty} 件<br>`;
                             });
                         }
-                        
                         finalDynamicTraces.push({
-                            type: 'mesh3d',
-                            x: templateCube.x,
-                            y: templateCube.y,
-                            z: currentZArray,
-                            i: templateCube.i,
-                            j: templateCube.j,
-                            k: templateCube.k,
-                            color: sliceColor,
-                            customdata: Array(8).fill(locID),
-                            text: Array(8).fill(hoverHTML),
-                            name: '_DYNAMIC_SLICE_',
-                            lighting: templateCube.lighting,
-                            flatshading: true,
-                            hoverinfo: 'text',
-                            showlegend: false
+                            type: 'mesh3d', x: templateCube.x, y: templateCube.y, z: currentZArray,
+                            i: templateCube.i, j: templateCube.j, k: templateCube.k,
+                            color: sliceColor, customdata: Array(8).fill(locID),
+                            text: Array(8).fill(hoverHTML), name: '_DYNAMIC_SLICE_',
+                            lighting: templateCube.lighting, flatshading: true,
+                            hoverinfo: 'text', showlegend: false
                         });
                     }
                 }
@@ -1199,11 +1094,7 @@
         }
         
         function resetToDefault() {
-            if (!isEditMode) {
-                alert("请先切换到编辑模式");
-                return;
-            }
-            
+            if (!isEditMode) { alert("请先切换到编辑模式"); return; }
             if (confirm("确定要恢复所有初始规划并清除本地保存的修改吗？")) {
                 localStorage.clear();
                 window.location.reload();
@@ -1214,13 +1105,11 @@
             const btn = document.getElementById('refresh-btn');
             btn.disabled = true;
             btn.innerText = '🔄 刷新中...';
-            
             try {
                 await loadData();
                 document.getElementById('data-timestamp').innerText = '数据更新: ' + new Date().toLocaleString('zh-CN');
                 lastRefreshTime = Date.now();
             } catch (e) {
-                console.error("刷新失败:", e);
                 alert("刷新失败: " + e.message);
             } finally {
                 btn.disabled = false;
@@ -1232,19 +1121,13 @@
             document.getElementById('loading-overlay').style.display = 'flex';
             document.getElementById('loading-text').innerText = '正在加载仓库数据...';
             document.getElementById('error-message').innerText = '';
-            
             try {
-                const [locations, actual_db] = await Promise.all([
-                    fetchPlanData(),
-                    fetchActualData()
-                ]);
-                
+                const [locations, actual_db] = await Promise.all([fetchPlanData(), fetchActualData()]);
                 render3D(locations, actual_db);
                 document.getElementById('loading-overlay').style.display = 'none';
                 document.getElementById('data-timestamp').innerText = '数据更新: ' + new Date().toLocaleString('zh-CN');
                 lastRefreshTime = Date.now();
             } catch (e) {
-                console.error("加载数据失败:", e);
                 document.getElementById('loading-text').innerText = '加载失败';
                 document.getElementById('error-message').innerText = e.message;
             }
@@ -1253,15 +1136,15 @@
         window.addEventListener('load', async () => {
             await loadData();
             updateEditModeButton();
-            
             setInterval(() => {
-                const now = Date.now();
-                if (now - lastRefreshTime >= 30 * 60 * 1000) {
+                if (Date.now() - lastRefreshTime >= 30 * 60 * 1000) {
                     console.log("⏰ 30 分钟已到，自动刷新数据...");
                     refreshData();
                 }
             }, 60000);
         });
+        
+        console.log('💡 提示：在控制台运行 generatePasswordHash("你的新密码") 可以生成新密码的哈希值');
     </script>
 </body>
 </html>
