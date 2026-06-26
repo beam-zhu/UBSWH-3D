@@ -15,14 +15,8 @@
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; background: #F8FAFC; }
         
-        #plotly-div { width: 100%; height: 100vh; position: relative; }
-        
-        /* 🌟 核心修复：透明覆盖层，用于拦截手势，防止 Plotly 吞掉事件 */
-        #gesture-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 100; display: none; touch-action: none; cursor: grab;
-        }
-        #gesture-overlay:active { cursor: grabbing; }
+        /* 🌟 关键：允许 Plotly 处理触摸事件，启用双指缩放 */
+        #plotly-div { width: 100%; height: 100vh; touch-action: none; }
         
         #data-timestamp-box { 
             position: absolute; top: 20px; right: 20px; 
@@ -171,15 +165,12 @@
         <div id="error-message"></div>
     </div>
     
-    <div id="plotly-div">
-        <!-- 🌟 核心修复：透明覆盖层，放在 plotly-div 内部 -->
-        <div id="gesture-overlay"></div>
-    </div>
+    <div id="plotly-div"></div>
     
     <button id="menu-toggle-btn" onclick="toggleMenu()">☰ 菜单</button>
-    <button id="fullscreen-btn" onclick="toggleFullscreen()">⛶ 全屏</button>
-    <button id="edit-mode-btn" onclick="toggleEditMode()">🔒 编辑模式</button>
-    <button id="exit-fullscreen-btn" onclick="toggleFullscreen()">✕ 退出全屏</button>
+    <button id="fullscreen-btn" onclick="toggleFullscreen()"> 全屏</button>
+    <button id="edit-mode-btn" onclick="toggleEditMode()"> 编辑模式</button>
+    <button id="exit-fullscreen-btn" onclick="toggleFullscreen()"> 退出全屏</button>
     
     <div id="panel-expand-strip" onclick="expandPanel()">▶</div>
     
@@ -227,9 +218,9 @@
     </div>
     
     <div id="mode-controls">
-        <button class="mode-btn active" id="btn-rotate" onclick="setMode('rotate', 'btn-rotate')">🔄 旋转</button>
+        <button class="mode-btn active" id="btn-rotate" onclick="setMode('turntable', 'btn-rotate')">🔄 旋转</button>
         <button class="mode-btn" id="btn-pan" onclick="setMode('pan', 'btn-pan')">✋ 平移</button>
-        <button class="mode-btn" id="btn-zoom" onclick="setMode('zoom', 'btn-zoom')">🔍 缩放</button>
+        <!-- 缩放模式按钮移除，因为双指捏合即可缩放 -->
     </div>
     
     <script>
@@ -394,14 +385,18 @@
         }
         
         function getAbsoluteCoords(zone, col, lvl) {
-            const z = (lvl - 1) * LVL_HEIGHT; let x, y;
-            // 🌟 核心修复：补全 GA, GBC 等地面临时库位的坐标计算
+            // 🌟 修复：如果 lvl 未定义（地面库位），默认为 1
+            if (!lvl) lvl = 1;
+            const z = (lvl - 1) * LVL_HEIGHT; 
+            let x, y;
+            
+            // 🌟 修复：补全 GA, GBC 等地面临时库位的坐标计算
             if (zone.startsWith('GA')) {
-                const num = parseInt(zone.replace('GA', '')) || 1;
+                const num = parseInt(zone.replace('GA', '')) || col;
                 x = 82 + (num - 1) * COL_WIDTH + (COL_WIDTH / 2);
                 y = SOUTH_BASE_Y - 8.0; // 地面库位在货架前方
             } else if (zone.startsWith('GBC')) {
-                const num = parseInt(zone.replace('GBC', '')) || 1;
+                const num = parseInt(zone.replace('GBC', '')) || col;
                 x = 82 + (num - 1) * COL_WIDTH + (COL_WIDTH / 2);
                 y = SOUTH_BASE_Y - 16.0; // GBC 在 GA 更前方
             } else if (zone === 'Y') { x = EASTERN_ALIGN_X - ((col - 1) * COL_WIDTH); y = NORTH_BASE_Y + 15; }
@@ -428,7 +423,22 @@
         async function fetchPlanData() {
             const text = await fetchWithProxy(PLAN_CSV_URL, false);
             const lines = text.split('\n'); const locations = [];
-            lines.forEach(line => { line.split(',').forEach(cell => { const match = cell.trim().match(/([A-Z]+)(\d+)-(\d+)/); if (match) locations.push({ loc: cell.trim(), zone: match[1], col: parseInt(match[2]), lvl: parseInt(match[3]), is_ground: false }); }); });
+            lines.forEach(line => { 
+                line.split(',').forEach(cell => { 
+                    const rawCell = cell.trim();
+                    //  修复：正则兼容 GA1 (无层级) 和 A01-01 (有层级)
+                    const match = rawCell.match(/^([A-Z]+?)(\d+)(?:-(\d+))?$/);
+                    if (match) {
+                        locations.push({ 
+                            loc: rawCell, 
+                            zone: match[1], 
+                            col: parseInt(match[2]), 
+                            lvl: match[3] ? parseInt(match[3]) : 1, // 地面库位默认为第 1 层
+                            is_ground: !match[3] // 如果没有层级后缀，视为地面库位
+                        }); 
+                    } 
+                }); 
+            });
             return locations;
         }
         
@@ -443,7 +453,7 @@
                 if (row.length < 7) return;
                 const raw_loc = String(row[1] || '').trim();
                 if (!raw_loc || raw_loc === 'nan' || raw_loc.includes('$') || raw_loc.includes(' ')) return;
-                // 🌟 兼容 GA/GBC 等地面临时库位格式
+                //  兼容 GA/GBC 等地面临时库位格式
                 if (!/^[A-Z]+\d+-\d+$/.test(raw_loc) && !/^G[A-Z]*\d*$/.test(raw_loc)) return;
                 const raw_sku = String(row[2] || '').trim();
                 const clean_sku = raw_sku.includes('~') ? raw_sku.split('~').pop() : raw_sku;
@@ -505,6 +515,7 @@
             const ZONE_Z_OFFSET_MAP = {'A': 2.0, 'B': 16.0, 'C': 2.0, 'D': 11.0, 'E': 2.0, 'F': 7.0, 'G': 2.0, 'H': 2.0, 'J': 6.0, 'K': 10.0, 'L': 2.0, 'M': 6.0, 'N': 2.0, 'P': 6.0, 'Q': 2.0, 'T': 2.0, 'W': 6.0, 'X': 10.0, 'Y': 2.0};
             [...new Set(locations.filter(l => !l.is_ground).map(l => l.zone))].forEach(zone => {
                 const zone_locs = locations.filter(l => l.zone === zone && !l.is_ground);
+                if (zone_locs.length === 0) return;
                 const mean_x = zone_locs.reduce((s, l) => s + l.X, 0) / zone_locs.length;
                 const mean_y = zone_locs.reduce((s, l) => s + l.Y, 0) / zone_locs.length;
                 const max_z = Math.max(...zone_locs.map(l => l.Z));
@@ -520,92 +531,12 @@
             renderControlPanel();
         }
         
-        // =======================================================
-        // 🌟 终极修复：透明覆盖层方案 (Overlay)
-        // =======================================================
-        let currentMode = 'rotate';
-        const plotDiv = document.getElementById('plotly-div');
-        const overlay = document.getElementById('gesture-overlay');
-        let touchStartPos = { x: 0, y: 0 };
-        let baseCamera = null;
-
+        // 🌟 恢复最简单的模式切换
         function setMode(mode, btnId) {
-            currentMode = mode;
             document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(btnId).classList.add('active');
-            
-            if (mode === 'rotate') {
-                overlay.style.display = 'none'; // 隐藏覆盖层，恢复 Plotly 原生交互和 Hover
-                Plotly.relayout(plotDiv, { 'scene.dragmode': 'turntable' });
-            } else {
-                overlay.style.display = 'block'; // 显示覆盖层，拦截所有手势
-                Plotly.relayout(plotDiv, { 'scene.dragmode': false }); // 禁用 Plotly 原生拖拽
-            }
+            Plotly.relayout('plotly-div', { 'scene.dragmode': mode });
         }
-
-        // 监听覆盖层的触摸事件
-        overlay.addEventListener('touchstart', function(e) {
-            e.preventDefault();
-            if (e.touches.length === 1) {
-                touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                // 冻结当前相机状态作为基准
-                if (plotDiv.layout && plotDiv.layout.scene && plotDiv.layout.scene.camera) {
-                    baseCamera = JSON.parse(JSON.stringify(plotDiv.layout.scene.camera));
-                }
-            }
-        }, { passive: false });
-
-        overlay.addEventListener('touchmove', function(e) {
-            e.preventDefault(); // 阻止浏览器滚动
-            if (e.touches.length !== 1 || !baseCamera) return;
-
-            const currX = e.touches[0].clientX;
-            const currY = e.touches[0].clientY;
-            const dx = currX - touchStartPos.x;
-            const dy = currY - touchStartPos.y;
-
-            let newCam = JSON.parse(JSON.stringify(baseCamera));
-
-            if (currentMode === 'pan') {
-                // 慢速平移 (系数 0.002，比之前慢很多)
-                const speed = 0.002;
-                const moveX = -dx * speed; // 您的方向逻辑
-                const moveY = dy * speed;
-                
-                newCam.center.x += moveX;
-                newCam.center.y += moveY;
-                newCam.eye.x += moveX;
-                newCam.eye.y += moveY;
-            } else if (currentMode === 'zoom') {
-                // 滑动缩放：向上滑 (dy<0) 放大，向下滑 (dy>0) 缩小
-                const zoomSpeed = 0.005;
-                const scale = 1 - dy * zoomSpeed; // 注意这里是减号，因为 dy 向上是负数
-                const safeScale = Math.max(0.2, Math.min(scale, 5.0));
-                
-                const vx = newCam.eye.x - newCam.center.x;
-                const vy = newCam.eye.y - newCam.center.y;
-                const vz = newCam.eye.z - newCam.center.z;
-                
-                newCam.eye.x = newCam.center.x + vx * safeScale;
-                newCam.eye.y = newCam.center.y + vy * safeScale;
-                newCam.eye.z = newCam.center.z + vz * safeScale;
-            }
-
-            // 更新 Plotly
-            Plotly.relayout(plotDiv, {
-                'scene.camera.eye': newCam.eye,
-                'scene.camera.center': newCam.center
-            });
-
-            // 更新起点和基准，实现平滑增量且不跳回原点
-            touchStartPos = { x: currX, y: currY };
-            baseCamera = newCam; 
-        }, { passive: false });
-
-        overlay.addEventListener('touchend', function(e) {
-            e.preventDefault();
-            baseCamera = null;
-        }, { passive: false });
         
         function toggleMenu() { document.getElementById('super-legend-panel').classList.toggle('show'); }
         
@@ -618,7 +549,7 @@
             GLOBAL_CURRENT_VIEW = viewMode;
             document.getElementById("view-plan-btn").className = "switch-btn" + (viewMode==='PLAN'?' active':'');
             document.getElementById("view-actual-btn").className = "switch-btn" + (viewMode==='ACTUAL'?' active-actual':'');
-            document.getElementById("legend-panel-title").innerText = viewMode === 'PLAN' ? "📊 预期规划品牌图例" : "🔍 实盘现存品牌清点";
+            document.getElementById("legend-panel-title").innerText = viewMode === 'PLAN' ? " 预期规划品牌图例" : " 实盘现存品牌清点";
             applyAllDBCacheToCanvas();
             renderControlPanel();
             if (window.innerWidth <= 768) { const panel = document.getElementById('super-legend-panel'); if (panel.classList.contains('show')) toggleMenu(); }
@@ -647,7 +578,7 @@
             if (isEditMode) {
                 const editBtn = document.createElement("button"); editBtn.className = "action-btn edit-btn"; editBtn.innerText = "✏️"; editBtn.title = "编辑该品牌的库位范围"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); }; row.appendChild(editBtn);
                 const delBtn = document.createElement("button"); delBtn.className = "action-btn delete-btn"; delBtn.innerText = "🗑️"; delBtn.title = "从看板中彻底删除该品牌"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`确定要从看板中彻底删除品牌 "${name}" 吗？`)) deleteBrand(orgName || name); }; row.appendChild(delBtn);
-                const resetBtn = document.createElement("button"); resetBtn.className = "action-btn reset-btn"; resetBtn.innerText = "🔄"; resetBtn.title = "恢复该品牌的初始规划区域"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`确定恢复 "${name}" 的初始规划区域吗？`)) resetBrandLocations(orgName || name); }; row.appendChild(resetBtn);
+                const resetBtn = document.createElement("button"); resetBtn.className = "action-btn reset-btn"; resetBtn.innerText = ""; resetBtn.title = "恢复该品牌的初始规划区域"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`确定恢复 "${name}" 的初始规划区域吗？`)) resetBrandLocations(orgName || name); }; row.appendChild(resetBtn);
             }
             container.appendChild(row);
         }
@@ -720,7 +651,7 @@
                     if (cell_override_db[locID]) { targetColor = cell_override_db[locID].color; targetLabel = cell_override_db[locID].label; }
                     else { const parentConf = runtime_config.find(c => c.org_name === node.native_brand); if (parentConf) { targetColor = parentConf.color || GLOBAL_BRAND_COLORS[parentConf.org_name]; targetLabel = parentConf.label; } else { targetColor = GLOBAL_BRAND_COLORS[node.native_brand] || node.native_color; targetLabel = node.native_brand; } }
                     templateCube.color = targetColor === 'transparent' ? '#FFFFFF' : targetColor; templateCube.opacity = targetColor === 'transparent' ? 0 : 1; templateCube.name = '_SHELF_CUBE_'; templateCube.z = node.orig_z;
-                    templateCube.text = Array(8).fill(`<b>库位编码: ${locID} 【规划分布】</b><br>📍 货架区域: ${zChar} 货区<br>📦 预设管理品牌: ${targetLabel}`); finalDynamicTraces.push(templateCube);
+                    templateCube.text = Array(8).fill(`<b>库位编码: ${locID} 【规划分布】</b><br> 货架区域: ${zChar} 货区<br>📦 预设管理品牌: ${targetLabel}`); finalDynamicTraces.push(templateCube);
                 } else {
                     const slices = node.slices || []; const origZ = node.orig_z; const minZ = Math.min(...origZ); const maxZ = Math.max(...origZ); const fullHeight = maxZ - minZ;
                     for (let s = 0; s < slices.length; s++) {
@@ -749,7 +680,7 @@
             try { const [locations, actual_db] = await Promise.all([fetchPlanData(), fetchActualData()]); render3D(locations, actual_db); document.getElementById('loading-overlay').style.display = 'none'; document.getElementById('data-timestamp').innerText = '数据更新: ' + new Date().toLocaleString('zh-CN'); lastRefreshTime = Date.now(); } catch (e) { document.getElementById('loading-text').innerText = '加载失败'; document.getElementById('error-message').innerText = e.message; }
         }
         
-        window.addEventListener('load', async () => { await loadData(); updateEditModeButton(); setInterval(() => { if (Date.now() - lastRefreshTime >= 30 * 60 * 1000) { console.log("⏰ 30 分钟已到，自动刷新数据..."); refreshData(); } }, 60000); });
+        window.addEventListener('load', async () => { await loadData(); updateEditModeButton(); setInterval(() => { if (Date.now() - lastRefreshTime >= 30 * 60 * 1000) { console.log(" 30 分钟已到，自动刷新数据..."); refreshData(); } }, 60000); });
         console.log('💡 提示：在控制台运行 generatePasswordHash("你的新密码") 可以生成新密码的哈希值');
     </script>
 </body>
