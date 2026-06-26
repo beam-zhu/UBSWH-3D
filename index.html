@@ -13,106 +13,39 @@
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; background: #F8FAFC; }
-        #plotly-div { width: 100%; height: 100vh; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; background: #F8FAFC; }
+        #plotly-div { width: 100%; height: 100vh; touch-action: none; } /* 🌟 关键修复：阻止浏览器默认手势干扰 */
         
-        #data-timestamp-box { 
-            position: absolute; top: 20px; right: 20px; 
-            background: rgba(255,255,255,0.95); padding: 10px 14px; 
-            border-radius: 10px; box-shadow: 0 4px 12px rgba(15,23,42,0.15); 
-            z-index: 9999; border: 1px solid #E2E8F0; text-align: center; 
-        }
+        #data-timestamp-box { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.95); padding: 10px 14px; border-radius: 10px; box-shadow: 0 4px 12px rgba(15,23,42,0.15); z-index: 9999; border: 1px solid #E2E8F0; text-align: center; }
         #data-timestamp { font-size: 13px; font-weight: bold; color: #0F172A; margin-bottom: 4px; }
         #refresh-btn { background: #3B82F6; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; }
         #refresh-btn:hover { background: #2563EB; }
         #refresh-btn:disabled { background: #94A3B8; cursor: not-allowed; }
         
-        #super-legend-panel { 
-            position: absolute; top: 20px; left: 20px; 
-            background: rgba(255,255,255,0.98); padding: 16px; 
-            border-radius: 12px; box-shadow: 0 6px 20px rgba(15,23,42,0.15); 
-            z-index: 9999; width: 380px; border: 1px solid #E2E8F0; 
-            max-height: 90vh; overflow-y: auto; 
-            transition: transform 0.3s ease, opacity 0.3s ease;
-        }
+        #super-legend-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.98); padding: 16px; border-radius: 12px; box-shadow: 0 6px 20px rgba(15,23,42,0.15); z-index: 9999; width: 380px; border: 1px solid #E2E8F0; max-height: 90vh; overflow-y: auto; transition: transform 0.3s ease, opacity 0.3s ease; }
+        #super-legend-panel.collapsed { transform: translateX(-420px); opacity: 0; pointer-events: none; }
         
-        #super-legend-panel.collapsed {
-            transform: translateX(-420px);
-            opacity: 0;
-            pointer-events: none;
-        }
+        #panel-expand-strip { position: absolute; top: 50%; left: 0; transform: translateY(-50%); width: 28px; height: 80px; background: rgba(59, 130, 246, 0.9); color: white; border-radius: 0 8px 8px 0; display: none; align-items: center; justify-content: center; cursor: pointer; z-index: 9998; font-size: 16px; font-weight: bold; box-shadow: 2px 0 8px rgba(0,0,0,0.15); }
+        #panel-expand-strip.show { display: flex; }
+        #panel-expand-strip:hover { width: 32px; background: #3B82F6; }
         
-        /* 🌟 看板收起后的展开条 */
-        #panel-expand-strip {
-            position: absolute;
-            top: 50%;
-            left: 0;
-            transform: translateY(-50%);
-            width: 28px;
-            height: 80px;
-            background: rgba(59, 130, 246, 0.9);
-            color: white;
-            border-radius: 0 8px 8px 0;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 9998;
-            font-size: 16px;
-            font-weight: bold;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.15);
-            transition: all 0.2s;
-        }
-        
-        #panel-expand-strip:hover {
-            width: 32px;
-            background: rgba(59, 130, 246, 1);
-        }
-        
-        #panel-expand-strip.show {
-            display: flex;
-        }
-        
-        #menu-toggle-btn {
-            position: absolute; top: 20px; left: 20px;
-            background: #3B82F6; color: white; border: none;
-            border-radius: 8px; padding: 12px 16px; font-size: 14px;
-            font-weight: bold; cursor: pointer; z-index: 9998;
-            box-shadow: 0 4px 12px rgba(59,130,246,0.3);
-            display: none;
-        }
-        
-        #fullscreen-btn {
-            position: absolute; top: 20px; right: 20px;
-            background: #10B981; color: white; border: none;
-            border-radius: 8px; padding: 12px 16px; font-size: 14px;
-            font-weight: bold; cursor: pointer; z-index: 9998;
-            box-shadow: 0 4px 12px rgba(16,185,129,0.3);
-            display: none;
-        }
-        
-        #edit-mode-btn {
-            position: absolute; top: 80px; right: 20px;
-            background: #F59E0B; color: white; border: none;
-            border-radius: 8px; padding: 12px 16px; font-size: 14px;
-            font-weight: bold; cursor: pointer; z-index: 9998;
-            box-shadow: 0 4px 12px rgba(245,158,11,0.3);
-        }
-        
+        #menu-toggle-btn { position: absolute; top: 20px; left: 20px; background: #3B82F6; color: white; border: none; border-radius: 8px; padding: 12px 16px; font-size: 14px; font-weight: bold; cursor: pointer; z-index: 9998; box-shadow: 0 4px 12px rgba(59,130,246,0.3); display: none; }
+        #fullscreen-btn { position: absolute; top: 20px; right: 20px; background: #10B981; color: white; border: none; border-radius: 8px; padding: 12px 16px; font-size: 14px; font-weight: bold; cursor: pointer; z-index: 9998; box-shadow: 0 4px 12px rgba(16,185,129,0.3); display: none; }
+        #edit-mode-btn { position: absolute; top: 80px; right: 20px; background: #F59E0B; color: white; border: none; border-radius: 8px; padding: 12px 16px; font-size: 14px; font-weight: bold; cursor: pointer; z-index: 9998; box-shadow: 0 4px 12px rgba(245,158,11,0.3); }
         #edit-mode-btn.active { background: #10B981; }
         
-        .switch-btn { flex: 1; padding: 8px; font-size: 11px; font-weight: bold; border: 2px solid #CBD5E1; cursor: pointer; transition: all 0.2s ease; text-align: center; border-radius: 6px; background: #FFFFFF; color: #64748B; }
+        .switch-btn { flex: 1; padding: 8px; font-size: 11px; font-weight: bold; border: 2px solid #CBD5E1; cursor: pointer; text-align: center; border-radius: 6px; background: #FFF; color: #64748B; }
         .switch-btn.active { background: #10B981; color: white; border-color: #047857; }
         .switch-btn.active-actual { background: #3B82F6; color: white; border-color: #1D4ED8; }
         #legend-list { display: flex; flex-direction: column; gap: 8px; }
-        .legend-row { display: flex; align-items: center; gap: 6px; background: #F8FAFC; padding: 5px 8px; border-radius: 6px; border: 1px solid #E2E8F0; flex-wrap: wrap; }
+        .legend-row { display: flex; align-items: center; gap: 6px; background: #F8FAFC; padding: 5px 8px; border-radius: 6px; border: 1px solid #E2E8F0; }
         .color-box { position: relative; width: 22px; height: 20px; overflow: hidden; border-radius: 4px; border: 1px solid #CBD5E1; flex-shrink: 0; cursor: pointer; }
         .legend-label { font-size: 11px; font-weight: bold; color: #1E293B; flex: 1; min-width: 100px; }
-        .action-btn { background: none; border: 1px solid #CBD5E1; border-radius: 4px; cursor: pointer; font-size: 12px; padding: 0 4px; transition: all 0.2s; }
+        .action-btn { background: none; border: 1px solid #CBD5E1; border-radius: 4px; cursor: pointer; font-size: 12px; padding: 0 4px; }
         .action-btn:hover { background: #F1F5F9; }
-        .edit-btn { background: #FEF3C7; color: #D97706; border: 1px solid #FCD34D; }
-        .delete-btn { background: #FEE2E2; color: #EF4444; border: 1px solid #FCA5A5; }
-        .reset-btn { background: #E0F2FE; color: #0284C7; border: 1px solid #7DD3FC; }
+        .edit-btn { background: #FEF3C7; color: #D97706; border-color: #FCD34D; }
+        .delete-btn { background: #FEE2E2; color: #EF4444; border-color: #FCA5A5; }
+        .reset-btn { background: #E0F2FE; color: #0284C7; border-color: #7DD3FC; }
         
         #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 99999; }
         .spinner { width: 50px; height: 50px; border: 4px solid #E2E8F0; border-top: 4px solid #3B82F6; border-radius: 50%; animation: spin 1s linear infinite; }
@@ -120,57 +53,29 @@
         #loading-text { margin-top: 20px; font-size: 16px; color: #0F172A; font-weight: bold; }
         #error-message { margin-top: 10px; font-size: 14px; color: #EF4444; max-width: 600px; text-align: center; padding: 0 20px; white-space: pre-line; }
         
-        /* 🌟 编辑工具面板 */
-        #planning-tools-box {
-            background: #F8FAFC; padding: 8px; border-radius: 8px; 
-            border: 1px dashed #5B7B9C; margin-bottom: 12px;
-            display: none;
-        }
-        
+        #planning-tools-box { background: #F8FAFC; padding: 8px; border-radius: 8px; border: 1px dashed #5B7B9C; margin-bottom: 12px; display: none; }
         #planning-tools-box.show { display: block; }
         
-        #password-modal {
-            display: none; position: fixed; top: 0; left: 0;
-            width: 100%; height: 100%; background: rgba(0,0,0,0.5);
-            z-index: 99999; justify-content: center; align-items: center;
-        }
+        #password-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 99999; justify-content: center; align-items: center; }
         #password-modal.show { display: flex; }
-        .password-box {
-            background: white; padding: 30px; border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3); max-width: 400px; width: 90%;
-        }
+        .password-box { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.3); max-width: 400px; width: 90%; }
         .password-box h3 { margin-bottom: 20px; color: #0F172A; }
-        .password-box input {
-            width: 100%; padding: 12px; border: 2px solid #E2E8F0;
-            border-radius: 6px; font-size: 14px; margin-bottom: 15px;
-        }
+        .password-box input { width: 100%; padding: 12px; border: 2px solid #E2E8F0; border-radius: 6px; font-size: 14px; margin-bottom: 15px; box-sizing: border-box; }
         .password-box input:focus { outline: none; border-color: #3B82F6; }
         .password-box .btn-group { display: flex; gap: 10px; }
-        .password-box button {
-            flex: 1; padding: 12px; border: none; border-radius: 6px;
-            font-size: 14px; font-weight: bold; cursor: pointer;
-        }
+        .password-box button { flex: 1; padding: 12px; border: none; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; }
         .password-box .btn-confirm { background: #3B82F6; color: white; }
         .password-box .btn-cancel { background: #E2E8F0; color: #64748B; }
         .password-error { color: #EF4444; font-size: 12px; margin-bottom: 10px; display: none; }
         
         @media (max-width: 768px) {
-            #menu-toggle-btn { display: block; }
-            #fullscreen-btn { display: block; top: 70px; }
+            #menu-toggle-btn, #fullscreen-btn, #edit-mode-btn { display: block; }
+            #fullscreen-btn { top: 70px; }
             #edit-mode-btn { top: 120px; right: 10px; padding: 10px 14px; font-size: 12px; }
-            
-            #super-legend-panel { 
-                position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                width: 100%; max-height: 100vh; border-radius: 0;
-                padding: 20px; transform: translateX(-100%); z-index: 10000;
-            }
+            #super-legend-panel { position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; max-height: 100vh; border-radius: 0; padding: 20px; transform: translateX(-100%); z-index: 10000; }
             #super-legend-panel.show { transform: translateX(0); }
             #super-legend-panel.collapsed { transform: translateX(-100%); }
-            
-            #panel-expand-strip {
-                width: 24px; height: 60px; font-size: 14px;
-            }
-            
+            #panel-expand-strip { width: 24px; height: 60px; font-size: 14px; }
             #data-timestamp-box { top: 10px; right: 10px; padding: 8px 10px; display: none; }
             .legend-row { padding: 10px; }
             .legend-label { font-size: 13px; }
@@ -178,50 +83,24 @@
             .switch-btn { padding: 12px; font-size: 13px; }
         }
         
-        body.fullscreen #data-timestamp-box,
-        body.fullscreen #super-legend-panel,
-        body.fullscreen #menu-toggle-btn,
-        body.fullscreen #fullscreen-btn,
-        body.fullscreen #edit-mode-btn,
-        body.fullscreen #panel-expand-strip {
-            display: none !important;
-        }
-        
-        #exit-fullscreen-btn {
-            position: absolute; top: 20px; right: 20px;
-            background: #EF4444; color: white; border: none;
-            border-radius: 8px; padding: 12px 16px; font-size: 14px;
-            font-weight: bold; cursor: pointer; z-index: 9998;
-            box-shadow: 0 4px 12px rgba(239,68,68,0.3); display: none;
-        }
+        body.fullscreen #data-timestamp-box, body.fullscreen #super-legend-panel, body.fullscreen #menu-toggle-btn, body.fullscreen #fullscreen-btn, body.fullscreen #edit-mode-btn, body.fullscreen #panel-expand-strip { display: none !important; }
+        #exit-fullscreen-btn { position: absolute; top: 20px; right: 20px; background: #EF4444; color: white; border: none; border-radius: 8px; padding: 12px 16px; font-size: 14px; font-weight: bold; cursor: pointer; z-index: 9998; display: none; }
         body.fullscreen #exit-fullscreen-btn { display: block; }
     </style>
 </head>
 <body>
-    <div id="loading-overlay">
-        <div class="spinner"></div>
-        <div id="loading-text">正在加载仓库数据...</div>
-        <div id="error-message"></div>
-    </div>
-    
+    <div id="loading-overlay"><div class="spinner"></div><div id="loading-text">正在加载仓库数据...</div><div id="error-message"></div></div>
     <div id="plotly-div"></div>
-    
     <button id="menu-toggle-btn" onclick="toggleMenu()">☰ 菜单</button>
     <button id="fullscreen-btn" onclick="toggleFullscreen()">⛶ 全屏</button>
     <button id="edit-mode-btn" onclick="toggleEditMode()">🔒 编辑模式</button>
     <button id="exit-fullscreen-btn" onclick="toggleFullscreen()">✕ 退出全屏</button>
-    
-    <!-- 🌟 看板收起后的展开条 -->
     <div id="panel-expand-strip" onclick="expandPanel()">▶</div>
-    
-    <div id="data-timestamp-box">
-        <div id="data-timestamp">数据加载中...</div>
-        <button id="refresh-btn" onclick="refreshData()">🔄 刷新数据</button>
-    </div>
+    <div id="data-timestamp-box"><div id="data-timestamp">数据加载中...</div><button id="refresh-btn" onclick="refreshData()">🔄 刷新数据</button></div>
     
     <div id="super-legend-panel">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <button onclick="collapsePanel()" style="background: #64748B; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;" title="收起看板">◀ 收起</button>
+            <button onclick="collapsePanel()" style="background: #64748B; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">◀ 收起</button>
         </div>
         <div style="background: #F1F5F9; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 12px; border: 1px solid #E2E8F0;">
             <div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')">🟢 规划预期分布</div>
@@ -231,18 +110,15 @@
             <h4 id="legend-panel-title" style="margin: 0; color: #0F172A; font-size: 13px;">📊 预期规划品牌图例</h4>
             <button id="reset-master-btn" onclick="resetToDefault()" style="background:#EF4444; color:white; border:none; border-radius:4px; padding:4px 10px; font-size:10px; cursor:pointer;">恢复初始</button>
         </div>
-        
-        <!-- 🌟 编辑工具面板（仅编辑模式显示） -->
         <div id="planning-tools-box">
             <label style="font-size: 11px; color: #0F172A; display:block; margin-bottom:4px; font-weight: bold;">📐 规划库位快速改色工具:</label>
-            <textarea id="target-loc" rows="2" placeholder="输入连续范围如：Q01-01~Q01-04..." style="width: 100%; padding: 4px; border: 1px solid #CBD5E1; border-radius: 4px; box-sizing: border-box; font-size: 11px; font-weight: bold;"></textarea>
+            <textarea id="target-loc" rows="2" placeholder="输入连续范围如：Q01-01~Q01-04..." style="width: 100%; padding: 4px; border: 1px solid #CBD5E1; border-radius: 4px; box-sizing: border-box; font-size: 11px;"></textarea>
             <div style="display: flex; gap: 4px; margin-top: 6px;">
                 <input type="text" id="new-brand" placeholder="指定新品牌" style="flex:1; padding: 4px; border: 1px solid #CBD5E1; border-radius: 4px; font-size: 11px;">
                 <input type="color" id="new-color" value="#DF9F57" style="width: 24px; height: 22px; border: 1px solid #CBD5E1; border-radius: 4px; cursor: pointer;">
                 <button onclick="applyLocationChange()" style="background: #5B7B9C; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">修改</button>
             </div>
         </div>
-        
         <div id="legend-list"></div>
     </div>
     
@@ -259,930 +135,120 @@
     </div>
     
     <script>
-        // =======================================================
-        // 🌟 核心配置
-        // =======================================================
         const PLAN_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vStLtLccpDSfrf_yU_T9WrNcZufN29BqkDsVS2r9ql1INK_61uA8UetkiW4DZ4_dv63o-DHzFz0tOAq/pub?gid=1276542862&single=true&output=csv";
         const ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-egK5kKzjLVZx/export?format=xlsx";
+        const PASSWORD_HASH = "a5c8c0b6d8e8f8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8";
+        const CORS_PROXIES = ["https://corsproxy.io/?", "https://api.allorigins.win/raw?url="];
         
-        // 🌟 密码哈希值（SHA-256）
-        // 原始密码：warehouse2026
-        // 如需修改密码，请在浏览器控制台运行：generatePasswordHash("新密码")
-        const PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f";
+        const GLOBAL_BRAND_COLORS = {'LINSY': '#D68F68', 'A区 (oversize沙发区)': '#7DA28A', 'B区 (沙发 Backup区)': '#6C8EA4', 'G区不良品区': '#949BA2', 'Replica 区域': '#D4CBBE', 'MODE 椅子区': '#9E7E73', 'LOFT 区': '#8B7AA3', 'Solidwood 区': '#C29B85', 'Boori区': '#C87284', 'BOHOBOHO & Alpaka & Boori区': '#2C2D30', '补件区': '#8A5A58', 'loft & solidwood backup区': '#EEDCA5', '地面专属区': '#334155', '[当前空置]': '#E2E8F0', '[⚠️超过4品牌严重混放]': '#64748B'};
+        const DEFAULT_CONFIG = [{ org_name: "LINSY", color: "#D68F68", label: "LINSY" }, { org_name: "A区 (oversize沙发区)", color: "#7DA28A", label: "A区 (oversize沙发区)" }, { org_name: "B区 (沙发 Backup区)", color: "#6C8EA4", label: "B区 (沙发 Backup区)" }, { org_name: "G区不良品区", color: "#949BA2", label: "G区不良品区" }, { org_name: "Replica 区域", color: "#D4CBBE", label: "Replica 区域" }, { org_name: "MODE 椅子区", color: "#9E7E73", label: "MODE 椅子区" }, { org_name: "LOFT 区", color: "#8B7AA3", label: "LOFT 区" }, { org_name: "Solidwood 区", color: "#C29B85", label: "Solidwood 区" }, { org_name: "Boori区", color: "#C87284", label: "Boori区" }, { org_name: "BOHOBOHO & Alpaka & Boori区", color: "#2C2D30", label: "BOHOBOHO & Alpaka & Boori区" }, { org_name: "补件区", color: "#8A5A58", label: "补件区" }, { org_name: "loft & solidwood backup区", color: "#EEDCA5", label: "loft & solidwood backup区" }];
         
-        const CORS_PROXIES = [
-            "https://corsproxy.io/?",
-            "https://api.allorigins.win/raw?url="
-        ];
-        
-        const GLOBAL_BRAND_COLORS = {
-            'LINSY': '#D68F68', 'A区 (oversize沙发区)': '#7DA28A', 'B区 (沙发 Backup区)': '#6C8EA4',
-            'G区不良品区': '#949BA2', 'Replica 区域': '#D4CBBE', 'MODE 椅子区': '#9E7E73',
-            'LOFT 区': '#8B7AA3', 'Solidwood 区': '#C29B85', 'Boori区': '#C87284',
-            'BOHOBOHO & Alpaka & Boori区': '#2C2D30', '补件区': '#8A5A58', 'loft & solidwood backup区': '#EEDCA5',
-            '地面专属区': '#334155', '[当前空置]': '#E2E8F0', '[⚠️超过4品牌严重混放]': '#64748B'
-        };
-        
-        const DEFAULT_CONFIG = [
-            { org_name: "LINSY", color: "#D68F68", label: "LINSY" },
-            { org_name: "A区 (oversize沙发区)", color: "#7DA28A", label: "A区 (oversize沙发区)" },
-            { org_name: "B区 (沙发 Backup区)", color: "#6C8EA4", label: "B区 (沙发 Backup区)" },
-            { org_name: "G区不良品区", color: "#949BA2", label: "G区不良品区" },
-            { org_name: "Replica 区域", color: "#D4CBBE", label: "Replica 区域" },
-            { org_name: "MODE 椅子区", color: "#9E7E73", label: "MODE 椅子区" },
-            { org_name: "LOFT 区", color: "#8B7AA3", label: "LOFT 区" },
-            { org_name: "Solidwood 区", color: "#C29B85", label: "Solidwood 区" },
-            { org_name: "Boori区", color: "#C87284", label: "Boori区" },
-            { org_name: "BOHOBOHO & Alpaka & Boori区", color: "#2C2D30", label: "BOHOBOHO & Alpaka & Boori区" },
-            { org_name: "补件区", color: "#8A5A58", label: "补件区" },
-            { org_name: "loft & solidwood backup区", color: "#EEDCA5", label: "loft & solidwood backup区" }
-        ];
-        
-        let GLOBAL_CURRENT_VIEW = "PLAN";
-        let runtime_config = [...DEFAULT_CONFIG];
-        let cell_override_db = {};
-        let server_data_cache = [];
-        let lastRefreshTime = 0;
-        let isEditMode = false;
+        let GLOBAL_CURRENT_VIEW = "PLAN", runtime_config = [...DEFAULT_CONFIG], cell_override_db = {}, server_data_cache = [], lastRefreshTime = 0, isEditMode = false;
         
         try {
-            const saved_config = localStorage.getItem("warehouse_twin_master_2026");
-            if (saved_config) {
-                runtime_config = JSON.parse(saved_config);
-                const seen = new Set();
-                runtime_config = runtime_config.filter(item => {
-                    if (seen.has(item.org_name)) return false;
-                    seen.add(item.org_name);
-                    return true;
-                });
-                runtime_config.forEach(item => {
-                    if (item.color) GLOBAL_BRAND_COLORS[item.org_name] = item.color;
-                });
+            const s = localStorage.getItem("warehouse_twin_master_2026");
+            if (s) {
+                runtime_config = JSON.parse(s).filter((i,_,a) => a.findIndex(x => x.org_name === i.org_name) === _);
+                runtime_config.forEach(i => { if(i.color) GLOBAL_BRAND_COLORS[i.org_name] = i.color; });
             }
-            
-            const saved_overrides = localStorage.getItem("warehouse_twin_cell_overrides_2026");
-            if (saved_overrides) cell_override_db = JSON.parse(saved_overrides);
-            
-            const editMode = sessionStorage.getItem("warehouse_edit_mode");
-            if (editMode === "true") {
-                isEditMode = true;
-                updateEditModeButton();
-            }
-        } catch(e) { console.error("加载配置失败:", e); }
+            const o = localStorage.getItem("warehouse_twin_cell_overrides_2026");
+            if(o) cell_override_db = JSON.parse(o);
+            if(sessionStorage.getItem("warehouse_edit_mode")==="true") { isEditMode = true; updateEditModeButton(); }
+        } catch(e) {}
         
-        const COL_WIDTH = 5.0, DEPTH = 3.0, LVL_HEIGHT = 4.0;
-        const EASTERN_ALIGN_X = 65.0, SOUTH_BASE_Y = 95.0, NORTH_BASE_Y = 145.0;
-        const XWT_ZONE_COL_ORDER = {5: 0, 1: 1, 2: 2, 3: 3, 4: 4};
-        const AISLE_GAP = 6.0, SHRINK = 1.0;
-        
-        // =======================================================
+        const COL_WIDTH=5.0, DEPTH=3.0, LVL_HEIGHT=4.0, EASTERN_ALIGN_X=65.0, SOUTH_BASE_Y=95.0, NORTH_BASE_Y=145.0;
+        const XWT_ZONE_COL_ORDER={5:0,1:1,2:2,3:3,4:4}, AISLE_GAP=6.0, SHRINK=1.0;
+
         // 🔐 密码相关
-        // =======================================================
-        async function hashPassword(password) {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(password);
-            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
+        async function hashPassword(p) { return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p)))).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+        window.generatePasswordHash = async function(p) { const h = await hashPassword(p); console.log('='.repeat(50)+'\n✅ 密码哈希值:\n'+h+'\n'+ '='.repeat(50)+'\n📝 替换 index.html 中的 PASSWORD_HASH 变量即可'); return h; };
+        function toggleEditMode() { if(isEditMode){ isEditMode=false; sessionStorage.removeItem("warehouse_edit_mode"); updateEditModeButton(); renderControlPanel(); } else { document.getElementById('password-modal').classList.add('show'); document.getElementById('password-input').value=''; document.getElementById('password-error').style.display='none'; setTimeout(()=>document.getElementById('password-input').focus(),100); } }
+        async function confirmPassword() { const p=document.getElementById('password-input').value; if(await hashPassword(p)===PASSWORD_HASH){ isEditMode=true; sessionStorage.setItem("warehouse_edit_mode","true"); closePasswordModal(); updateEditModeButton(); renderControlPanel(); } else { document.getElementById('password-error').style.display='block'; document.getElementById('password-input').value=''; document.getElementById('password-input').focus(); } }
+        function closePasswordModal() { document.getElementById('password-modal').classList.remove('show'); }
+        function updateEditModeButton() { document.getElementById('edit-mode-btn').innerText = isEditMode ? '🔓 退出编辑' : '🔒 编辑模式'; document.getElementById('edit-mode-btn').classList.toggle('active', isEditMode); document.getElementById('planning-tools-box').classList.toggle('show', isEditMode); }
         
-        // 🌟 生成新密码哈希的工具函数（在控制台使用）
-        window.generatePasswordHash = async function(password) {
-            const hash = await hashPassword(password);
-            console.log('='.repeat(60));
-            console.log(`✅ 密码 "${password}" 的 SHA-256 哈希值：`);
-            console.log(hash);
-            console.log('='.repeat(60));
-            console.log('📝 操作步骤：');
-            console.log('1. 复制上面这串哈希值');
-            console.log('2. 在 HTML 源代码中找到 PASSWORD_HASH 变量');
-            console.log('3. 将旧哈希值替换为新哈希值');
-            console.log('4. 保存并重新部署到 GitHub');
-            console.log('='.repeat(60));
-            return hash;
-        };
+        // 🎯 面板控制（纯按钮，无手势冲突）
+        function collapsePanel() { document.getElementById('super-legend-panel').classList.add('collapsed'); document.getElementById('super-legend-panel').classList.remove('show'); document.getElementById('panel-expand-strip').classList.add('show'); }
+        function expandPanel() { const p=document.getElementById('super-legend-panel'); p.classList.remove('collapsed'); if(window.innerWidth<=768) p.classList.add('show'); document.getElementById('panel-expand-strip').classList.remove('show'); }
+        function toggleMenu() { document.getElementById('super-legend-panel').classList.toggle('show'); }
+        function toggleFullscreen() { document.body.classList.toggle('fullscreen'); setTimeout(()=>Plotly.Plots.resize(document.getElementById('plotly-div')),100); }
         
-        function toggleEditMode() {
-            if (isEditMode) {
-                isEditMode = false;
-                sessionStorage.removeItem("warehouse_edit_mode");
-                updateEditModeButton();
-                renderControlPanel();
-            } else {
-                document.getElementById('password-modal').classList.add('show');
-                document.getElementById('password-input').value = '';
-                document.getElementById('password-error').style.display = 'none';
-                setTimeout(() => document.getElementById('password-input').focus(), 100);
-            }
-        }
-        
-        async function confirmPassword() {
-            const password = document.getElementById('password-input').value;
-            const inputHash = await hashPassword(password);
-            
-            if (inputHash === PASSWORD_HASH) {
-                isEditMode = true;
-                sessionStorage.setItem("warehouse_edit_mode", "true");
-                closePasswordModal();
-                updateEditModeButton();
-                renderControlPanel();
-            } else {
-                document.getElementById('password-error').style.display = 'block';
-                document.getElementById('password-input').value = '';
-                document.getElementById('password-input').focus();
-            }
-        }
-        
-        function closePasswordModal() {
-            document.getElementById('password-modal').classList.remove('show');
-        }
-        
-        function updateEditModeButton() {
-            const btn = document.getElementById('edit-mode-btn');
-            const tools = document.getElementById('planning-tools-box');
-            if (isEditMode) {
-                btn.innerText = '🔓 退出编辑';
-                btn.classList.add('active');
-                tools.classList.add('show');
-            } else {
-                btn.innerText = '🔒 编辑模式';
-                btn.classList.remove('active');
-                tools.classList.remove('show');
-            }
-        }
-        
-        // =======================================================
-        // 🎯 看板收起/展开
-        // =======================================================
-        function collapsePanel() {
-            const panel = document.getElementById('super-legend-panel');
-            const strip = document.getElementById('panel-expand-strip');
-            panel.classList.add('collapsed');
-            panel.classList.remove('show');
-            strip.classList.add('show');
-        }
-        
-        function expandPanel() {
-            const panel = document.getElementById('super-legend-panel');
-            const strip = document.getElementById('panel-expand-strip');
-            panel.classList.remove('collapsed');
-            if (window.innerWidth <= 768) {
-                panel.classList.add('show');
-            }
-            strip.classList.remove('show');
-        }
-        
-        // 🌟 优化后的触摸手势支持（不干扰 Plotly 的双指手势）
-        let touchStartX = 0;
-        let touchStartY = 0;
-        let touchStartTime = 0;
-        let isSwiping = false;
-        let touchMoveCount = 0;
-        let initialTouchCount = 0;
-        
-        document.addEventListener('touchstart', function(e) {
-            // 🌟 关键修复：只在单指触摸时才处理自定义手势
-            // 双指触摸直接让 Plotly 处理（缩放/平移）
-            initialTouchCount = e.touches.length;
-            if (initialTouchCount !== 1) return;
-            
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-            touchStartTime = Date.now();
-            isSwiping = false;
-            touchMoveCount = 0;
-        }, {passive: true});
-        
-        document.addEventListener('touchmove', function(e) {
-            // 🌟 关键修复：如果变成了双指，立即停止自定义手势处理
-            if (e.touches.length !== 1 || initialTouchCount !== 1) {
-                isSwiping = false;
-                return;
-            }
-            
-            touchMoveCount++;
-            
-            const touchX = e.touches[0].clientX;
-            const touchY = e.touches[0].clientY;
-            const deltaX = touchX - touchStartX;
-            const deltaY = touchY - touchStartY;
-            
-            // 🌟 更严格的条件：只有纯水平滑动才触发
-            // 水平移动 > 垂直移动 * 3，且移动距离 > 50px
-            if (touchMoveCount > 8 && Math.abs(deltaX) > Math.abs(deltaY) * 3 && Math.abs(deltaX) > 50) {
-                isSwiping = true;
-            }
-        }, {passive: true});
-        
-        document.addEventListener('touchend', function(e) {
-            if (!isSwiping) return;
-            
-            const touchEndX = e.changedTouches[0].clientX;
-            const deltaX = touchEndX - touchStartX;
-            const deltaTime = Date.now() - touchStartTime;
-            const panel = document.getElementById('super-legend-panel');
-            
-            // 🌟 只在快速滑动（<500ms）且距离足够（>100px）时触发
-            if (deltaTime < 500 && Math.abs(deltaX) > 100) {
-                // 左滑：收起看板
-                if (deltaX < 0 && !panel.classList.contains('collapsed')) {
-                    collapsePanel();
-                }
-                // 右滑：展开看板
-                else if (deltaX > 0 && panel.classList.contains('collapsed')) {
-                    expandPanel();
-                }
-            }
-            
-            touchStartX = 0;
-            isSwiping = false;
-        }, {passive: true});
-        
-        // =======================================================
         // 🌐 数据抓取
-        // =======================================================
-        async function fetchWithProxy(url, isBinary = false) {
-            try {
-                const response = await fetch(url);
-                if (response.ok) {
-                    return isBinary ? await response.arrayBuffer() : await response.text();
-                }
-            } catch (e) { console.log("⚠️ 直接请求失败，尝试使用 CORS 代理..."); }
+        async function fetchWithProxy(url, isBin=false) {
+            try { const r=await fetch(url); if(r.ok) return isBin?await r.arrayBuffer():await r.text(); } catch{}
+            for(let i=0;i<CORS_PROXIES.length;i++) { try { const r=await fetch(CORS_PROXIES[i]+encodeURIComponent(url)); if(r.ok) { const d=isBin?await r.arrayBuffer():await r.text(); if(isBin){const b=new Uint8Array(d);if(b[0]===0x50&&b[1]===0x4B)return d;} else if(d.includes(',')) return d; } } catch{} }
+            throw new Error("数据源连接失败，请检查网络或URL");
+        }
+        
+        function getPlannedInfo(z,c,l,ig=false) { if(ig)return['地面专属区',GLOBAL_BRAND_COLORS['地面专属区']]; if(['C','D','E','F','P'].includes(z))return['LINSY',GLOBAL_BRAND_COLORS['LINSY']]; if(z==='A')return['A区 (oversize沙发区)',GLOBAL_BRAND_COLORS['A区 (oversize沙发区)']]; if(z==='B')return 2<=l&&l<=5?['B区 (沙发 Backup区)',GLOBAL_BRAND_COLORS['B区 (沙发 Backup区)']]:['LINSY',GLOBAL_BRAND_COLORS['LINSY']]; if(z==='G')return['G区不良品区',GLOBAL_BRAND_COLORS['G区不良品区']]; if(['H','J','K'].includes(z))return(z==='K'&&10<=c&&c<=13&&[1,4,5].includes(l))?['Replica 区域',GLOBAL_BRAND_COLORS['Replica 区域']]:['LINSY',GLOBAL_BRAND_COLORS['LINSY']]; if(z==='L')return l===5?['MODE 椅子区',GLOBAL_BRAND_COLORS['MODE 椅子区']]:['LOFT 区',GLOBAL_BRAND_COLORS['LOFT 区']]; if(z==='M')return['LOFT 区',GLOBAL_BRAND_COLORS['LOFT 区']]; if(z==='Q')return l===5?['MODE 椅子区',GLOBAL_BRAND_COLORS['MODE 椅子区']]:2<=l&&l<=4?['loft & solidwood backup区',GLOBAL_BRAND_COLORS['loft & solidwood backup区']]:['LOFT 区',GLOBAL_BRAND_COLORS['LOFT 区']]; if(z==='N')return['Solidwood 区',GLOBAL_BRAND_COLORS['Solidwood 区']]; if(['T','W','X'].includes(z))return(z==='T'&&c===4)?['补件区',GLOBAL_BRAND_COLORS['补件区']]:['Solidwood 区',GLOBAL_BRAND_COLORS['Solidwood 区']]; if(z==='Y')return[5,6].includes(c)?['BOHOBOHO & Alpaka & Boori区',GLOBAL_BRAND_COLORS['BOHOBOHO & Alpaka & Boori区']]:['Boori区',GLOBAL_BRAND_COLORS['Boori区']]; return['其他区域','#8F9985']; }
+        
+        function getAbsoluteCoords(z,c,l) {
+            const h=(l-1)*LVL_HEIGHT; let x,y;
+            if(z==='Y'){x=EASTERN_ALIGN_X-(c-1)*COL_WIDTH;y=NORTH_BASE_Y+15;}
+            else if(['X','W','T'].includes(z)){const s=XWT_ZONE_COL_ORDER[c]!==undefined?XWT_ZONE_COL_ORDER[c]:c-1;x=EASTERN_ALIGN_X-s*COL_WIDTH;y=z==='X'?NORTH_BASE_Y:z==='W'?NORTH_BASE_Y-DEPTH:NORTH_BASE_Y-DEPTH*2-12;}
+            else if(z==='H'){x=55.8;y=c<=10?SOUTH_BASE_Y-(c-1)*COL_WIDTH-COL_WIDTH/2:SOUTH_BASE_Y+(c-10)*COL_WIDTH-COL_WIDTH/2;}
+            else if(z==='J'){x=55-DEPTH-0.8;y=c<=11?SOUTH_BASE_Y-(c-1)*COL_WIDTH-COL_WIDTH/2:SOUTH_BASE_Y+(c-11)*COL_WIDTH-COL_WIDTH/2;}
+            else if(z==='K'){x=30.8;y=SOUTH_BASE_Y-(c-1)*COL_WIDTH-COL_WIDTH/2;}
+            else if(z==='L'){x=30-DEPTH-0.8;y=SOUTH_BASE_Y-(c-1)*COL_WIDTH-COL_WIDTH/2;}
+            else if(z==='P'){x=30.8;y=SOUTH_BASE_Y+(c-1)*COL_WIDTH+COL_WIDTH/2;}
+            else if(z==='Q'){x=30-DEPTH-0.8;y=SOUTH_BASE_Y+(c-1)*COL_WIDTH+COL_WIDTH/2;}
+            else if(z==='M'){x=5;let o=(c-1)*COL_WIDTH+COL_WIDTH/2;if(c>=3)o+=AISLE_GAP;if(c>=6)o+=AISLE_GAP;if(c>=9)o+=AISLE_GAP;if(c>=12)o+=AISLE_GAP;y=SOUTH_BASE_Y-o;}
+            else if(z==='N'){x=5;let o=(c-1)*COL_WIDTH+COL_WIDTH/2+AISLE_GAP;if(c>=3)o+=AISLE_GAP;y=SOUTH_BASE_Y+o;}
+            else if(z==='A'){x=82+(c-1)*COL_WIDTH+COL_WIDTH/2;y=SOUTH_BASE_Y;}
+            else if(z==='B'){x=82+(c-1)*COL_WIDTH+COL_WIDTH/2;y=80-DEPTH/2;}
+            else if(z==='C'){x=82+(c-1)*COL_WIDTH+COL_WIDTH/2;y=80-DEPTH/2-DEPTH;}
+            else if(z==='D'){x=82+(c-1)*COL_WIDTH+COL_WIDTH/2;y=56-DEPTH/2;}
+            else if(z==='E'){x=82+(c-1)*COL_WIDTH+COL_WIDTH/2;y=56-DEPTH/2-DEPTH;}
+            else if(z==='F'){x=82+(c-1)*COL_WIDTH+COL_WIDTH/2;y=32-DEPTH/2;}
+            else if(z==='G'){x=82+(c-1)*COL_WIDTH+COL_WIDTH/2;y=32-DEPTH/2-DEPTH;}
+            else{x=200;y=50;}
+            return[x,y,h];
+        }
+        
+        async function fetchPlanData() { const t=await fetchWithProxy(PLAN_CSV_URL); const locs=[]; t.split('\n').forEach(l=>l.split(',').forEach(c=>{const m=c.trim().match(/([A-Z]+)(\d+)-(\d+)/); if(m)locs.push({loc:c.trim(),zone:m[1],col:+m[2],lvl:+m[3],is_ground:false});})); return locs; }
+        async function fetchActualData() { const u=ACTUAL_XLSX_URL+(ACTUAL_XLSX_URL.includes('?')?'&':'?')+'t='+Date.now(); const ab=await fetchWithProxy(u,true); const wb=XLSX.read(ab,{type:'array'}); const data=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,skiprows:5}); const db={}; data.forEach(r=>{if(r.length<7)return;const l=String(r[1]||'').trim();if(!l||l==='nan'||l.includes('$')||l.includes(' ')||!/^[A-Z]+\d+-\d+$/.test(l)&&!/^[A-Z]*\d*$/.test(l))return;const s=String(r[2]||'').trim();const b=String(r[3]||'Other').trim();const q=parseFloat(r[6])||0;if(!db[l])db[l]=[];db[l].push({sku:s.includes('~')?s.split('~').pop():s,brand:b,qty:Math.floor(q)});if(!GLOBAL_BRAND_COLORS[b]){const h=Array.from(b).reduce((a,c)=>((a<<5)-a)+c.charCodeAt(0),0);GLOBAL_BRAND_COLORS[b]=`hsl(${Math.abs(h)%360},65%,50%)`;}}); return db; }
+        
+        function render3D(locs, db) {
+            locs.forEach(l=>{const[x,y,z]=getAbsoluteCoords(l.zone,l.col,l.lvl);l.X=x;l.Y=y;l.Z=z;const[b,c]=getPlannedInfo(l.zone,l.col,l.lvl,l.is_ground);l.brand=b;l.color=c;});
+            server_data_cache=locs.map(l=>{const items=db[l.loc]||[];const brands=[...new Set(items.map(i=>i.brand).filter(Boolean))];let sl=[];if(brands.length===0)sl=[{brand:"[当前空置]",color:GLOBAL_BRAND_COLORS['[当前空置]'],items:[]}];else if(brands.length>4)sl=[{brand:"[⚠️超过4品牌严重混放]",color:GLOBAL_BRAND_COLORS['[⚠️超过4品牌严重混放]'],items:items}];else brands.forEach(b=>sl.push({brand:b,color:GLOBAL_BRAND_COLORS[b]||"#CBD5E1",items:items.filter(i=>i.brand===b)}));const h=LVL_HEIGHT*0.92;return{loc:l.loc,zone:l.zone,col:l.col,lvl:l.lvl,is_ground:l.is_ground,native_brand:l.brand,native_color:l.color,slices:sl,orig_z:[l.Z,l.Z,l.Z,l.Z,l.Z+h,l.Z+h,l.Z+h,l.Z+h]};});
             
-            for (let i = 0; i < CORS_PROXIES.length; i++) {
-                const proxy = CORS_PROXIES[i];
-                const proxyUrl = proxy + encodeURIComponent(url);
-                try {
-                    const response = await fetch(proxyUrl);
-                    if (!response.ok) continue;
-                    const result = isBinary ? await response.arrayBuffer() : await response.text();
-                    if (isBinary) {
-                        const bytes = new Uint8Array(result);
-                        if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4B) continue;
-                    } else {
-                        if (!result.includes(',')) continue;
-                    }
-                    return result;
-                } catch (e) { continue; }
-            }
-            throw new Error("所有数据源都失败了。请检查网络连接或 URL 配置。");
-        }
-        
-        function getPlannedInfo(zone, col, lvl, isGround = false) {
-            if (isGround) return ['地面专属区', GLOBAL_BRAND_COLORS['地面专属区']];
-            if (['C', 'D', 'E', 'F', 'P'].includes(zone)) return ['LINSY', GLOBAL_BRAND_COLORS['LINSY']];
-            if (zone === 'A') return ['A区 (oversize沙发区)', GLOBAL_BRAND_COLORS['A区 (oversize沙发区)']];
-            if (zone === 'B') {
-                if (2 <= lvl && lvl <= 5) return ['B区 (沙发 Backup区)', GLOBAL_BRAND_COLORS['B区 (沙发 Backup区)']];
-                return ['LINSY', GLOBAL_BRAND_COLORS['LINSY']];
-            }
-            if (zone === 'G') return ['G区不良品区', GLOBAL_BRAND_COLORS['G区不良品区']];
-            if (['H', 'J', 'K'].includes(zone)) {
-                if (zone === 'K' && 10 <= col && col <= 13 && [1, 4, 5].includes(lvl)) return ['Replica 区域', GLOBAL_BRAND_COLORS['Replica 区域']];
-                return ['LINSY', GLOBAL_BRAND_COLORS['LINSY']];
-            }
-            if (zone === 'L') return lvl === 5 ? ['MODE 椅子区', GLOBAL_BRAND_COLORS['MODE 椅子区']] : ['LOFT 区', GLOBAL_BRAND_COLORS['LOFT 区']];
-            if (zone === 'M') return ['LOFT 区', GLOBAL_BRAND_COLORS['LOFT 区']];
-            if (zone === 'Q') {
-                if (lvl === 5) return ['MODE 椅子区', GLOBAL_BRAND_COLORS['MODE 椅子区']];
-                if (2 <= lvl && lvl <= 4) return ['loft & solidwood backup区', GLOBAL_BRAND_COLORS['loft & solidwood backup区']];
-                return ['LOFT 区', GLOBAL_BRAND_COLORS['LOFT 区']];
-            }
-            if (zone === 'N') return ['Solidwood 区', GLOBAL_BRAND_COLORS['Solidwood 区']];
-            if (['T', 'W', 'X'].includes(zone)) {
-                if (zone === 'T' && col === 4) return ['补件区', GLOBAL_BRAND_COLORS['补件区']];
-                if (zone === 'X' && (col === 4 || (col === 3 && lvl === 1))) return ['Boori区', GLOBAL_BRAND_COLORS['Boori区']];
-                return ['Solidwood 区', GLOBAL_BRAND_COLORS['Solidwood 区']];
-            }
-            if (zone === 'Y') {
-                if ([5, 6].includes(col)) return ['BOHOBOHO & Alpaka & Boori区', GLOBAL_BRAND_COLORS['BOHOBOHO & Alpaka & Boori区']];
-                return ['Boori区', GLOBAL_BRAND_COLORS['Boori区']];
-            }
-            return ['其他区域', '#8F9985'];
-        }
-        
-        function getAbsoluteCoords(zone, col, lvl) {
-            const z = (lvl - 1) * LVL_HEIGHT;
-            let x, y;
-            if (zone === 'Y') { x = EASTERN_ALIGN_X - ((col - 1) * COL_WIDTH); y = NORTH_BASE_Y + 15; }
-            else if (['X', 'W', 'T'].includes(zone)) {
-                const step = XWT_ZONE_COL_ORDER[col] !== undefined ? XWT_ZONE_COL_ORDER[col] : col - 1;
-                x = EASTERN_ALIGN_X - (step * COL_WIDTH);
-                if (zone === 'X') y = NORTH_BASE_Y;
-                else if (zone === 'W') y = NORTH_BASE_Y - DEPTH;
-                else if (zone === 'T') y = NORTH_BASE_Y - (DEPTH * 2) - 12;
-            } else if (zone === 'H') {
-                x = 55.0 + 0.8;
-                y = col <= 10 ? SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2) : SOUTH_BASE_Y + (col - 10) * COL_WIDTH - (COL_WIDTH / 2);
-            } else if (zone === 'J') {
-                x = 55.0 - DEPTH - 0.8;
-                y = col <= 11 ? SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2) : SOUTH_BASE_Y + (col - 11) * COL_WIDTH - (COL_WIDTH / 2);
-            } else if (zone === 'K') { x = 30.0 + 0.8; y = SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2); }
-            else if (zone === 'L') { x = 30.0 - DEPTH - 0.8; y = SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2); }
-            else if (zone === 'P') { x = 30.0 + 0.8; y = SOUTH_BASE_Y + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); }
-            else if (zone === 'Q') { x = 30.0 - DEPTH - 0.8; y = SOUTH_BASE_Y + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); }
-            else if (zone === 'M') {
-                x = 5.0;
-                let base_offset = (col - 1) * COL_WIDTH + (COL_WIDTH / 2);
-                if (col >= 3) base_offset += AISLE_GAP;
-                if (col >= 6) base_offset += AISLE_GAP;
-                if (col >= 9) base_offset += AISLE_GAP;
-                if (col >= 12) base_offset += AISLE_GAP;
-                y = SOUTH_BASE_Y - base_offset;
-            } else if (zone === 'N') {
-                x = 5.0;
-                let base_offset = (col - 1) * COL_WIDTH + (COL_WIDTH / 2) + AISLE_GAP;
-                if (col >= 3) base_offset += AISLE_GAP;
-                y = SOUTH_BASE_Y + base_offset;
-            } else if (zone === 'A') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = SOUTH_BASE_Y; }
-            else if (zone === 'B') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = 80.0 - (DEPTH / 2); }
-            else if (zone === 'C') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = 80.0 - (DEPTH / 2) - DEPTH; }
-            else if (zone === 'D') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = 56.0 - (DEPTH / 2); }
-            else if (zone === 'E') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = 56.0 - (DEPTH / 2) - DEPTH; }
-            else if (zone === 'F') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = 32.0 - (DEPTH / 2); }
-            else if (zone === 'G') { x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2); y = 32.0 - (DEPTH / 2) - DEPTH; }
-            else { x = 200; y = 50; }
-            return [x, y, z];
-        }
-        
-        async function fetchPlanData() {
-            const text = await fetchWithProxy(PLAN_CSV_URL, false);
-            const lines = text.split('\n');
-            const locations = [];
-            lines.forEach(line => {
-                line.split(',').forEach(cell => {
-                    const match = cell.trim().match(/([A-Z]+)(\d+)-(\d+)/);
-                    if (match) locations.push({ loc: cell.trim(), zone: match[1], col: parseInt(match[2]), lvl: parseInt(match[3]), is_ground: false });
-                });
-            });
-            return locations;
-        }
-        
-        async function fetchActualData() {
-            const url = ACTUAL_XLSX_URL + (ACTUAL_XLSX_URL.includes('?') ? '&' : '?') + 't=' + Date.now();
-            const arrayBuffer = await fetchWithProxy(url, true);
-            const workbook = XLSX.read(arrayBuffer, {type: 'array'});
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const data = XLSX.utils.sheet_to_json(sheet, {header: 1, skiprows: 5});
-            const actual_db = {};
-            data.forEach(row => {
-                if (row.length < 7) return;
-                const raw_loc = String(row[1] || '').trim();
-                if (!raw_loc || raw_loc === 'nan' || raw_loc.includes('$') || raw_loc.includes(' ')) return;
-                if (!/^[A-Z]+\d+-\d+$/.test(raw_loc) && !/^G[A-Z]*\d*$/.test(raw_loc)) return;
-                const raw_sku = String(row[2] || '').trim();
-                const clean_sku = raw_sku.includes('~') ? raw_sku.split('~').pop() : raw_sku;
-                const brand = String(row[3] || 'Other').trim();
-                const qty = parseFloat(row[6]) || 0;
-                if (!actual_db[raw_loc]) actual_db[raw_loc] = [];
-                actual_db[raw_loc].push({sku: clean_sku, brand: brand, qty: Math.floor(qty)});
-                if (!GLOBAL_BRAND_COLORS[brand]) {
-                    const hash = Array.from(brand).reduce((h, c) => ((h << 5) - h) + c.charCodeAt(0), 0);
-                    GLOBAL_BRAND_COLORS[brand] = `hsl(${Math.abs(hash) % 360}, 65%, 50%)`;
-                }
-            });
-            return actual_db;
-        }
-        
-        function render3D(locations, actual_db) {
-            locations.forEach(loc => {
-                const [x, y, z] = getAbsoluteCoords(loc.zone, loc.col, loc.lvl);
-                loc.X = x; loc.Y = y; loc.Z = z;
-                const [brand, color] = getPlannedInfo(loc.zone, loc.col, loc.lvl, loc.is_ground);
-                loc.brand = brand; loc.color = color;
-            });
+            const tr=[], mx=Math.min(...locs.map(l=>l.X))-25, Mx=Math.max(...locs.map(l=>l.X))+25, my=Math.min(...locs.map(l=>l.Y))-25, My=Math.max(...locs.map(l=>l.Y))+25;
+            tr.push({type:'mesh3d',x:[mx,Mx,Mx,mx,mx,Mx,Mx,mx],y:[my,my,My,My,my,my,My,My],z:[-1.5,-1.5,-1.5,-1.5,0,0,0,0],i:[7,0,0,0,4,4,1,1,2,2,3,3],j:[0,1,2,3,5,7,2,5,3,6,0,7],k:[4,4,3,4,6,5,5,6,6,7,7,4],color:'#CBD5E1',opacity:1,showlegend:false,hoverinfo:'skip'});
             
-            server_data_cache = locations.map(loc => {
-                const items_in_bin = actual_db[loc.loc] || [];
-                const brands_in_bin = [...new Set(items_in_bin.map(it => it.brand).filter(b => b))];
-                let slices_data = [];
-                if (brands_in_bin.length === 0) {
-                    slices_data.push({brand: "[当前空置]", color: GLOBAL_BRAND_COLORS['[当前空置]'], items: []});
-                } else if (brands_in_bin.length > 4) {
-                    slices_data.push({brand: "[⚠️超过4品牌严重混放]", color: GLOBAL_BRAND_COLORS['[⚠️超过4品牌严重混放]'], items: items_in_bin});
-                } else {
-                    brands_in_bin.forEach(b_name => {
-                        slices_data.push({
-                            brand: b_name,
-                            color: GLOBAL_BRAND_COLORS[b_name] || "#CBD5E1",
-                            items: items_in_bin.filter(it => it.brand === b_name)
-                        });
-                    });
-                }
-                const h = LVL_HEIGHT * 0.92;
-                return {
-                    loc: loc.loc, zone: loc.zone, col: loc.col, lvl: loc.lvl, is_ground: loc.is_ground,
-                    native_brand: loc.brand, native_color: loc.color, slices: slices_data,
-                    orig_z: [loc.Z, loc.Z, loc.Z, loc.Z, loc.Z+h, loc.Z+h, loc.Z+h, loc.Z+h]
-                };
-            });
+            const bx=[],by=[],bz=[];
+            locs.forEach(l=>{const v=['H','J','K','L','M','N','P','Q'].includes(l.zone);let cw,cd,h;if(l.is_ground){cw=2*SHRINK;cd=2*SHRINK;h=LVL_HEIGHT*0.92;}else{cw=(v?DEPTH:COL_WIDTH)*0.47*SHRINK;cd=(v?COL_WIDTH:DEPTH)*0.47*SHRINK;h=LVL_HEIGHT*0.92;}const x0=l.X-cw,x1=l.X+cw,y0=l.Y-cd,y1=l.Y+cd,z0=l.Z,z1=l.Z+h;[[x0,y0,z0,x1,y0,z0],[x1,y0,z0,x1,y1,z0],[x1,y1,z0,x0,y1,z0],[x0,y1,z0,x0,y0,z0],[x0,y0,z1,x1,y0,z1],[x1,y0,z1,x1,y1,z1],[x1,y1,z1,x0,y1,z1],[x0,y1,z1,x0,y0,z1],[x0,y0,z0,x0,y0,z1],[x1,y0,z0,x1,y0,z1],[x1,y1,z0,x1,y1,z1],[x0,y1,z0,x0,y1,z1]].forEach(e=>{bx.push(e[0],e[3],null);by.push(e[1],e[4],null);bz.push(e[2],e[5],null);});});
+            tr.push({type:'scatter3d',x:bx,y:by,z:bz,mode:'lines',line:{color:'#1E293B',width:2},hoverinfo:'skip',showlegend:false,name:'_BORDERS_'});
             
-            const traces = [];
-            const min_x = Math.min(...locations.map(l => l.X)) - 25;
-            const max_x = Math.max(...locations.map(l => l.X)) + 25;
-            const min_y = Math.min(...locations.map(l => l.Y)) - 25;
-            const max_y = Math.max(...locations.map(l => l.Y)) + 25;
+            locs.forEach(l=>{const v=['H','J','K','L','M','N','P','Q'].includes(l.zone);let cw,cd,h;if(l.is_ground){cw=2*SHRINK;cd=2*SHRINK;h=LVL_HEIGHT*0.92;}else{cw=(v?DEPTH:COL_WIDTH)*0.47*SHRINK;cd=(v?COL_WIDTH:DEPTH)*0.47*SHRINK;h=LVL_HEIGHT*0.92;}tr.push({type:'mesh3d',x:[l.X-cw,l.X+cw,l.X+cw,l.X-cw,l.X-cw,l.X+cw,l.X+cw,l.X-cw],y:[l.Y-cd,l.Y-cd,l.Y+cd,l.Y+cd,l.Y-cd,l.Y-cd,l.Y+cd,l.Y+cd],z:[l.Z,l.Z,l.Z,l.Z,l.Z+h,l.Z+h,l.Z+h,l.Z+h],name:'_SHELF_CUBE_',i:[7,0,0,0,4,4,1,1,2,2,3,3],j:[0,1,2,3,5,7,2,5,3,6,0,7],k:[4,4,3,4,6,5,5,6,6,7,7,4],color:l.color,customdata:Array(8).fill(l.loc),text:Array(8).fill('库位: '+l.loc),lighting:{ambient:0.7,diffuse:0.85,specular:0.05},flatshading:true,hoverinfo:'text',showlegend:false});if(l.is_ground)tr.push({type:'scatter3d',x:[l.X],y:[l.Y],z:[l.Z+h+0.5],mode:'text',text:[l.loc],textposition:"top center",textfont:{size:12,color:"#0F172A",family:"Arial Black"},showlegend:false,hoverinfo:'skip'});});
             
-            traces.push({
-                type: 'mesh3d',
-                x: [min_x, max_x, max_x, min_x, min_x, max_x, max_x, min_x],
-                y: [min_y, min_y, max_y, max_y, min_y, min_y, max_y, max_y],
-                z: [-1.5, -1.5, -1.5, -1.5, 0.0, 0.0, 0.0, 0.0],
-                i: [7, 0, 0, 0, 4, 4, 1, 1, 2, 2, 3, 3],
-                j: [0, 1, 2, 3, 5, 7, 2, 5, 3, 6, 0, 7],
-                k: [4, 4, 3, 4, 6, 5, 5, 6, 6, 7, 7, 4],
-                color: '#CBD5E1', opacity: 1.0, showlegend: false, hoverinfo: 'skip'
-            });
+            const ZM={'A':2,'B':16,'C':2,'D':11,'E':2,'F':7,'G':2,'H':2,'J':6,'K':10,'L':2,'M':6,'N':2,'P':6,'Q':2,'T':2,'W':6,'X':10,'Y':2};
+            [...new Set(locs.filter(l=>!l.is_ground).map(l=>l.zone))].forEach(z=>{const ls=locs.filter(l=>l.zone===z&&!l.is_ground);tr.push({type:'scatter3d',x:[ls.reduce((s,l)=>s+l.X,0)/ls.length],y:[ls.reduce((s,l)=>s+l.Y,0)/ls.length],z:[Math.max(...ls.map(l=>l.Z))+LVL_HEIGHT+(ZM[z]||2)],mode:'text',text:[z+'区'],textposition:"top center",textfont:{size:19,color:"#0F172A"},showlegend:false,hoverinfo:'skip'});});
             
-            const border_x = [], border_y = [], border_z = [];
-            locations.forEach(loc => {
-                const is_v = ['H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q'].includes(loc.zone);
-                let cw, cd, h;
-                if (loc.is_ground) { cw = 2.0 * SHRINK; cd = 2.0 * SHRINK; h = LVL_HEIGHT * 0.92; }
-                else {
-                    cw = (is_v ? DEPTH : COL_WIDTH) * 0.47 * SHRINK;
-                    cd = (is_v ? COL_WIDTH : DEPTH) * 0.47 * SHRINK;
-                    h = LVL_HEIGHT * 0.92;
-                }
-                const cx = loc.X, cy = loc.Y, cz = loc.Z;
-                const x0 = cx-cw, x1 = cx+cw, y0 = cy-cd, y1 = cy+cd, z0 = cz, z1 = cz+h;
-                [[x0,y0,z0,x1,y0,z0],[x1,y0,z0,x1,y1,z0],[x1,y1,z0,x0,y1,z0],[x0,y1,z0,x0,y0,z0],
-                 [x0,y0,z1,x1,y0,z1],[x1,y0,z1,x1,y1,z1],[x1,y1,z1,x0,y1,z1],[x0,y1,z1,x0,y0,z1],
-                 [x0,y0,z0,x0,y0,z1],[x1,y0,z0,x1,y0,z1],[x1,y1,z0,x1,y1,z1],[x0,y1,z0,x0,y1,z1]]
-                .forEach(e => {
-                    border_x.push(e[0], e[3], null);
-                    border_y.push(e[1], e[4], null);
-                    border_z.push(e[2], e[5], null);
-                });
-            });
-            traces.push({
-                type: 'scatter3d', x: border_x, y: border_y, z: border_z,
-                mode: 'lines', line: {color: '#1E293B', width: 2},
-                hoverinfo: 'skip', showlegend: false, name: '_BORDERS_'
-            });
-            
-            locations.forEach(loc => {
-                const is_v = ['H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q'].includes(loc.zone);
-                let cw, cd, h;
-                if (loc.is_ground) { cw = 2.0 * SHRINK; cd = 2.0 * SHRINK; h = LVL_HEIGHT * 0.92; }
-                else {
-                    cw = (is_v ? DEPTH : COL_WIDTH) * 0.47 * SHRINK;
-                    cd = (is_v ? COL_WIDTH : DEPTH) * 0.47 * SHRINK;
-                    h = LVL_HEIGHT * 0.92;
-                }
-                const cx = loc.X, cy = loc.Y, cz = loc.Z;
-                traces.push({
-                    type: 'mesh3d',
-                    x: [cx-cw, cx+cw, cx+cw, cx-cw, cx-cw, cx+cw, cx+cw, cx-cw],
-                    y: [cy-cd, cy-cd, cy+cd, cy+cd, cy-cd, cy-cd, cy+cd, cy+cd],
-                    z: [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h],
-                    name: '_SHELF_CUBE_',
-                    i: [7, 0, 0, 0, 4, 4, 1, 1, 2, 2, 3, 3],
-                    j: [0, 1, 2, 3, 5, 7, 2, 5, 3, 6, 0, 7],
-                    k: [4, 4, 3, 4, 6, 5, 5, 6, 6, 7, 7, 4],
-                    color: loc.color, customdata: Array(8).fill(loc.loc),
-                    text: Array(8).fill(`库位: ${loc.loc}`),
-                    lighting: {ambient: 0.7, diffuse: 0.85, specular: 0.05},
-                    flatshading: true, hoverinfo: 'text', showlegend: false
-                });
-                if (loc.is_ground) {
-                    traces.push({
-                        type: 'scatter3d', x: [loc.X], y: [loc.Y], z: [loc.Z + h + 0.5],
-                        mode: 'text', text: [loc.loc], textposition: "top center",
-                        textfont: {size: 12, color: "#0F172A", family: "Arial Black"},
-                        showlegend: false, hoverinfo: 'skip'
-                    });
-                }
-            });
-            
-            const ZONE_Z_OFFSET_MAP = {'A': 2.0, 'B': 16.0, 'C': 2.0, 'D': 11.0, 'E': 2.0, 'F': 7.0, 'G': 2.0, 'H': 2.0, 'J': 6.0, 'K': 10.0, 'L': 2.0, 'M': 6.0, 'N': 2.0, 'P': 6.0, 'Q': 2.0, 'T': 2.0, 'W': 6.0, 'X': 10.0, 'Y': 2.0};
-            [...new Set(locations.filter(l => !l.is_ground).map(l => l.zone))].forEach(zone => {
-                const zone_locs = locations.filter(l => l.zone === zone && !l.is_ground);
-                const mean_x = zone_locs.reduce((s, l) => s + l.X, 0) / zone_locs.length;
-                const mean_y = zone_locs.reduce((s, l) => s + l.Y, 0) / zone_locs.length;
-                const max_z = Math.max(...zone_locs.map(l => l.Z));
-                traces.push({
-                    type: 'scatter3d', x: [mean_x], y: [mean_y], z: [max_z + LVL_HEIGHT + (ZONE_Z_OFFSET_MAP[zone] || 2.0)],
-                    mode: 'text', text: [`${zone}区`], textposition: "top center",
-                    textfont: {size: 19, color: "#0F172A"}, showlegend: false, hoverinfo: 'skip'
-                });
-            });
-            
-            Plotly.newPlot('plotly-div', traces, {
-                autosize: true, 
-                margin: {l: 0, r: 0, b: 0, t: 0}, 
-                paper_bgcolor: '#F8FAFC',
-                scene: {
-                    xaxis: {visible: false}, 
-                    yaxis: {visible: false}, 
-                    zaxis: {visible: false},
-                    aspectmode: 'data',
-                    camera: {
-                        projection: {type: "orthographic"}, 
-                        eye: {x: -0.8, y: -0.8, z: 3.5}, 
-                        up: {x: 0, y: 0, z: 1}
-                    },
-                    hovermode: 'closest'
-                },
-                dragmode: "turntable"
-            }, {
-                responsive: true, 
-                displayModeBar: true, 
-                displaylogo: false,
-                modeBarButtonsToRemove: ['toImage', 'sendDataToCloud'],
-                // 🌟 关键修复：启用触摸手势
-                scrollZoom: true,  // 启用滚轮/双指缩放
-                doubleClick: 'reset',  // 双击重置视角
-                doubleClickDelay: 1000,
-                // 🌟 关键修复：明确启用触摸交互
-                touchStart: true,
-                touchMove: true,
-                touchEnd: true
-            });
-            
-            applyAllDBCacheToCanvas();
-            renderControlPanel();
+            Plotly.newPlot('plotly-div', tr, {autosize:true,margin:{l:0,r:0,b:0,t:0},paper_bgcolor:'#F8FAFC',scene:{xaxis:{visible:false},yaxis:{visible:false},zaxis:{visible:false},aspectmode:'data',camera:{projection:{type:"orthographic"},eye:{x:-0.8,y:-0.8,z:3.5},up:{x:0,y:0,z:1}},hovermode:'closest'},dragmode:"turntable"}, {responsive:true,displayModeBar:true,displaylogo:false,modeBarButtonsToRemove:['toImage','sendDataToCloud'],scrollZoom:true,doubleClick:'reset'});
+            applyAllDBCacheToCanvas(); renderControlPanel();
         }
         
-        function toggleMenu() {
-            const panel = document.getElementById('super-legend-panel');
-            panel.classList.toggle('show');
-        }
+        function switchGlobalView(v) { GLOBAL_CURRENT_VIEW=v; document.getElementById("view-plan-btn").className="switch-btn"+(v==='PLAN'?' active':''); document.getElementById("view-actual-btn").className="switch-btn"+(v==='ACTUAL'?' active-actual':''); document.getElementById("legend-panel-title").innerText=v==='PLAN'?"📊 预期规划品牌图例":"🔍 实盘现存品牌清点"; applyAllDBCacheToCanvas(); renderControlPanel(); if(window.innerWidth<=768){const p=document.getElementById('super-legend-panel');if(p.classList.contains('show'))toggleMenu();} }
         
-        function toggleFullscreen() {
-            document.body.classList.toggle('fullscreen');
-            setTimeout(() => Plotly.Plots.resize(document.getElementById('plotly-div')), 100);
-        }
+        function renderControlPanel() { const c=document.getElementById("legend-list"); c.innerHTML=""; if(GLOBAL_CURRENT_VIEW==="PLAN") runtime_config.forEach(i=>appendLegendRow(c,i.label,i.color,i.org_name)); else { const ab={}; server_data_cache.forEach(n=>(n.slices||[]).forEach(s=>{if(s.brand&&s.brand!=='[当前空置]'&&s.brand!=='[⚠️超过4品牌严重混放]'){const col=GLOBAL_BRAND_COLORS[s.brand];if(col)ab[s.brand]=col;}})); Object.keys(ab).sort().forEach(b=>appendLegendRow(c,b,ab[b],b)); } }
         
-        function switchGlobalView(viewMode) {
-            GLOBAL_CURRENT_VIEW = viewMode;
-            document.getElementById("view-plan-btn").className = "switch-btn" + (viewMode==='PLAN'?' active':'');
-            document.getElementById("view-actual-btn").className = "switch-btn" + (viewMode==='ACTUAL'?' active-actual':'');
-            document.getElementById("legend-panel-title").innerText = viewMode === 'PLAN' ? "📊 预期规划品牌图例" : "🔍 实盘现存品牌清点";
-            applyAllDBCacheToCanvas();
-            renderControlPanel();
-            if (window.innerWidth <= 768) {
-                const panel = document.getElementById('super-legend-panel');
-                if (panel.classList.contains('show')) toggleMenu();
-            }
-        }
+        function appendLegendRow(cont,name,color,org) { const r=document.createElement("div"); r.className="legend-row"; const cb=document.createElement("div"); cb.className="color-box"; cb.style.background=color==='transparent'?'#fff':color; if(isEditMode){cb.title="点击修改颜色";cb.onclick=e=>{e.stopPropagation();const inp=document.createElement('input');inp.type='color';inp.value=color==='transparent'?'#ffffff':color;inp.style.cssText='position:absolute;opacity:0';inp.onchange=()=>updateBrandColor(org||name,inp.value);cb.appendChild(inp);inp.click();};} else {cb.title="只读模式";cb.style.cursor='not-allowed';cb.style.opacity='0.7';} const lb=document.createElement("span"); lb.className="legend-label"; lb.innerText=name; r.appendChild(cb); r.appendChild(lb); if(isEditMode){ ['✏️ 编辑库位','edit-btn',()=>editBrand(org||name)], ['🗑️ 删除品牌','delete-btn',()=>{if(confirm(`确定删除 "${name}"？`))deleteBrand(org||name);}], ['🔄 恢复初始','reset-btn',()=>{if(confirm(`确定恢复 "${name}"？`))resetBrandLocations(org||name);})] ].forEach(([t,cls,fn])=>{const b=document.createElement("button");b.className=`action-btn ${cls}`;b.innerText=t.slice(0,2);b.title=t;b.onclick=e=>{e.stopPropagation();fn();};r.appendChild(b);}); } cont.appendChild(r); }
         
-        function renderControlPanel() {
-            const listContainer = document.getElementById("legend-list");
-            listContainer.innerHTML = "";
-            if (GLOBAL_CURRENT_VIEW === "PLAN") {
-                runtime_config.forEach(item => appendLegendRow(listContainer, item.label, item.color, item.org_name));
-            } else {
-                const activeActualBrands = {};
-                server_data_cache.forEach(node => {
-                    (node.slices || []).forEach(sl => {
-                        if (sl.brand && sl.brand !== '[当前空置]' && sl.brand !== '[⚠️超过4品牌严重混放]') {
-                            const c = GLOBAL_BRAND_COLORS[sl.brand];
-                            if (c) activeActualBrands[sl.brand] = c;
-                        }
-                    });
-                });
-                Object.keys(activeActualBrands).sort().forEach(bName => {
-                    appendLegendRow(listContainer, bName, activeActualBrands[bName], bName);
-                });
-            }
-        }
+        function editBrand(b) { let l=[]; server_data_cache.forEach(n=>{let c=n.native_brand;if(cell_override_db[n.loc])c=cell_override_db[n.loc].org_name;if(c===b)l.push(n.loc);}); document.getElementById('target-loc').value=formatLocsToRange(l); document.getElementById('new-brand').value=b; const c=runtime_config.find(x=>x.org_name===b||x.label===b); document.getElementById('new-color').value=c&&c.color!=='transparent'?c.color:'#FFFFFF'; document.getElementById('planning-tools-box').scrollIntoView({behavior:'smooth'}); }
+        function formatLocsToRange(l) { if(!l.length)return "";const p=l.map(s=>{const m=s.match(/^([A-Z]+)(\d+)-(\d+)$/);return m?{raw:s,z:m[1],c:+m[2],l:+m[3]}:{raw:s,z:s,c:0,l:0};}).sort((a,b)=>a.z.localeCompare(b.z)||a.c-b.c||a.l-b.l);const r=[];let i=0;while(i<p.length){let s=p[i],e=p[i];while(i+1<p.length&&p[i+1].z===s.z&&p[i+1].c===s.c&&p[i+1].l===e.l+1){i++;e=p[i];}r.push(s.raw===e.raw?s.raw:`${s.raw}~${e.raw}`);i++;}return r.join(", "); }
+        function parseSinglePattern(pat,id) { pat=pat.trim().toUpperCase(); if(!pat)return false; if(pat.includes('~')||pat.includes('到')){const d=pat.includes('~')?'~':'到';const ps=pat.split(d);if(ps.length===2){const m1=ps[0].trim().match(/^([A-Z]+)(\d+)-(\d+)$/),m2=ps[1].trim().match(/^([A-Z]+)(\d+)-(\d+)$/),ml=id.match(/^([A-Z]+)(\d+)-(\d+)$/);if(m1&&m2&&ml&&ml[1]===m1[1]&&m1[1]===m2[1])return+ml[2]>=Math.min(+m1[2],+m2[2])&&+ml[2]<=Math.max(+m1[2],+m2[2])&&+ml[3]>=Math.min(+m1[3],+m2[3])&&+ml[3]<=Math.max(+m1[3],+m2[3]);}} if(id===pat)return true; if(pat.includes(':')){const p=pat.split(':')[0].trim();if(/^[A-Z]+$/.test(p))return id.startsWith(p);const m=p.match(/^([A-Z]+)(\d+)$/);if(m){const z=id.match(/[A-Z]+/)[0];const c=id.split('-')[0].replace(z,'');return z===m[1]&&+c===+m[2];}} return false; }
+        function applyLocationChange() { const r=document.getElementById('target-loc').value.trim(),b=document.getElementById('new-brand').value.trim(),c=document.getElementById('new-color').value; if(!r||!b){alert("请输入库位范围和品牌名");return;} const ps=r.replace(/\n/g,',').replace(/，/g,',').split(','); let ex=runtime_config.some(x=>x.org_name===b||x.label===b); const fo=ex?runtime_config.find(x=>x.label===b||x.org_name===b).org_name:b; if(!ex)runtime_config.push({org_name:b,color:c,label:b}); GLOBAL_BRAND_COLORS[fo]=c; localStorage.setItem("warehouse_twin_master_2026",JSON.stringify(runtime_config)); server_data_cache.forEach(n=>{if(ps.some(p=>parseSinglePattern(p,n.loc)))cell_override_db[n.loc]={org_name:fo,label:b,color:c};}); localStorage.setItem("warehouse_twin_cell_overrides_2026",JSON.stringify(cell_override_db)); document.getElementById('target-loc').value="";document.getElementById('new-brand').value=""; applyAllDBCacheToCanvas();renderControlPanel(); }
+        function deleteBrand(n) { runtime_config=runtime_config.filter(c=>c.org_name!==n&&c.label!==n); localStorage.setItem("warehouse_twin_master_2026",JSON.stringify(runtime_config)); for(let l in cell_override_db)if(cell_override_db[l].org_name===n||cell_override_db[l].label===n)delete cell_override_db[l]; localStorage.setItem("warehouse_twin_cell_overrides_2026",JSON.stringify(cell_override_db)); delete GLOBAL_BRAND_COLORS[n]; applyAllDBCacheToCanvas();renderControlPanel(); }
+        function resetBrandLocations(b) { server_data_cache.forEach(n=>{let c=n.native_brand;if(cell_override_db[n.loc])c=cell_override_db[n.loc].org_name;if(c===b)delete cell_override_db[n.loc];}); localStorage.setItem("warehouse_twin_cell_overrides_2026",JSON.stringify(cell_override_db)); applyAllDBCacheToCanvas(); }
+        function updateBrandColor(b,c) { let cf=runtime_config.find(x=>x.org_name===b||x.label===b); if(cf)cf.color=c; else runtime_config.push({org_name:b,color:c,label:b}); GLOBAL_BRAND_COLORS[b]=c; localStorage.setItem("warehouse_twin_master_2026",JSON.stringify(runtime_config)); for(let l in cell_override_db)if(cell_override_db[l].org_name===b)cell_override_db[l].color=c; localStorage.setItem("warehouse_twin_cell_overrides_2026",JSON.stringify(cell_override_db)); applyAllDBCacheToCanvas();renderControlPanel(); }
         
-        function appendLegendRow(container, name, color, orgName) {
-            const row = document.createElement("div");
-            row.className = "legend-row";
-            
-            const colorBox = document.createElement("div");
-            colorBox.className = "color-box";
-            colorBox.style.background = color === 'transparent' ? '#fff' : color;
-            
-            if (isEditMode) {
-                colorBox.title = "点击修改颜色";
-                colorBox.onclick = function(e) {
-                    e.stopPropagation();
-                    const input = document.createElement('input');
-                    input.type = 'color';
-                    input.value = color === 'transparent' ? '#ffffff' : color;
-                    input.style.position = 'absolute';
-                    input.style.opacity = '0';
-                    input.onchange = function() { updateBrandColor(orgName || name, input.value); };
-                    colorBox.appendChild(input);
-                    input.click();
-                };
-            } else {
-                colorBox.title = "只读模式";
-                colorBox.style.cursor = 'not-allowed';
-                colorBox.style.opacity = '0.7';
-            }
-            
-            const label = document.createElement("span");
-            label.className = "legend-label";
-            label.innerText = name;
-            
-            row.appendChild(colorBox);
-            row.appendChild(label);
-            
-            // 🌟 编辑模式下显示所有编辑按钮
-            if (isEditMode) {
-                // ✏️ 编辑库位范围按钮
-                const editBtn = document.createElement("button");
-                editBtn.className = "action-btn edit-btn";
-                editBtn.innerText = "✏️";
-                editBtn.title = "编辑该品牌的库位范围";
-                editBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    editBrand(orgName || name);
-                };
-                row.appendChild(editBtn);
-                
-                // 🗑️ 删除按钮
-                const delBtn = document.createElement("button");
-                delBtn.className = "action-btn delete-btn";
-                delBtn.innerText = "🗑️";
-                delBtn.title = "从看板中彻底删除该品牌";
-                delBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    if(confirm(`确定要从看板中彻底删除品牌 "${name}" 吗？`)) deleteBrand(orgName || name);
-                };
-                row.appendChild(delBtn);
-                
-                // 🔄 恢复按钮
-                const resetBtn = document.createElement("button");
-                resetBtn.className = "action-btn reset-btn";
-                resetBtn.innerText = "🔄";
-                resetBtn.title = "恢复该品牌的初始规划区域";
-                resetBtn.onclick = function(e) {
-                    e.stopPropagation();
-                    if(confirm(`确定恢复 "${name}" 的初始规划区域吗？`)) resetBrandLocations(orgName || name);
-                };
-                row.appendChild(resetBtn);
-            }
-            
-            container.appendChild(row);
-        }
+        function applyAllDBCacheToCanvas() { const gd=document.getElementById('plotly-div'); if(!gd||!gd.data)return; const ot=gd.data,base=[],map={}; for(let i=0;i<ot.length;i++){const t=ot[i];if(t.name==='_SHELF_CUBE_'||t.name==='_DYNAMIC_SLICE_'){if(t.customdata)map[t.customdata[0]]=t;}else base.push(t);} const ft=[...base]; server_data_cache.forEach(n=>{const l=n.loc,tc=map[l];if(!tc)return;const z=l.match(/[A-Z]+/)[0]; if(GLOBAL_CURRENT_VIEW==="PLAN"){let cl=n.native_color,lb=n.native_brand; if(cell_override_db[l]){cl=cell_override_db[l].color;lb=cell_override_db[l].label;}else{const pc=runtime_config.find(x=>x.org_name===n.native_brand);if(pc){cl=pc.color||GLOBAL_BRAND_COLORS[pc.org_name];lb=pc.label;}else{cl=GLOBAL_BRAND_COLORS[n.native_brand]||n.native_color;lb=n.native_brand;}} tc.color=cl==='transparent'?'#FFFFFF':cl; tc.opacity=cl==='transparent'?0:1; tc.name='_SHELF_CUBE_'; tc.z=n.orig_z; tc.text=Array(8).fill(`<b>库位编码: ${l} 【规划分布】</b><br>📍 货架区域: ${z} 货区<br>📦 预设管理品牌: ${lb}`); ft.push(tc); }else{const sl=n.slices||[];const oz=n.orig_z;const mn=Math.min(...oz),mx=Math.max(...oz),fh=mx-mn; for(let s=0;s<sl.length;s++){const cs=sl[s],sh=fh/sl.length,sz=mn+s*sh,ez=sz+sh;const nz=[...oz];for(let v=0;v<8;v++)nz[v]=oz[v]===mn?sz:ez;const sc=GLOBAL_BRAND_COLORS[cs.brand]||cs.color; let h=`<b>库位: ${l} 【实际库存大盘】</b><br>🎨 局部切片品牌: ${cs.brand}<br>----------------------------<br>`; if(!cs.items||!cs.items.length)h+=`<i>🫙 当前格子实盘空置</i>`; else cs.items.forEach(i=>h+=`• <b>SKU</b>: <span style='color:#0F172A;font-weight:bold;'>${i.sku}</span> | <b>数量</b>: ${i.qty} 件<br>`); ft.push({type:'mesh3d',x:tc.x,y:tc.y,z:nz,i:tc.i,j:tc.j,k:tc.k,color:sc,customdata:Array(8).fill(l),text:Array(8).fill(h),name:'_DYNAMIC_SLICE_',lighting:tc.lighting,flatshading:true,hoverinfo:'text',showlegend:false});}} }); gd.data=ft; Plotly.redraw(gd); }
         
-        // 🌟 编辑品牌库位范围
-        function editBrand(brand) {
-            let locs = [];
-            server_data_cache.forEach(node => {
-                let currentBrand = node.native_brand;
-                if (cell_override_db[node.loc]) currentBrand = cell_override_db[node.loc].org_name;
-                if (currentBrand === brand) locs.push(node.loc);
-            });
-            document.getElementById('target-loc').value = formatLocsToRange(locs);
-            document.getElementById('new-brand').value = brand;
-            const conf = runtime_config.find(c => c.org_name === brand || c.label === brand);
-            document.getElementById('new-color').value = (conf && conf.color !== 'transparent') ? conf.color : "#FFFFFF";
-            // 滚动到工具面板
-            document.getElementById('planning-tools-box').scrollIntoView({behavior: 'smooth'});
-        }
+        function resetToDefault() { if(!isEditMode){alert("请先切换到编辑模式");return;} if(confirm("确定恢复所有初始规划并清除本地修改？")){localStorage.clear();window.location.reload();} }
+        async function refreshData() { const b=document.getElementById('refresh-btn');b.disabled=true;b.innerText='🔄 刷新中...';try{await loadData();document.getElementById('data-timestamp').innerText='数据更新: '+new Date().toLocaleString('zh-CN');lastRefreshTime=Date.now();}catch(e){alert("刷新失败: "+e.message);}finally{b.disabled=false;b.innerText='🔄 刷新数据';} }
+        async function loadData() { document.getElementById('loading-overlay').style.display='flex';document.getElementById('loading-text').innerText='正在加载仓库数据...';document.getElementById('error-message').innerText='';try{const[l,d]=await Promise.all([fetchPlanData(),fetchActualData()]);render3D(l,d);document.getElementById('loading-overlay').style.display='none';document.getElementById('data-timestamp').innerText='数据更新: '+new Date().toLocaleString('zh-CN');lastRefreshTime=Date.now();}catch(e){document.getElementById('loading-text').innerText='加载失败';document.getElementById('error-message').innerText=e.message;} }
         
-        function formatLocsToRange(locs) {
-            if (!locs || locs.length === 0) return "";
-            let parsed = locs.map(l => {
-                const m = l.match(/^([A-Z]+)(\d+)-(\d+)$/);
-                return m ? { raw: l, z: m[1], c: parseInt(m[2]), l: parseInt(m[3]) } : { raw: l, z: l, c: 0, l: 0 };
-            });
-            parsed.sort((a, b) => a.z.localeCompare(b.z) || a.c - b.c || a.l - b.l);
-            let ranges = [], i = 0;
-            while (i < parsed.length) {
-                let start = parsed[i], end = parsed[i];
-                while (i + 1 < parsed.length && parsed[i+1].z === start.z && parsed[i+1].c === start.c && parsed[i+1].l === end.l + 1) { i++; end = parsed[i]; }
-                ranges.push(start.raw === end.raw ? start.raw : `${start.raw}~${end.raw}`);
-                i++;
-            }
-            return ranges.join(", ");
-        }
-        
-        function parseSinglePattern(pat, locID) {
-            pat = pat.trim().toUpperCase();
-            if (!pat) return false;
-            if (pat.includes('~') || pat.includes('到')) {
-                const d = pat.includes('~') ? '~' : '到';
-                const parts = pat.split(d);
-                if (parts.length === 2) {
-                    const mS = parts[0].trim().match(/^([A-Z]+)(\d+)-(\d+)$/);
-                    const mE = parts[1].trim().match(/^([A-Z]+)(\d+)-(\d+)$/);
-                    const mL = locID.match(/^([A-Z]+)(\d+)-(\d+)$/);
-                    if (mS && mE && mL && mL[1] === mS[1] && mS[1] === mE[1]) {
-                        return (parseInt(mL[2]) >= Math.min(parseInt(mS[2]), parseInt(mE[2])) && 
-                                parseInt(mL[2]) <= Math.max(parseInt(mS[2]), parseInt(mE[2])) && 
-                                parseInt(mL[3]) >= Math.min(parseInt(mS[3]), parseInt(mE[3])) && 
-                                parseInt(mL[3]) <= Math.max(parseInt(mS[3]), parseInt(mE[3])));
-                    }
-                }
-            }
-            if (locID === pat) return true;
-            if (pat.includes(':')) {
-                const p = pat.split(':')[0].trim();
-                if (/^[A-Z]+$/.test(p)) return locID.startsWith(p);
-                const m = p.match(/^([A-Z]+)(\d+)$/);
-                if (m) {
-                    const z = locID.match(/[A-Z]+/)[0];
-                    const c = locID.split('-')[0].replace(z, '');
-                    return z === m[1] && parseInt(c) === parseInt(m[2]);
-                }
-            }
-            return false;
-        }
-        
-        function applyLocationChange() {
-            const raw = document.getElementById('target-loc').value.trim();
-            const brand = document.getElementById('new-brand').value.trim();
-            const color = document.getElementById('new-color').value;
-            if(!raw || !brand) { alert("请输入库位范围和品牌名"); return; }
-            const pats = raw.replace(/\n/g, ',').replace(/，/g, ',').split(',');
-            let exist = runtime_config.some(c => c.org_name === brand || c.label === brand);
-            const fOrg = exist ? runtime_config.find(c => c.label === brand || c.org_name === brand).org_name : brand;
-            if (!exist) runtime_config.push({ org_name: brand, color: color, label: brand });
-            GLOBAL_BRAND_COLORS[fOrg] = color;
-            localStorage.setItem("warehouse_twin_master_2026", JSON.stringify(runtime_config));
-            server_data_cache.forEach(node => { 
-                if(pats.some(p => parseSinglePattern(p, node.loc))) 
-                    cell_override_db[node.loc] = { org_name: fOrg, label: brand, color: color }; 
-            });
-            localStorage.setItem("warehouse_twin_cell_overrides_2026", JSON.stringify(cell_override_db));
-            document.getElementById('target-loc').value = "";
-            document.getElementById('new-brand').value = "";
-            applyAllDBCacheToCanvas();
-            renderControlPanel();
-        }
-        
-        function deleteBrand(brandName) {
-            runtime_config = runtime_config.filter(c => c.org_name !== brandName && c.label !== brandName);
-            localStorage.setItem("warehouse_twin_master_2026", JSON.stringify(runtime_config));
-            for (let loc in cell_override_db) {
-                if (cell_override_db[loc].org_name === brandName || cell_override_db[loc].label === brandName) {
-                    delete cell_override_db[loc];
-                }
-            }
-            localStorage.setItem("warehouse_twin_cell_overrides_2026", JSON.stringify(cell_override_db));
-            delete GLOBAL_BRAND_COLORS[brandName];
-            applyAllDBCacheToCanvas();
-            renderControlPanel();
-        }
-        
-        function resetBrandLocations(brand) {
-            server_data_cache.forEach(node => {
-                let currentBrand = node.native_brand;
-                if (cell_override_db[node.loc]) currentBrand = cell_override_db[node.loc].org_name;
-                if (currentBrand === brand) delete cell_override_db[node.loc];
-            });
-            localStorage.setItem("warehouse_twin_cell_overrides_2026", JSON.stringify(cell_override_db));
-            applyAllDBCacheToCanvas();
-        }
-        
-        function updateBrandColor(brand, newColor) {
-            let conf = runtime_config.find(c => c.org_name === brand || c.label === brand);
-            if (conf) conf.color = newColor;
-            else runtime_config.push({ org_name: brand, color: newColor, label: brand });
-            GLOBAL_BRAND_COLORS[brand] = newColor;
-            localStorage.setItem("warehouse_twin_master_2026", JSON.stringify(runtime_config));
-            for (let loc in cell_override_db) {
-                if (cell_override_db[loc].org_name === brand) cell_override_db[loc].color = newColor;
-            }
-            localStorage.setItem("warehouse_twin_cell_overrides_2026", JSON.stringify(cell_override_db));
-            applyAllDBCacheToCanvas();
-            renderControlPanel();
-        }
-        
-        function applyAllDBCacheToCanvas() {
-            const gd = document.getElementById('plotly-div');
-            if (!gd || !gd.data) return;
-            const originalTraces = gd.data;
-            const basePlatformAndScatters = [];
-            const shelfCubesMap = {};
-            for (let i = 0; i < originalTraces.length; i++) {
-                const t = originalTraces[i];
-                if (t.name === '_SHELF_CUBE_' || t.name === '_DYNAMIC_SLICE_') {
-                    if (t.customdata) shelfCubesMap[t.customdata[0]] = t;
-                } else {
-                    basePlatformAndScatters.push(t);
-                }
-            }
-            const finalDynamicTraces = [...basePlatformAndScatters];
-            
-            server_data_cache.forEach(node => {
-                const locID = node.loc;
-                const templateCube = shelfCubesMap[locID];
-                if (!templateCube) return;
-                const zChar = locID.match(/[A-Z]+/)[0];
-                
-                if (GLOBAL_CURRENT_VIEW === "PLAN") {
-                    let targetColor = node.native_color;
-                    let targetLabel = node.native_brand;
-                    if (cell_override_db[locID]) {
-                        targetColor = cell_override_db[locID].color;
-                        targetLabel = cell_override_db[locID].label;
-                    } else {
-                        const parentConf = runtime_config.find(c => c.org_name === node.native_brand);
-                        if (parentConf) {
-                            targetColor = parentConf.color || GLOBAL_BRAND_COLORS[parentConf.org_name];
-                            targetLabel = parentConf.label;
-                        } else {
-                            targetColor = GLOBAL_BRAND_COLORS[node.native_brand] || node.native_color;
-                            targetLabel = node.native_brand;
-                        }
-                    }
-                    templateCube.color = targetColor === 'transparent' ? '#FFFFFF' : targetColor;
-                    templateCube.opacity = targetColor === 'transparent' ? 0 : 1;
-                    templateCube.name = '_SHELF_CUBE_';
-                    templateCube.z = node.orig_z;
-                    templateCube.text = Array(8).fill(`<b>库位编码: ${locID} 【规划分布】</b><br>📍 货架区域: ${zChar} 货区<br>📦 预设管理品牌: ${targetLabel}`);
-                    finalDynamicTraces.push(templateCube);
-                } else {
-                    const slices = node.slices || [];
-                    const origZ = node.orig_z;
-                    const minZ = Math.min(...origZ);
-                    const maxZ = Math.max(...origZ);
-                    const fullHeight = maxZ - minZ;
-                    for (let s = 0; s < slices.length; s++) {
-                        const currentSlice = slices[s];
-                        const segmentHeight = fullHeight / slices.length;
-                        const sliceMinZ = minZ + (s * segmentHeight);
-                        const sliceMaxZ = sliceMinZ + segmentHeight;
-                        const currentZArray = [...origZ];
-                        for (let v = 0; v < 8; v++) {
-                            if (origZ[v] === minZ) currentZArray[v] = sliceMinZ;
-                            else currentZArray[v] = sliceMaxZ;
-                        }
-                        const sliceColor = GLOBAL_BRAND_COLORS[currentSlice.brand] || currentSlice.color;
-                        let hoverHTML = `<b>库位: ${locID} 【实际库存大盘】</b><br>🎨 局部切片品牌: ${currentSlice.brand}<br>----------------------------<br>`;
-                        if (!currentSlice.items || currentSlice.items.length === 0) {
-                            hoverHTML += `<i>🫙 当前格子实盘空置</i>`;
-                        } else {
-                            currentSlice.items.forEach(it => {
-                                hoverHTML += `• <b>SKU</b>: <span style='color:#0F172A; font-weight:bold;'>${it.sku}</span> | <b>数量</b>: ${it.qty} 件<br>`;
-                            });
-                        }
-                        finalDynamicTraces.push({
-                            type: 'mesh3d', x: templateCube.x, y: templateCube.y, z: currentZArray,
-                            i: templateCube.i, j: templateCube.j, k: templateCube.k,
-                            color: sliceColor, customdata: Array(8).fill(locID),
-                            text: Array(8).fill(hoverHTML), name: '_DYNAMIC_SLICE_',
-                            lighting: templateCube.lighting, flatshading: true,
-                            hoverinfo: 'text', showlegend: false
-                        });
-                    }
-                }
-            });
-            
-            gd.data = finalDynamicTraces;
-            Plotly.redraw(gd);
-        }
-        
-        function resetToDefault() {
-            if (!isEditMode) { alert("请先切换到编辑模式"); return; }
-            if (confirm("确定要恢复所有初始规划并清除本地保存的修改吗？")) {
-                localStorage.clear();
-                window.location.reload();
-            }
-        }
-        
-        async function refreshData() {
-            const btn = document.getElementById('refresh-btn');
-            btn.disabled = true;
-            btn.innerText = '🔄 刷新中...';
-            try {
-                await loadData();
-                document.getElementById('data-timestamp').innerText = '数据更新: ' + new Date().toLocaleString('zh-CN');
-                lastRefreshTime = Date.now();
-            } catch (e) {
-                alert("刷新失败: " + e.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerText = '🔄 刷新数据';
-            }
-        }
-        
-        async function loadData() {
-            document.getElementById('loading-overlay').style.display = 'flex';
-            document.getElementById('loading-text').innerText = '正在加载仓库数据...';
-            document.getElementById('error-message').innerText = '';
-            try {
-                const [locations, actual_db] = await Promise.all([fetchPlanData(), fetchActualData()]);
-                render3D(locations, actual_db);
-                document.getElementById('loading-overlay').style.display = 'none';
-                document.getElementById('data-timestamp').innerText = '数据更新: ' + new Date().toLocaleString('zh-CN');
-                lastRefreshTime = Date.now();
-            } catch (e) {
-                document.getElementById('loading-text').innerText = '加载失败';
-                document.getElementById('error-message').innerText = e.message;
-            }
-        }
-        
-        window.addEventListener('load', async () => {
-            await loadData();
-            updateEditModeButton();
-            setInterval(() => {
-                if (Date.now() - lastRefreshTime >= 30 * 60 * 1000) {
-                    console.log("⏰ 30 分钟已到，自动刷新数据...");
-                    refreshData();
-                }
-            }, 60000);
-        });
-        
-        console.log('💡 提示：在控制台运行 generatePasswordHash("你的新密码") 可以生成新密码的哈希值');
+        window.addEventListener('load',async()=>{await loadData();updateEditModeButton();setInterval(()=>{if(Date.now()-lastRefreshTime>=1800000){console.log("⏰ 30分钟已到，自动刷新...");refreshData();}},60000);});
     </script>
 </body>
 </html>
