@@ -17,14 +17,10 @@
         
         #plotly-div { width: 100%; height: 100vh; position: relative; }
         
-        /*  核心修复：透明覆盖层，用于拦截手势，防止 Plotly 吞掉事件 */
+        /* 🌟 核心修复：透明覆盖层，用于拦截手势，防止 Plotly 吞掉事件 */
         #gesture-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 100; /* 高于 Plotly canvas */
-            display: none; /* 默认隐藏 */
-            touch-action: none; /* 禁止浏览器默认滚动 */
-            cursor: grab;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 100; display: none; touch-action: none; cursor: grab;
         }
         #gesture-overlay:active { cursor: grabbing; }
         
@@ -32,8 +28,7 @@
             position: absolute; top: 20px; right: 20px; 
             background: rgba(255,255,255,0.95); padding: 10px 14px; 
             border-radius: 10px; box-shadow: 0 4px 12px rgba(15,23,42,0.15); 
-            z-index: 9999; border: 1px solid #E2E8F0; text-align: center; 
-            pointer-events: auto;
+            z-index: 9999; border: 1px solid #E2E8F0; text-align: center; pointer-events: auto;
         }
         #data-timestamp { font-size: 13px; font-weight: bold; color: #0F172A; margin-bottom: 4px; }
         #refresh-btn { background: #3B82F6; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; }
@@ -45,11 +40,8 @@
             background: rgba(255,255,255,0.98); padding: 16px; 
             border-radius: 12px; box-shadow: 0 6px 20px rgba(15,23,42,0.15); 
             z-index: 9999; width: 380px; border: 1px solid #E2E8F0; 
-            max-height: 90vh; overflow-y: auto; 
-            transition: transform 0.3s ease, opacity 0.3s ease;
-            pointer-events: auto;
+            max-height: 90vh; overflow-y: auto; transition: transform 0.3s ease, opacity 0.3s ease; pointer-events: auto;
         }
-        
         #super-legend-panel.collapsed { transform: translateX(-420px); opacity: 0; pointer-events: none; }
         
         #panel-expand-strip {
@@ -128,7 +120,6 @@
             box-shadow: 0 4px 20px rgba(15,23,42,0.15); padding: 8px;
             z-index: 9998; display: flex; gap: 6px; border: 1px solid #E2E8F0; pointer-events: auto;
         }
-        
         .mode-btn {
             padding: 10px 16px; border: 1px solid #CBD5E1; background: white;
             border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: bold;
@@ -141,7 +132,6 @@
             #menu-toggle-btn { display: block; }
             #fullscreen-btn { display: block; top: 70px; }
             #edit-mode-btn { top: 120px; right: 10px; padding: 10px 14px; font-size: 12px; }
-            
             #super-legend-panel { 
                 position: fixed; top: 0; left: 0; right: 0; bottom: 0;
                 width: 100%; max-height: 100vh; border-radius: 0;
@@ -149,14 +139,12 @@
             }
             #super-legend-panel.show { transform: translateX(0); }
             #super-legend-panel.collapsed { transform: translateX(-100%); }
-            
             #panel-expand-strip { width: 24px; height: 60px; font-size: 14px; }
             #data-timestamp-box { top: 10px; right: 10px; padding: 8px 10px; display: none; }
             .legend-row { padding: 10px; }
             .legend-label { font-size: 13px; }
             .action-btn { font-size: 14px; padding: 4px 8px; }
             .switch-btn { padding: 12px; font-size: 13px; }
-            
             #mode-controls { bottom: 10px; right: 10px; padding: 6px; gap: 4px; }
             .mode-btn { padding: 12px 14px; font-size: 16px; }
         }
@@ -202,11 +190,11 @@
     
     <div id="super-legend-panel">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <button onclick="collapsePanel()" style="background: #64748B; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;" title="收起看板"> 收起</button>
+            <button onclick="collapsePanel()" style="background: #64748B; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;" title="收起看板">◀ 收起</button>
         </div>
         <div style="background: #F1F5F9; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 12px; border: 1px solid #E2E8F0;">
             <div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')">🟢 规划预期分布</div>
-            <div id="view-actual-btn" class="switch-btn" onclick="switchGlobalView('ACTUAL')"> 实际库存大盘</div>
+            <div id="view-actual-btn" class="switch-btn" onclick="switchGlobalView('ACTUAL')">🔵 实际库存大盘</div>
         </div>
         <div style="border-bottom: 2px solid #F1F5F9; padding-bottom: 6px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
             <h4 id="legend-panel-title" style="margin: 0; color: #0F172A; font-size: 13px;">📊 预期规划品牌图例</h4>
@@ -241,19 +229,14 @@
     <div id="mode-controls">
         <button class="mode-btn active" id="btn-rotate" onclick="setMode('rotate', 'btn-rotate')">🔄 旋转</button>
         <button class="mode-btn" id="btn-pan" onclick="setMode('pan', 'btn-pan')">✋ 平移</button>
-        <button class="mode-btn" id="btn-zoom" onclick="setMode('zoom', 'btn-zoom')"> 缩放</button>
+        <button class="mode-btn" id="btn-zoom" onclick="setMode('zoom', 'btn-zoom')">🔍 缩放</button>
     </div>
     
     <script>
         const PLAN_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vStLtLccpDSfrf_yU_T9WrNcZufN29BqkDsVS2r9ql1INK_61uA8UetkiW4DZ4_dv63o-DHzFz0tOAq/pub?gid=1276542862&single=true&output=csv";
         const ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-egK5kKzjLVZx/export?format=xlsx";
-        
         const PASSWORD_HASH = "a5c8c0b6d8e8f8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8e8";
-        
-        const CORS_PROXIES = [
-            "https://corsproxy.io/?",
-            "https://api.allorigins.win/raw?url="
-        ];
+        const CORS_PROXIES = ["https://corsproxy.io/?", "https://api.allorigins.win/raw?url="];
         
         const GLOBAL_BRAND_COLORS = {
             'LINSY': '#D68F68', 'A区 (oversize沙发区)': '#7DA28A', 'B区 (沙发 Backup区)': '#6C8EA4',
@@ -412,7 +395,16 @@
         
         function getAbsoluteCoords(zone, col, lvl) {
             const z = (lvl - 1) * LVL_HEIGHT; let x, y;
-            if (zone === 'Y') { x = EASTERN_ALIGN_X - ((col - 1) * COL_WIDTH); y = NORTH_BASE_Y + 15; }
+            // 🌟 核心修复：补全 GA, GBC 等地面临时库位的坐标计算
+            if (zone.startsWith('GA')) {
+                const num = parseInt(zone.replace('GA', '')) || 1;
+                x = 82 + (num - 1) * COL_WIDTH + (COL_WIDTH / 2);
+                y = SOUTH_BASE_Y - 8.0; // 地面库位在货架前方
+            } else if (zone.startsWith('GBC')) {
+                const num = parseInt(zone.replace('GBC', '')) || 1;
+                x = 82 + (num - 1) * COL_WIDTH + (COL_WIDTH / 2);
+                y = SOUTH_BASE_Y - 16.0; // GBC 在 GA 更前方
+            } else if (zone === 'Y') { x = EASTERN_ALIGN_X - ((col - 1) * COL_WIDTH); y = NORTH_BASE_Y + 15; }
             else if (['X', 'W', 'T'].includes(zone)) { const step = XWT_ZONE_COL_ORDER[col] !== undefined ? XWT_ZONE_COL_ORDER[col] : col - 1; x = EASTERN_ALIGN_X - (step * COL_WIDTH); if (zone === 'X') y = NORTH_BASE_Y; else if (zone === 'W') y = NORTH_BASE_Y - DEPTH; else if (zone === 'T') y = NORTH_BASE_Y - (DEPTH * 2) - 12; }
             else if (zone === 'H') { x = 55.0 + 0.8; y = col <= 10 ? SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2) : SOUTH_BASE_Y + (col - 10) * COL_WIDTH - (COL_WIDTH / 2); }
             else if (zone === 'J') { x = 55.0 - DEPTH - 0.8; y = col <= 11 ? SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2) : SOUTH_BASE_Y + (col - 11) * COL_WIDTH - (COL_WIDTH / 2); }
@@ -451,6 +443,7 @@
                 if (row.length < 7) return;
                 const raw_loc = String(row[1] || '').trim();
                 if (!raw_loc || raw_loc === 'nan' || raw_loc.includes('$') || raw_loc.includes(' ')) return;
+                // 🌟 兼容 GA/GBC 等地面临时库位格式
                 if (!/^[A-Z]+\d+-\d+$/.test(raw_loc) && !/^G[A-Z]*\d*$/.test(raw_loc)) return;
                 const raw_sku = String(row[2] || '').trim();
                 const clean_sku = raw_sku.includes('~') ? raw_sku.split('~').pop() : raw_sku;
@@ -476,7 +469,7 @@
                 const brands_in_bin = [...new Set(items_in_bin.map(it => it.brand).filter(b => b))];
                 let slices_data = [];
                 if (brands_in_bin.length === 0) slices_data.push({brand: "[当前空置]", color: GLOBAL_BRAND_COLORS['[当前空置]'], items: []});
-                else if (brands_in_bin.length > 4) slices_data.push({brand: "[️超过4品牌严重混放]", color: GLOBAL_BRAND_COLORS['[⚠️超过4品牌严重混放]'], items: items_in_bin});
+                else if (brands_in_bin.length > 4) slices_data.push({brand: "[⚠️超过4品牌严重混放]", color: GLOBAL_BRAND_COLORS['[⚠️超过4品牌严重混放]'], items: items_in_bin});
                 else { brands_in_bin.forEach(b_name => { slices_data.push({ brand: b_name, color: GLOBAL_BRAND_COLORS[b_name] || "#CBD5E1", items: items_in_bin.filter(it => it.brand === b_name) }); }); }
                 const h = LVL_HEIGHT * 0.92;
                 return { loc: loc.loc, zone: loc.zone, col: loc.col, lvl: loc.lvl, is_ground: loc.is_ground, native_brand: loc.brand, native_color: loc.color, slices: slices_data, orig_z: [loc.Z, loc.Z, loc.Z, loc.Z, loc.Z+h, loc.Z+h, loc.Z+h, loc.Z+h] };
@@ -574,7 +567,7 @@
             let newCam = JSON.parse(JSON.stringify(baseCamera));
 
             if (currentMode === 'pan') {
-                // 慢速平移 (系数 0.002)
+                // 慢速平移 (系数 0.002，比之前慢很多)
                 const speed = 0.002;
                 const moveX = -dx * speed; // 您的方向逻辑
                 const moveY = dy * speed;
@@ -604,9 +597,9 @@
                 'scene.camera.center': newCam.center
             });
 
-            // 更新起点，实现平滑增量
+            // 更新起点和基准，实现平滑增量且不跳回原点
             touchStartPos = { x: currX, y: currY };
-            baseCamera = newCam; // 更新基准，防止累积误差
+            baseCamera = newCam; 
         }, { passive: false });
 
         overlay.addEventListener('touchend', function(e) {
@@ -653,7 +646,7 @@
             row.appendChild(colorBox); row.appendChild(label);
             if (isEditMode) {
                 const editBtn = document.createElement("button"); editBtn.className = "action-btn edit-btn"; editBtn.innerText = "✏️"; editBtn.title = "编辑该品牌的库位范围"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); }; row.appendChild(editBtn);
-                const delBtn = document.createElement("button"); delBtn.className = "action-btn delete-btn"; delBtn.innerText = "️"; delBtn.title = "从看板中彻底删除该品牌"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`确定要从看板中彻底删除品牌 "${name}" 吗？`)) deleteBrand(orgName || name); }; row.appendChild(delBtn);
+                const delBtn = document.createElement("button"); delBtn.className = "action-btn delete-btn"; delBtn.innerText = "🗑️"; delBtn.title = "从看板中彻底删除该品牌"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`确定要从看板中彻底删除品牌 "${name}" 吗？`)) deleteBrand(orgName || name); }; row.appendChild(delBtn);
                 const resetBtn = document.createElement("button"); resetBtn.className = "action-btn reset-btn"; resetBtn.innerText = "🔄"; resetBtn.title = "恢复该品牌的初始规划区域"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`确定恢复 "${name}" 的初始规划区域吗？`)) resetBrandLocations(orgName || name); }; row.appendChild(resetBtn);
             }
             container.appendChild(row);
@@ -727,7 +720,7 @@
                     if (cell_override_db[locID]) { targetColor = cell_override_db[locID].color; targetLabel = cell_override_db[locID].label; }
                     else { const parentConf = runtime_config.find(c => c.org_name === node.native_brand); if (parentConf) { targetColor = parentConf.color || GLOBAL_BRAND_COLORS[parentConf.org_name]; targetLabel = parentConf.label; } else { targetColor = GLOBAL_BRAND_COLORS[node.native_brand] || node.native_color; targetLabel = node.native_brand; } }
                     templateCube.color = targetColor === 'transparent' ? '#FFFFFF' : targetColor; templateCube.opacity = targetColor === 'transparent' ? 0 : 1; templateCube.name = '_SHELF_CUBE_'; templateCube.z = node.orig_z;
-                    templateCube.text = Array(8).fill(`<b>库位编码: ${locID} 【规划分布】</b><br>📍 货架区域: ${zChar} 货区<br> 预设管理品牌: ${targetLabel}`); finalDynamicTraces.push(templateCube);
+                    templateCube.text = Array(8).fill(`<b>库位编码: ${locID} 【规划分布】</b><br>📍 货架区域: ${zChar} 货区<br>📦 预设管理品牌: ${targetLabel}`); finalDynamicTraces.push(templateCube);
                 } else {
                     const slices = node.slices || []; const origZ = node.orig_z; const minZ = Math.min(...origZ); const maxZ = Math.max(...origZ); const fullHeight = maxZ - minZ;
                     for (let s = 0; s < slices.length; s++) {
