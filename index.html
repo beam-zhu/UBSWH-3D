@@ -149,7 +149,6 @@
         .password-box .btn-cancel { background: #E2E8F0; color: #64748B; }
         .password-error { color: #EF4444; font-size: 12px; margin-bottom: 10px; display: none; }
         
-        /* 🌟 模式切换按钮样式 */
         #mode-controls {
             position: absolute;
             bottom: 20px;
@@ -251,7 +250,7 @@
     <div id="plotly-div"></div>
     
     <button id="menu-toggle-btn" onclick="toggleMenu()">☰ 菜单</button>
-    <button id="fullscreen-btn" onclick="toggleFullscreen()"> 全屏</button>
+    <button id="fullscreen-btn" onclick="toggleFullscreen()">⛶ 全屏</button>
     <button id="edit-mode-btn" onclick="toggleEditMode()">🔒 编辑模式</button>
     <button id="exit-fullscreen-btn" onclick="toggleFullscreen()">✕ 退出全屏</button>
     
@@ -259,7 +258,7 @@
     
     <div id="data-timestamp-box">
         <div id="data-timestamp">数据加载中...</div>
-        <button id="refresh-btn" onclick="refreshData()">🔄 刷新数据</button>
+        <button id="refresh-btn" onclick="refreshData()"> 刷新数据</button>
     </div>
     
     <div id="super-legend-panel">
@@ -267,7 +266,7 @@
             <button onclick="collapsePanel()" style="background: #64748B; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;" title="收起看板">◀ 收起</button>
         </div>
         <div style="background: #F1F5F9; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 12px; border: 1px solid #E2E8F0;">
-            <div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')">🟢 规划预期分布</div>
+            <div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')"> 规划预期分布</div>
             <div id="view-actual-btn" class="switch-btn" onclick="switchGlobalView('ACTUAL')">🔵 实际库存大盘</div>
         </div>
         <div style="border-bottom: 2px solid #F1F5F9; padding-bottom: 6px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
@@ -300,11 +299,10 @@
         </div>
     </div>
     
-    <!-- 🌟 模式切换按钮 -->
     <div id="mode-controls">
         <button class="mode-btn active" id="btn-rotate" onclick="setMode('rotate', 'btn-rotate')">🔄 旋转</button>
         <button class="mode-btn" id="btn-pan" onclick="setMode('pan', 'btn-pan')">✋ 平移</button>
-        <button class="mode-btn" id="btn-zoom" onclick="setMode('zoom', 'btn-zoom')">🔍 缩放</button>
+        <button class="mode-btn" id="btn-zoom" onclick="setMode('zoom', 'btn-zoom')"> 缩放</button>
     </div>
     
     <script>
@@ -434,7 +432,7 @@
             const btn = document.getElementById('edit-mode-btn');
             const tools = document.getElementById('planning-tools-box');
             if (isEditMode) {
-                btn.innerText = ' 退出编辑';
+                btn.innerText = '🔓 退出编辑';
                 btn.classList.add('active');
                 tools.classList.add('show');
             } else {
@@ -620,7 +618,7 @@
                 if (brands_in_bin.length === 0) {
                     slices_data.push({brand: "[当前空置]", color: GLOBAL_BRAND_COLORS['[当前空置]'], items: []});
                 } else if (brands_in_bin.length > 4) {
-                    slices_data.push({brand: "[⚠️超过4品牌严重混放]", color: GLOBAL_BRAND_COLORS['[⚠️超过4品牌严重混放]'], items: items_in_bin});
+                    slices_data.push({brand: "[️超过4品牌严重混放]", color: GLOBAL_BRAND_COLORS['[⚠️超过4品牌严重混放]'], items: items_in_bin});
                 } else {
                     brands_in_bin.forEach(b_name => {
                         slices_data.push({
@@ -745,7 +743,7 @@
                 doubleClick: 'reset'
             });
             
-            // 🌟 初始化自定义手势监听
+            // 🌟 关键修复：在 Plotly 渲染完成后，再初始化手势监听
             initCustomGestures();
             
             applyAllDBCacheToCanvas();
@@ -753,37 +751,39 @@
         }
         
         // =======================================================
-        // 🌟 方案 2 增强版：自定义慢速平移 + 滑动缩放
+        // 🌟 方案 2 增强版：自定义慢速平移 + 滑动缩放 (防崩溃修复版)
         // =======================================================
-        let currentMode = 'rotate'; // 'rotate', 'pan', 'zoom'
-        let myCamera = null; // 全局维护最新相机状态
+        let currentMode = 'rotate'; 
+        let myCamera = null; 
         let touchStartPos = { x: 0, y: 0 };
         const plotDiv = document.getElementById('plotly-div');
+        let isGesturesInitialized = false; // 防重复绑定标志
 
-        // 同步 Plotly 的相机状态到 myCamera
         function syncCamera() {
-            if (plotDiv.layout && plotDiv.layout.scene && plotDiv.layout.scene.camera) {
+            if (plotDiv && plotDiv.layout && plotDiv.layout.scene && plotDiv.layout.scene.camera) {
                 myCamera = JSON.parse(JSON.stringify(plotDiv.layout.scene.camera));
             }
         }
 
-        // 监听 Plotly 的原生更新（比如旋转模式下的拖动）
-        plotDiv.on('plotly_relayout', function() {
-            syncCamera();
-        });
-
         function initCustomGestures() {
-            syncCamera(); // 初始化
+            // 如果已经初始化过，直接跳过，防止事件监听器叠加导致卡顿
+            if (isGesturesInitialized) return;
+            isGesturesInitialized = true;
             
-            // 触摸开始
+            syncCamera();
+            
+            // 🌟 关键修复：在 Plotly.newPlot 之后绑定事件，此时 plotDiv.on 才存在
+            plotDiv.on('plotly_relayout', function() {
+                syncCamera();
+            });
+
             plotDiv.addEventListener('touchstart', function(e) {
                 if (currentMode !== 'rotate' && e.touches.length === 1) {
                     touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                    e.preventDefault(); // 阻止浏览器默认滚动
+                    e.preventDefault(); 
                 }
             }, { passive: false });
 
-            // 触摸移动
             plotDiv.addEventListener('touchmove', function(e) {
                 if (currentMode === 'rotate' || e.touches.length !== 1) return;
                 e.preventDefault();
@@ -797,9 +797,8 @@
                 let newCam = JSON.parse(JSON.stringify(myCamera));
 
                 if (currentMode === 'pan') {
-                    //  慢速平移：系数 0.002 (比原生慢很多)
-                    const speed = 0.002;
-                    const moveX = -dx * speed; // 您的方向逻辑
+                    const speed = 0.002; 
+                    const moveX = -dx * speed; 
                     const moveY = dy * speed;
                     
                     newCam.center.x += moveX;
@@ -807,10 +806,9 @@
                     newCam.eye.x += moveX;
                     newCam.eye.y += moveY;
                 } else if (currentMode === 'zoom') {
-                    //  滑动缩放：向上滑 (dy<0) 放大，向下滑 (dy>0) 缩小
                     const zoomSpeed = 0.005;
-                    const scale = 1 + dy * zoomSpeed;
-                    const safeScale = Math.max(0.1, Math.min(scale, 5.0)); // 限制范围
+                    const scale = 1 + dy * zoomSpeed; 
+                    const safeScale = Math.max(0.1, Math.min(scale, 5.0)); 
                     
                     const vx = newCam.eye.x - newCam.center.x;
                     const vy = newCam.eye.y - newCam.center.y;
@@ -821,10 +819,8 @@
                     newCam.eye.z = newCam.center.z + vz * safeScale;
                 }
 
-                // 更新 myCamera
                 myCamera = newCam;
 
-                // 更新 Plotly (使用扁平化键名，确保生效)
                 Plotly.relayout(plotDiv, {
                     'scene.camera.eye.x': newCam.eye.x,
                     'scene.camera.eye.y': newCam.eye.y,
@@ -834,26 +830,21 @@
                     'scene.camera.center.z': newCam.center.z
                 });
 
-                // 更新起点，实现平滑增量
                 touchStartPos = { x: currX, y: currY };
             }, { passive: false });
         }
 
-        // 模式切换函数
         function setMode(mode, btnId) {
             currentMode = mode;
             
-            // 更新按钮样式
             document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(btnId).classList.add('active');
             
             if (mode === 'rotate') {
-                // 旋转模式：交还给 Plotly 原生处理
                 Plotly.relayout(plotDiv, { 'scene.dragmode': 'turntable' });
             } else {
-                // 平移/缩放模式：禁用 Plotly 原生拖拽，由我们接管
                 Plotly.relayout(plotDiv, { 'scene.dragmode': false });
-                syncCamera(); // 同步最新状态，防止跳变
+                syncCamera(); 
             }
         }
         
@@ -871,7 +862,7 @@
             GLOBAL_CURRENT_VIEW = viewMode;
             document.getElementById("view-plan-btn").className = "switch-btn" + (viewMode==='PLAN'?' active':'');
             document.getElementById("view-actual-btn").className = "switch-btn" + (viewMode==='ACTUAL'?' active-actual':'');
-            document.getElementById("legend-panel-title").innerText = viewMode === 'PLAN' ? "📊 预期规划品牌图例" : "🔍 实盘现存品牌清点";
+            document.getElementById("legend-panel-title").innerText = viewMode === 'PLAN' ? " 预期规划品牌图例" : " 实盘现存品牌清点";
             applyAllDBCacheToCanvas();
             renderControlPanel();
             if (window.innerWidth <= 768) {
@@ -958,7 +949,7 @@
                 
                 const resetBtn = document.createElement("button");
                 resetBtn.className = "action-btn reset-btn";
-                resetBtn.innerText = "";
+                resetBtn.innerText = "🔄";
                 resetBtn.title = "恢复该品牌的初始规划区域";
                 resetBtn.onclick = function(e) {
                     e.stopPropagation();
@@ -1135,7 +1126,7 @@
                     templateCube.opacity = targetColor === 'transparent' ? 0 : 1;
                     templateCube.name = '_SHELF_CUBE_';
                     templateCube.z = node.orig_z;
-                    templateCube.text = Array(8).fill(`<b>库位编码: ${locID} 【规划分布】</b><br>📍 货架区域: ${zChar} 货区<br> 预设管理品牌: ${targetLabel}`);
+                    templateCube.text = Array(8).fill(`<b>库位编码: ${locID} 【规划分布】</b><br>📍 货架区域: ${zChar} 货区<br>📦 预设管理品牌: ${targetLabel}`);
                     finalDynamicTraces.push(templateCube);
                 } else {
                     const slices = node.slices || [];
@@ -1223,7 +1214,7 @@
             updateEditModeButton();
             setInterval(() => {
                 if (Date.now() - lastRefreshTime >= 30 * 60 * 1000) {
-                    console.log("⏰ 30 分钟已到，自动刷新数据...");
+                    console.log(" 30 分钟已到，自动刷新数据...");
                     refreshData();
                 }
             }, 60000);
