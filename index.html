@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>仓库沙盘 - 数字孪生系统</title>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
@@ -15,12 +15,94 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; background: #F8FAFC; }
         #plotly-div { width: 100%; height: 100vh; }
-        #data-timestamp-box { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.95); padding: 10px 14px; border-radius: 10px; box-shadow: 0 4px 12px rgba(15,23,42,0.15); z-index: 9999; border: 1px solid #E2E8F0; text-align: center; }
+        
+        #data-timestamp-box { 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
+            background: rgba(255,255,255,0.95); 
+            padding: 10px 14px; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 12px rgba(15,23,42,0.15); 
+            z-index: 9999; 
+            border: 1px solid #E2E8F0; 
+            text-align: center; 
+        }
         #data-timestamp { font-size: 13px; font-weight: bold; color: #0F172A; margin-bottom: 4px; }
         #refresh-btn { background: #3B82F6; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
         #refresh-btn:hover { background: #2563EB; }
         #refresh-btn:disabled { background: #94A3B8; cursor: not-allowed; }
-        #super-legend-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.98); padding: 16px; border-radius: 12px; box-shadow: 0 6px 20px rgba(15,23,42,0.15); z-index: 9999; width: 380px; border: 1px solid #E2E8F0; max-height: 90vh; overflow-y: auto; }
+        
+        #super-legend-panel { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            background: rgba(255,255,255,0.98); 
+            padding: 16px; 
+            border-radius: 12px; 
+            box-shadow: 0 6px 20px rgba(15,23,42,0.15); 
+            z-index: 9999; 
+            width: 380px; 
+            border: 1px solid #E2E8F0; 
+            max-height: 90vh; 
+            overflow-y: auto; 
+            transition: transform 0.3s ease;
+        }
+        
+        #menu-toggle-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #3B82F6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 9998;
+            box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+            display: none;
+        }
+        
+        #fullscreen-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #10B981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 9998;
+            box-shadow: 0 4px 12px rgba(16,185,129,0.3);
+            display: none;
+        }
+        
+        #edit-mode-btn {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background: #F59E0B;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 9998;
+            box-shadow: 0 4px 12px rgba(245,158,11,0.3);
+        }
+        
+        #edit-mode-btn.active {
+            background: #10B981;
+        }
+        
         .switch-btn { flex: 1; padding: 8px; font-size: 11px; font-weight: bold; border: 2px solid #CBD5E1; cursor: pointer; transition: all 0.2s ease; text-align: center; border-radius: 6px; background: #FFFFFF; color: #64748B; }
         .switch-btn.active { background: #10B981; color: white; border-color: #047857; box-shadow: 0 4px 10px rgba(16,185,129,0.3); }
         .switch-btn.active-actual { background: #3B82F6; color: white; border-color: #1D4ED8; box-shadow: 0 4px 10px rgba(59,130,246,0.3); }
@@ -34,19 +116,159 @@
         .delete-btn:hover { background: #FECACA; }
         .reset-btn { background: #E0F2FE; color: #0284C7; border: 1px solid #7DD3FC; }
         .reset-btn:hover { background: #BAE6FD; }
+        
         #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 99999; }
         .spinner { width: 50px; height: 50px; border: 4px solid #E2E8F0; border-top: 4px solid #3B82F6; border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         #loading-text { margin-top: 20px; font-size: 16px; color: #0F172A; font-weight: bold; }
         #error-message { margin-top: 10px; font-size: 14px; color: #EF4444; max-width: 600px; text-align: center; padding: 0 20px; white-space: pre-line; }
+        
+        /* 密码弹窗 */
+        #password-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 99999;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #password-modal.show {
+            display: flex;
+        }
+        
+        .password-box {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            max-width: 400px;
+            width: 90%;
+        }
+        
+        .password-box h3 {
+            margin-bottom: 20px;
+            color: #0F172A;
+        }
+        
+        .password-box input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #E2E8F0;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .password-box input:focus {
+            outline: none;
+            border-color: #3B82F6;
+        }
+        
+        .password-box .btn-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .password-box button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .password-box .btn-confirm {
+            background: #3B82F6;
+            color: white;
+        }
+        
+        .password-box .btn-cancel {
+            background: #E2E8F0;
+            color: #64748B;
+        }
+        
+        .password-error {
+            color: #EF4444;
+            font-size: 12px;
+            margin-bottom: 10px;
+            display: none;
+        }
+        
+        /* 手机端样式 */
         @media (max-width: 768px) {
-            #super-legend-panel { position: fixed; top: auto; bottom: 0; left: 0; right: 0; width: 100%; max-height: 50vh; border-radius: 12px 12px 0 0; padding: 12px; }
-            #data-timestamp-box { top: 10px; right: 10px; padding: 8px 10px; }
+            #menu-toggle-btn { display: block; }
+            #fullscreen-btn { display: block; top: 70px; }
+            #edit-mode-btn { top: 120px; right: 10px; padding: 10px 14px; font-size: 12px; }
+            
+            #super-legend-panel { 
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                max-height: 100vh;
+                border-radius: 0;
+                padding: 20px;
+                transform: translateX(-100%);
+                z-index: 10000;
+            }
+            
+            #super-legend-panel.show {
+                transform: translateX(0);
+            }
+            
+            #data-timestamp-box { 
+                top: 10px; 
+                right: 10px; 
+                padding: 8px 10px;
+                display: none;
+            }
+            
             #data-timestamp { font-size: 11px; }
             #refresh-btn { font-size: 11px; padding: 5px 10px; }
-            .legend-row { padding: 8px; }
-            .legend-label { font-size: 12px; }
-            .action-btn { font-size: 14px; padding: 4px 8px; }
+            .legend-row { padding: 10px; }
+            .legend-label { font-size: 13px; }
+            .action-btn { font-size: 16px; padding: 6px 10px; }
+            
+            .switch-btn { padding: 12px; font-size: 13px; }
+        }
+        
+        /* 全屏模式 */
+        body.fullscreen #data-timestamp-box,
+        body.fullscreen #super-legend-panel,
+        body.fullscreen #menu-toggle-btn,
+        body.fullscreen #fullscreen-btn,
+        body.fullscreen #edit-mode-btn {
+            display: none !important;
+        }
+        
+        #exit-fullscreen-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #EF4444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 9998;
+            box-shadow: 0 4px 12px rgba(239,68,68,0.3);
+            display: none;
+        }
+        
+        body.fullscreen #exit-fullscreen-btn {
+            display: block;
         }
     </style>
 </head>
@@ -58,6 +280,11 @@
     </div>
     
     <div id="plotly-div"></div>
+    
+    <button id="menu-toggle-btn" onclick="toggleMenu()">☰ 菜单</button>
+    <button id="fullscreen-btn" onclick="toggleFullscreen()">⛶ 全屏</button>
+    <button id="edit-mode-btn" onclick="toggleEditMode()">🔒 编辑模式</button>
+    <button id="exit-fullscreen-btn" onclick="toggleFullscreen()">✕ 退出全屏</button>
     
     <div id="data-timestamp-box">
         <div id="data-timestamp">数据加载中...</div>
@@ -76,14 +303,28 @@
         <div id="legend-list"></div>
     </div>
     
+    <!-- 密码弹窗 -->
+    <div id="password-modal">
+        <div class="password-box">
+            <h3>🔐 输入编辑密码</h3>
+            <div class="password-error" id="password-error">密码错误，请重试</div>
+            <input type="password" id="password-input" placeholder="请输入密码" onkeypress="if(event.key==='Enter')confirmPassword()">
+            <div class="btn-group">
+                <button class="btn-cancel" onclick="closePasswordModal()">取消</button>
+                <button class="btn-confirm" onclick="confirmPassword()">确认</button>
+            </div>
+        </div>
+    </div>
+    
     <script>
         // =======================================================
-        // 🌟 核心配置 - 请填入您的完整 URL
+        // 🌟 核心配置
         // =======================================================
         const PLAN_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vStLtLccpDSfrf_yU_T9WrNcZufN29BqkDsVS2r9ql1INK_61uA8UetkiW4DZ4_dv63o-DHzFz0tOAq/pub?gid=1276542862&single=true&output=csv";
-        
-        // 🌟 重要：请填入完整的 URL（包括 https:// 开头）
         const ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-egK5kKzjLVZx/export?format=xlsx";
+        
+        // 🌟 编辑密码（请修改为您自己的密码）
+        const EDIT_PASSWORD = "UBWH3d";
         
         const CORS_PROXIES = [
             "https://corsproxy.io/?",
@@ -118,6 +359,7 @@
         let cell_override_db = {};
         let server_data_cache = [];
         let lastRefreshTime = 0;
+        let isEditMode = false; // 🌟 编辑模式状态
         
         try {
             const saved_config = localStorage.getItem("warehouse_twin_master_2026");
@@ -138,6 +380,13 @@
             if (saved_overrides) {
                 cell_override_db = JSON.parse(saved_overrides);
             }
+            
+            // 🌟 恢复编辑模式状态
+            const editMode = sessionStorage.getItem("warehouse_edit_mode");
+            if (editMode === "true") {
+                isEditMode = true;
+                updateEditModeButton();
+            }
         } catch(e) {
             console.error("加载配置失败:", e);
         }
@@ -146,6 +395,53 @@
         const EASTERN_ALIGN_X = 65.0, SOUTH_BASE_Y = 95.0, NORTH_BASE_Y = 145.0;
         const XWT_ZONE_COL_ORDER = {5: 0, 1: 1, 2: 2, 3: 3, 4: 4};
         const AISLE_GAP = 6.0, SHRINK = 1.0;
+        
+        // 🌟 编辑模式控制
+        function toggleEditMode() {
+            if (isEditMode) {
+                // 退出编辑模式
+                isEditMode = false;
+                sessionStorage.removeItem("warehouse_edit_mode");
+                updateEditModeButton();
+                renderControlPanel();
+            } else {
+                // 进入编辑模式，需要密码
+                document.getElementById('password-modal').classList.add('show');
+                document.getElementById('password-input').value = '';
+                document.getElementById('password-error').style.display = 'none';
+                document.getElementById('password-input').focus();
+            }
+        }
+        
+        function confirmPassword() {
+            const password = document.getElementById('password-input').value;
+            if (password === EDIT_PASSWORD) {
+                isEditMode = true;
+                sessionStorage.setItem("warehouse_edit_mode", "true");
+                closePasswordModal();
+                updateEditModeButton();
+                renderControlPanel();
+            } else {
+                document.getElementById('password-error').style.display = 'block';
+                document.getElementById('password-input').value = '';
+                document.getElementById('password-input').focus();
+            }
+        }
+        
+        function closePasswordModal() {
+            document.getElementById('password-modal').classList.remove('show');
+        }
+        
+        function updateEditModeButton() {
+            const btn = document.getElementById('edit-mode-btn');
+            if (isEditMode) {
+                btn.innerText = '🔓 退出编辑';
+                btn.classList.add('active');
+            } else {
+                btn.innerText = '🔒 编辑模式';
+                btn.classList.remove('active');
+            }
+        }
         
         async function fetchWithProxy(url, isBinary = false) {
             console.log(`🔗 尝试直接请求: ${url}`);
@@ -448,7 +744,6 @@
             const min_y = Math.min(...locations.map(l => l.Y)) - 25;
             const max_y = Math.max(...locations.map(l => l.Y)) + 25;
             
-            // 地面
             traces.push({
                 type: 'mesh3d',
                 x: [min_x, max_x, max_x, min_x, min_x, max_x, max_x, min_x],
@@ -463,7 +758,6 @@
                 hoverinfo: 'skip'
             });
             
-            // 🌟 边框线（分割线）
             const border_x = [], border_y = [], border_z = [];
             locations.forEach(loc => {
                 const is_v = ['H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q'].includes(loc.zone);
@@ -505,7 +799,6 @@
                 name: '_BORDERS_'
             });
             
-            // 货架色块
             locations.forEach(loc => {
                 const is_v = ['H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q'].includes(loc.zone);
                 let cw, cd, h;
@@ -555,7 +848,6 @@
                 }
             });
             
-            // 区域标签
             const ZONE_Z_OFFSET_MAP = {'A': 2.0, 'B': 16.0, 'C': 2.0, 'D': 11.0, 'E': 2.0, 'F': 7.0, 'G': 2.0, 'H': 2.0, 'J': 6.0, 'K': 10.0, 'L': 2.0, 'M': 6.0, 'N': 2.0, 'P': 6.0, 'Q': 2.0, 'T': 2.0, 'W': 6.0, 'X': 10.0, 'Y': 2.0};
             
             const zones = [...new Set(locations.filter(l => !l.is_ground).map(l => l.zone))];
@@ -602,14 +894,28 @@
                 displayModeBar: true,
                 displaylogo: false,
                 modeBarButtonsToRemove: ['toImage', 'sendDataToCloud'],
+                scrollZoom: true,
                 touchStart: true,
-                scrollZoom: true
+                doubleClick: 'reset',
+                doubleClickDelay: 1000
             };
             
             Plotly.newPlot('plotly-div', traces, layout, config);
             console.log("✅ 3D 图形渲染完成");
             applyAllDBCacheToCanvas();
             renderControlPanel();
+        }
+        
+        function toggleMenu() {
+            const panel = document.getElementById('super-legend-panel');
+            panel.classList.toggle('show');
+        }
+        
+        function toggleFullscreen() {
+            document.body.classList.toggle('fullscreen');
+            setTimeout(() => {
+                Plotly.Plots.resize(document.getElementById('plotly-div'));
+            }, 100);
         }
         
         function switchGlobalView(viewMode) {
@@ -625,6 +931,13 @@
             
             applyAllDBCacheToCanvas();
             renderControlPanel();
+            
+            if (window.innerWidth <= 768) {
+                const panel = document.getElementById('super-legend-panel');
+                if (panel.classList.contains('show')) {
+                    toggleMenu();
+                }
+            }
         }
         
         function renderControlPanel() {
@@ -656,18 +969,26 @@
             const colorBox = document.createElement("div");
             colorBox.className = "color-box";
             colorBox.style.background = color === 'transparent' ? '#fff' : color;
-            colorBox.title = "点击修改颜色";
-            colorBox.onclick = function(e) {
-                e.stopPropagation();
-                const input = document.createElement('input');
-                input.type = 'color';
-                input.value = color === 'transparent' ? '#ffffff' : color;
-                input.style.position = 'absolute';
-                input.style.opacity = '0';
-                input.onchange = function() { updateBrandColor(orgName || name, input.value); };
-                colorBox.appendChild(input);
-                input.click();
-            };
+            
+            // 🌟 根据编辑模式决定是否允许修改颜色
+            if (isEditMode) {
+                colorBox.title = "点击修改颜色";
+                colorBox.onclick = function(e) {
+                    e.stopPropagation();
+                    const input = document.createElement('input');
+                    input.type = 'color';
+                    input.value = color === 'transparent' ? '#ffffff' : color;
+                    input.style.position = 'absolute';
+                    input.style.opacity = '0';
+                    input.onchange = function() { updateBrandColor(orgName || name, input.value); };
+                    colorBox.appendChild(input);
+                    input.click();
+                };
+            } else {
+                colorBox.title = "只读模式（点击编辑模式按钮解锁）";
+                colorBox.style.cursor = 'not-allowed';
+                colorBox.style.opacity = '0.7';
+            }
             
             const label = document.createElement("span");
             label.className = "legend-label";
@@ -676,7 +997,8 @@
             row.appendChild(colorBox);
             row.appendChild(label);
             
-            if (GLOBAL_CURRENT_VIEW === 'PLAN') {
+            // 🌟 只在编辑模式下显示编辑按钮
+            if (GLOBAL_CURRENT_VIEW === 'PLAN' && isEditMode) {
                 const delBtn = document.createElement("button");
                 delBtn.className = "action-btn delete-btn";
                 delBtn.innerText = "🗑️";
@@ -707,6 +1029,11 @@
         }
         
         function deleteBrand(brandName) {
+            if (!isEditMode) {
+                alert("请先切换到编辑模式");
+                return;
+            }
+            
             runtime_config = runtime_config.filter(c => c.org_name !== brandName && c.label !== brandName);
             localStorage.setItem("warehouse_twin_master_2026", JSON.stringify(runtime_config));
             
@@ -723,6 +1050,11 @@
         }
         
         function resetBrandLocations(brand) {
+            if (!isEditMode) {
+                alert("请先切换到编辑模式");
+                return;
+            }
+            
             server_data_cache.forEach(node => {
                 let currentBrand = node.native_brand;
                 if (cell_override_db[node.loc]) currentBrand = cell_override_db[node.loc].org_name;
@@ -733,6 +1065,11 @@
         }
         
         function updateBrandColor(brand, newColor) {
+            if (!isEditMode) {
+                alert("请先切换到编辑模式");
+                return;
+            }
+            
             let conf = runtime_config.find(c => c.org_name === brand || c.label === brand);
             if (conf) {
                 conf.color = newColor;
@@ -862,6 +1199,11 @@
         }
         
         function resetToDefault() {
+            if (!isEditMode) {
+                alert("请先切换到编辑模式");
+                return;
+            }
+            
             if (confirm("确定要恢复所有初始规划并清除本地保存的修改吗？")) {
                 localStorage.clear();
                 window.location.reload();
@@ -910,6 +1252,7 @@
         
         window.addEventListener('load', async () => {
             await loadData();
+            updateEditModeButton();
             
             setInterval(() => {
                 const now = Date.now();
