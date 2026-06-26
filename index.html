@@ -1086,123 +1086,108 @@
         
         console.log('💡 提示：在控制台运行 generatePasswordHash("你的新密码") 可以生成新密码的哈希值');
         // =======================================================
-        //  方案 1：自定义双指手势监听 (缩放 + 平移) - 修正版
+        //  方案 1：自定义双指手势监听 - 最终修正版
         // =======================================================
         const plotDiv = document.getElementById('plotly-div');
-        let initialPinchDistance = 0;
-        let lastPinchCenter = { x: 0, y: 0 };
+        let pinchStartDistance = 0;
+        let pinchStartCenter = null;
+        let cameraAtPinchStart = null;
         let isPinching = false;
-        let currentCamera = null; // 保存当前相机状态
 
-        // 辅助函数：获取两点距离
-        function getDistance(touch1, touch2) {
-            return Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+        function getDistance(t1, t2) {
+            const dx = t2.clientX - t1.clientX;
+            const dy = t2.clientY - t1.clientY;
+            return Math.sqrt(dx * dx + dy * dy);
         }
 
-        // 辅助函数：获取两点中心
-        function getCenter(touch1, touch2) {
+        function getMidpoint(t1, t2) {
             return {
-                x: (touch1.clientX + touch2.clientX) / 2,
-                y: (touch1.clientY + touch2.clientY) / 2
+                x: (t1.clientX + t2.clientX) / 2,
+                y: (t1.clientY + t2.clientY) / 2
             };
-        }
-
-        // 初始化相机状态
-        function initCamera() {
-            const gd = document.getElementById('plotly-div');
-            if (gd && gd.layout && gd.layout.scene && gd.layout.scene.camera) {
-                currentCamera = JSON.parse(JSON.stringify(gd.layout.scene.camera));
-            } else {
-                currentCamera = {
-                    eye: {x: -0.8, y: -0.8, z: 3.5},
-                    center: {x: 0, y: 0, z: 0},
-                    up: {x: 0, y: 0, z: 1}
-                };
-            }
         }
 
         plotDiv.addEventListener('touchstart', function(e) {
             if (e.touches.length === 2) {
                 isPinching = true;
-                initialPinchDistance = getDistance(e.touches[0], e.touches[1]);
-                lastPinchCenter = getCenter(e.touches[0], e.touches[1]);
                 
-                // 初始化或获取当前相机状态
-                if (!currentCamera) {
-                    initCamera();
+                // 记录初始状态
+                pinchStartDistance = getDistance(e.touches[0], e.touches[1]);
+                pinchStartCenter = getMidpoint(e.touches[0], e.touches[1]);
+                
+                // 保存当前的相机状态作为基准
+                const gd = document.getElementById('plotly-div');
+                if (gd.layout && gd.layout.scene && gd.layout.scene.camera) {
+                    cameraAtPinchStart = {
+                        eye: {...gd.layout.scene.camera.eye},
+                        center: {...gd.layout.scene.camera.center},
+                        up: {...gd.layout.scene.camera.up}
+                    };
                 }
                 
-                e.preventDefault(); 
+                e.preventDefault();
             }
         }, { passive: false });
 
         plotDiv.addEventListener('touchmove', function(e) {
-            if (isPinching && e.touches.length === 2) {
-                e.preventDefault();
+            if (!isPinching || e.touches.length !== 2) return;
+            e.preventDefault();
 
-                const currentDistance = getDistance(e.touches[0], e.touches[1]);
-                const currentCenter = getCenter(e.touches[0], e.touches[1]);
+            const currentDistance = getDistance(e.touches[0], e.touches[1]);
+            const currentCenter = getMidpoint(e.touches[0], e.touches[1]);
 
-                // 1. 处理缩放 (Zoom)
-                const scale = currentDistance / initialPinchDistance;
-                
-                // 2. 处理平移 (Pan)
-                const dx = currentCenter.x - lastPinchCenter.x;
-                const dy = currentCenter.y - lastPinchCenter.y;
+            if (!cameraAtPinchStart) return;
 
-                // 确保 camera 存在
-                if (!currentCamera) {
-                    initCamera();
-                }
-                
-                // 深拷贝当前相机
-                const newCamera = JSON.parse(JSON.stringify(currentCamera));
-                if (!newCamera.center) newCamera.center = {x: 0, y: 0, z: 0};
-                if (!newCamera.eye) newCamera.eye = {x: -0.8, y: -0.8, z: 3.5};
+            // 计算变化量
+            const scale = currentDistance / pinchStartDistance;
+            const dx = currentCenter.x - pinchStartCenter.x;
+            const dy = currentCenter.y - pinchStartCenter.y;
 
-                // 应用缩放：基于当前 eye 和 center 的距离进行缩放
-                const vx = newCamera.eye.x - newCamera.center.x;
-                const vy = newCamera.eye.y - newCamera.center.y;
-                const vz = newCamera.eye.z - newCamera.center.z;
-                
-                // 限制缩放范围
-                const newScale = Math.max(0.1, Math.min(scale, 5.0));
-                
-                newCamera.eye.x = newCamera.center.x + vx * newScale;
-                newCamera.eye.y = newCamera.center.y + vy * newScale;
-                newCamera.eye.z = newCamera.center.z + vz * newScale;
+            // 基于初始相机状态计算新状态
+            const newCamera = {
+                eye: {...cameraAtPinchStart.eye},
+                center: {...cameraAtPinchStart.center},
+                up: {...cameraAtPinchStart.up}
+            };
 
-                // 应用平移
-                // 计算当前相机距离，用于调整平移灵敏度
-                const dist = Math.hypot(vx, vy, vz);
-                const factor = dist * 0.002; 
+            // 1. 应用缩放（改变 eye 到 center 的距离）
+            const vx = newCamera.eye.x - newCamera.center.x;
+            const vy = newCamera.eye.y - newCamera.center.y;
+            const vz = newCamera.eye.z - newCamera.center.z;
+            
+            // 限制缩放范围 0.3 - 3.0
+            const clampedScale = Math.max(0.3, Math.min(scale, 3.0));
+            
+            newCamera.eye.x = newCamera.center.x + vx * clampedScale;
+            newCamera.eye.y = newCamera.center.y + vy * clampedScale;
+            newCamera.eye.z = newCamera.center.z + vz * clampedScale;
 
-                newCamera.center.x += dx * factor;
-                newCamera.center.y -= dy * factor;
-                newCamera.eye.x += dx * factor;
-                newCamera.eye.y -= dy * factor;
+            // 2. 应用平移（修正方向：手指往上滑，画面往上走）
+            // 计算灵敏度（基于相机距离）
+            const dist = Math.sqrt(vx*vx + vy*vy + vz*vz);
+            const sensitivity = dist * 0.003;
+            
+            // 屏幕 x 向右为正，3D x 向右为正 → 同向
+            // 屏幕 y 向下为正，3D y 向上为正 → 反向（所以 dy 要取反）
+            newCamera.center.x += dx * sensitivity;
+            newCamera.center.y += dy * sensitivity;  // 修正：dy 取反
+            newCamera.eye.x += dx * sensitivity;
+            newCamera.eye.y += dy * sensitivity;      // 修正：dy 取反
 
-                // 更新 Plotly - 使用正确的格式
-                Plotly.relayout('plotly-div', {
-                    'scene.camera.eye': newCamera.eye,
-                    'scene.camera.center': newCamera.center,
-                    'scene.camera.up': newCamera.up
-                });
+            // 更新 Plotly
+            Plotly.relayout('plotly-div', {
+                'scene.camera': newCamera
+            });
 
-                // 保存当前相机状态（关键！）
-                currentCamera = newCamera;
-
-                // 更新参考点
-                initialPinchDistance = currentDistance;
-                lastPinchCenter = currentCenter;
-            }
+            e.preventDefault();
         }, { passive: false });
 
         plotDiv.addEventListener('touchend', function(e) {
             if (e.touches.length < 2) {
                 isPinching = false;
-                // 重置初始距离，为下一次捏合做准备
-                initialPinchDistance = 0;
+                pinchStartDistance = 0;
+                pinchStartCenter = null;
+                cameraAtPinchStart = null;
             }
         }, { passive: false });
     </script>
