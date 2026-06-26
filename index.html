@@ -1086,21 +1086,18 @@
         
         console.log('💡 提示：在控制台运行 generatePasswordHash("你的新密码") 可以生成新密码的哈希值');
         // =======================================================
-        //  方案 1：自定义双指手势监听 - 终极防飞版
+        //  方案 1：自定义双指手势监听 - 增量修复版
         // =======================================================
         const plotDiv = document.getElementById('plotly-div');
-        let pinchStartDistance = 0;
-        let pinchStartCenter = null;
-        let cameraAtPinchStart = null;
+        let startDist = 0;
+        let startMid = { x: 0, y: 0 };
         let isPinching = false;
 
-        function getDistance(t1, t2) {
-            const dx = t2.clientX - t1.clientX;
-            const dy = t2.clientY - t1.clientY;
-            return Math.sqrt(dx * dx + dy * dy);
+        function getDist(t1, t2) {
+            return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
         }
 
-        function getMidpoint(t1, t2) {
+        function getMid(t1, t2) {
             return {
                 x: (t1.clientX + t2.clientX) / 2,
                 y: (t1.clientY + t2.clientY) / 2
@@ -1110,24 +1107,8 @@
         plotDiv.addEventListener('touchstart', function(e) {
             if (e.touches.length === 2) {
                 isPinching = true;
-                
-                // 1. 记录初始手势状态
-                pinchStartDistance = getDistance(e.touches[0], e.touches[1]);
-                pinchStartCenter = getMidpoint(e.touches[0], e.touches[1]);
-                
-                // 2. 记录初始相机状态 (深拷贝，防止被修改)
-                const gd = document.getElementById('plotly-div');
-                if (gd.layout && gd.layout.scene && gd.layout.scene.camera) {
-                    cameraAtPinchStart = JSON.parse(JSON.stringify(gd.layout.scene.camera));
-                } else {
-                    // 默认相机
-                    cameraAtPinchStart = {
-                        eye: {x: -0.8, y: -0.8, z: 3.5},
-                        center: {x: 0, y: 0, z: 0},
-                        up: {x: 0, y: 0, z: 1}
-                    };
-                }
-                
+                startDist = getDist(e.touches[0], e.touches[1]);
+                startMid = getMid(e.touches[0], e.touches[1]);
                 e.preventDefault();
             }
         }, { passive: false });
@@ -1136,75 +1117,70 @@
             if (!isPinching || e.touches.length !== 2) return;
             e.preventDefault();
 
-            const currentDistance = getDistance(e.touches[0], e.touches[1]);
-            const currentCenter = getMidpoint(e.touches[0], e.touches[1]);
+            const currDist = getDist(e.touches[0], e.touches[1]);
+            const currMid = getMid(e.touches[0], e.touches[1]);
 
-            if (!cameraAtPinchStart) return;
-
-            // 计算变化量
-            const ratio = currentDistance / pinchStartDistance;
-            const dx = currentCenter.x - pinchStartCenter.x;
-            const dy = currentCenter.y - pinchStartCenter.y; // 屏幕 Y 轴向下为正
-
-            // 基于初始相机计算新状态
-            const newCam = JSON.parse(JSON.stringify(cameraAtPinchStart));
-
-            // --- 1. 处理平移 (Pan) ---
-            // 灵敏度系数 (越小移动越慢)
-            const panSpeed = 0.02; 
+            // 1. 获取 Plotly 当前的最新相机状态（关键：解决回到起点问题）
+            const gd = document.getElementById('plotly-div');
+            if (!gd.layout || !gd.layout.scene || !gd.layout.scene.camera) return;
             
-            // 修正方向：
-            // 屏幕 X 向右 (dx>0) -> 3D X 向右 (center.x 增加)
-            // 屏幕 Y 向上 (dy<0) -> 3D Y 向上 (center.y 增加，所以 dy 前面要加负号)
-            const moveX = dx * panSpeed;
-            const moveY = -dy * panSpeed; 
+            // 深拷贝当前相机，防止修改原始对象
+            let cam = JSON.parse(JSON.stringify(gd.layout.scene.camera));
+            if (!cam.center) cam.center = { x: 0, y: 0, z: 0 };
+            if (!cam.eye) cam.eye = { x: -0.8, y: -0.8, z: 3.5 };
 
-            // 移动 center 和 eye (保持相对位置不变)
-            newCam.center.x += moveX;
-            newCam.center.y += moveY;
-            newCam.eye.x += moveX;
-            newCam.eye.y += moveY;
+            // 2. 计算增量
+            const scale = currDist / startDist;
+            const dx = currMid.x - startMid.x;
+            const dy = currMid.y - startMid.y;
 
-            // --- 2. 处理缩放 (Zoom) ---
-            // 限制缩放比例，防止相机飞走或钻入地下 (0.5倍 到 2倍)
-            const safeRatio = Math.max(0.5, Math.min(ratio, 2.0));
+            // 3. 应用缩放 (限制范围防止画面消失)
+            const safeScale = Math.max(0.5, Math.min(scale, 2.0));
             
-            // 计算初始 eye 到 center 的向量
-            const vx = cameraAtPinchStart.eye.x - cameraAtPinchStart.center.x;
-            const vy = cameraAtPinchStart.eye.y - cameraAtPinchStart.center.y;
-            const vz = cameraAtPinchStart.eye.z - cameraAtPinchStart.center.z;
+            const vx = cam.eye.x - cam.center.x;
+            const vy = cam.eye.y - cam.center.y;
+            const vz = cam.eye.z - cam.center.z;
             
-            // 基于【平移后的新 center】应用缩放
-            newCam.eye.x = newCam.center.x + vx * safeRatio;
-            newCam.eye.y = newCam.center.y + vy * safeRatio;
-            newCam.eye.z = newCam.center.z + vz * safeRatio;
+            cam.eye.x = cam.center.x + vx * safeScale;
+            cam.eye.y = cam.center.y + vy * safeScale;
+            cam.eye.z = cam.center.z + vz * safeScale;
 
-            // --- 3. 安全检查 (防止画面消失) ---
-            // 如果 eye 和 center 太近，强制拉开距离
-            const dist = Math.sqrt(
-                Math.pow(newCam.eye.x - newCam.center.x, 2) + 
-                Math.pow(newCam.eye.y - newCam.center.y, 2) + 
-                Math.pow(newCam.eye.z - newCam.center.z, 2)
+            // 4. 应用平移 (修正方向)
+            const sensitivity = 0.005; // 灵敏度，可根据需要微调
+            
+            // 屏幕 X 向右 (dx>0) -> 3D X 向右
+            // 屏幕 Y 向上 (dy<0) -> 3D Y 向上 (所以 dy 前面必须加负号)
+            cam.center.x += dx * sensitivity;
+            cam.center.y -= dy * sensitivity; 
+            cam.eye.x += dx * sensitivity;
+            cam.eye.y -= dy * sensitivity;
+
+            // 5. 安全检查：防止 eye 和 center 重合导致画面消失
+            const dist = Math.hypot(
+                cam.eye.x - cam.center.x,
+                cam.eye.y - cam.center.y,
+                cam.eye.z - cam.center.z
             );
-            if (dist < 0.1) {
-                newCam.eye.z = newCam.center.z + 1.0; // 强制向上拉开
+            if (dist < 0.5) {
+                // 如果距离太近，强制把相机向上拉
+                cam.eye.z = cam.center.z + 1.0;
             }
 
-            // --- 4. 更新 Plotly ---
-            // 使用扁平化写法更新，最稳定
+            // 6. 更新 Plotly
             Plotly.relayout('plotly-div', {
-                'scene.camera.eye': newCam.eye,
-                'scene.camera.center': newCam.center
-                // 注意：不更新 up，保持原始朝向，防止画面翻转消失
+                'scene.camera.eye': cam.eye,
+                'scene.camera.center': cam.center
             });
 
-            e.preventDefault();
+            // 7. 更新起始点（关键：实现平滑的增量移动）
+            startDist = currDist;
+            startMid = currMid;
+
         }, { passive: false });
 
         plotDiv.addEventListener('touchend', function(e) {
             if (e.touches.length < 2) {
                 isPinching = false;
-                // 不重置 cameraAtPinchStart，让 Plotly 保持最后的状态
             }
         }, { passive: false });
     </script>
