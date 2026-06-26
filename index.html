@@ -152,6 +152,70 @@
         .password-box .btn-cancel { background: #E2E8F0; color: #64748B; }
         .password-error { color: #EF4444; font-size: 12px; margin-bottom: 10px; display: none; }
         
+        #view-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.95);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(15,23,42,0.15);
+            padding: 10px;
+            z-index: 9998;
+            display: grid;
+            grid-template-columns: repeat(3, 40px);
+            grid-template-rows: repeat(4, 40px);
+            gap: 4px;
+            border: 1px solid #E2E8F0;
+        }
+        
+        .view-btn {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #CBD5E1;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .view-btn:hover {
+            background: #F1F5F9;
+            border-color: #3B82F6;
+        }
+        
+        .view-btn:active {
+            background: #3B82F6;
+            color: white;
+        }
+        
+        .view-btn.zoom {
+            background: #EFF6FF;
+            color: #3B82F6;
+            font-weight: bold;
+        }
+        
+        .view-btn.reset {
+            background: #FEF3C7;
+            color: #D97706;
+            font-weight: bold;
+            grid-column: span 3;
+            width: auto;
+        }
+        
+        .view-btn.preset {
+            background: #F0FDF4;
+            color: #16A34A;
+            font-size: 11px;
+            font-weight: bold;
+            grid-column: span 3;
+            width: auto;
+            height: 32px;
+        }
+        
         @media (max-width: 768px) {
             #menu-toggle-btn { display: block; }
             #fullscreen-btn { display: block; top: 70px; }
@@ -174,6 +238,19 @@
             .legend-label { font-size: 13px; }
             .action-btn { font-size: 14px; padding: 4px 8px; }
             .switch-btn { padding: 12px; font-size: 13px; }
+            
+            #view-controls {
+                bottom: 10px;
+                right: 10px;
+                grid-template-columns: repeat(3, 44px);
+                grid-template-rows: repeat(4, 44px);
+                padding: 8px;
+            }
+            .view-btn {
+                width: 44px;
+                height: 44px;
+                font-size: 18px;
+            }
         }
         
         body.fullscreen #data-timestamp-box,
@@ -181,7 +258,8 @@
         body.fullscreen #menu-toggle-btn,
         body.fullscreen #fullscreen-btn,
         body.fullscreen #edit-mode-btn,
-        body.fullscreen #panel-expand-strip {
+        body.fullscreen #panel-expand-strip,
+        body.fullscreen #view-controls {
             display: none !important;
         }
         
@@ -240,6 +318,38 @@
         </div>
         
         <div id="legend-list"></div>
+    </div>
+    
+    <div id="password-modal">
+        <div class="password-box">
+            <h3>🔐 输入编辑密码</h3>
+            <div class="password-error" id="password-error">密码错误，请重试</div>
+            <input type="password" id="password-input" placeholder="请输入密码" onkeypress="if(event.key==='Enter')confirmPassword()">
+            <div class="btn-group">
+                <button class="btn-cancel" onclick="closePasswordModal()">取消</button>
+                <button class="btn-confirm" onclick="confirmPassword()">确认</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="view-controls">
+        <button class="view-btn preset" onclick="setViewPreset('top')" title="俯视">🔝 俯视</button>
+        <button class="view-btn preset" onclick="setViewPreset('front')" title="正视">🎯 正视</button>
+        <button class="view-btn preset" onclick="setViewPreset('side')" title="侧视">👁️ 侧视</button>
+        
+        <button class="view-btn" onclick="rotateView('left')" title="向左旋转">⬅️</button>
+        <button class="view-btn zoom" onclick="zoomView(1.2)" title="放大">➕</button>
+        <button class="view-btn" onclick="rotateView('right')" title="向右旋转">➡️</button>
+        
+        <button class="view-btn" onclick="panView('up')" title="向上移动">⬆️</button>
+        <button class="view-btn zoom" onclick="zoomView(0.8)" title="缩小">➖</button>
+        <button class="view-btn" onclick="panView('down')" title="向下移动">⬇️</button>
+        
+        <button class="view-btn" onclick="panView('left')" title="向左移动">◀️</button>
+        <button class="view-btn" onclick="panView('height-up')" title="升高">⏫</button>
+        <button class="view-btn" onclick="panView('right')" title="向右移动">▶️</button>
+        
+        <button class="view-btn reset" onclick="resetView()" title="重置视角">🔄 重置视角</button>
     </div>
     
     <div id="password-modal">
@@ -1054,6 +1164,69 @@
                 document.getElementById('loading-text').innerText = '加载失败';
                 document.getElementById('error-message').innerText = e.message;
             }
+        }
+        
+        function getCamera() {
+            const gd = document.getElementById('plotly-div');
+            if (!gd || !gd.layout || !gd.layout.scene || !gd.layout.scene.camera) {
+                return { eye: {x: -0.8, y: -0.8, z: 3.5}, center: {x: 0, y: 0, z: 0}, up: {x: 0, y: 0, z: 1} };
+            }
+            return gd.layout.scene.camera;
+        }
+        
+        function zoomView(factor) {
+            const camera = getCamera();
+            camera.eye.x *= factor;
+            camera.eye.y *= factor;
+            camera.eye.z *= factor;
+            Plotly.relayout('plotly-div', { 'scene.camera': camera });
+        }
+        
+        function rotateView(direction) {
+            const camera = getCamera();
+            const angle = 0.3;
+            const x = camera.eye.x;
+            const y = camera.eye.y;
+            
+            if (direction === 'left') {
+                camera.eye.x = x * Math.cos(angle) - y * Math.sin(angle);
+                camera.eye.y = x * Math.sin(angle) + y * Math.cos(angle);
+            } else if (direction === 'right') {
+                camera.eye.x = x * Math.cos(-angle) - y * Math.sin(-angle);
+                camera.eye.y = x * Math.sin(-angle) + y * Math.cos(-angle);
+            }
+            Plotly.relayout('plotly-div', { 'scene.camera': camera });
+        }
+        
+        function panView(direction) {
+            const camera = getCamera();
+            if (!camera.center) camera.center = {x: 0, y: 0, z: 0};
+            const step = 5;
+            
+            if (direction === 'up') camera.center.z += step;
+            else if (direction === 'down') camera.center.z -= step;
+            else if (direction === 'left') camera.center.x -= step;
+            else if (direction === 'right') camera.center.x += step;
+            else if (direction === 'height-up') camera.center.y += step;
+            
+            Plotly.relayout('plotly-div', { 'scene.camera': camera });
+        }
+        
+        function setViewPreset(preset) {
+            let camera;
+            if (preset === 'top') {
+                camera = { eye: {x: 0, y: 0, z: 4}, center: {x: 0, y: 0, z: 0}, up: {x: 0, y: 1, z: 0} };
+            } else if (preset === 'front') {
+                camera = { eye: {x: 0, y: -4, z: 1}, center: {x: 0, y: 0, z: 0}, up: {x: 0, y: 0, z: 1} };
+            } else if (preset === 'side') {
+                camera = { eye: {x: -4, y: 0, z: 1}, center: {x: 0, y: 0, z: 0}, up: {x: 0, y: 0, z: 1} };
+            }
+            Plotly.relayout('plotly-div', { 'scene.camera': camera });
+        }
+        
+        function resetView() {
+            const camera = { eye: {x: -0.8, y: -0.8, z: 3.5}, center: {x: 0, y: 0, z: 0}, up: {x: 0, y: 0, z: 1} };
+            Plotly.relayout('plotly-div', { 'scene.camera': camera });
         }
         
         window.addEventListener('load', async () => {
