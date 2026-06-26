@@ -8,287 +8,62 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     
-    <!-- 外部库 -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            overflow: hidden;
-            background: #F8FAFC;
-        }
-        
-        #plotly-div {
-            width: 100%;
-            height: 100vh;
-        }
-        
-        /* 数据时间戳 */
-        #data-timestamp-box {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(255,255,255,0.95);
-            padding: 10px 14px;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(15,23,42,0.15);
-            z-index: 9999;
-            border: 1px solid #E2E8F0;
-            text-align: center;
-        }
-        
-        #data-timestamp {
-            font-size: 13px;
-            font-weight: bold;
-            color: #0F172A;
-            margin-bottom: 4px;
-        }
-        
-        #refresh-btn {
-            background: #3B82F6;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 6px 12px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        #refresh-btn:hover {
-            background: #2563EB;
-        }
-        
-        #refresh-btn:disabled {
-            background: #94A3B8;
-            cursor: not-allowed;
-        }
-        
-        /* 控制面板 */
-        #super-legend-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(255,255,255,0.98);
-            padding: 16px;
-            border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(15,23,42,0.15);
-            z-index: 9999;
-            width: 380px;
-            border: 1px solid #E2E8F0;
-            max-height: 90vh;
-            overflow-y: auto;
-        }
-        
-        .switch-btn {
-            flex: 1;
-            padding: 8px;
-            font-size: 11px;
-            font-weight: bold;
-            border: 2px solid #CBD5E1;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-align: center;
-            border-radius: 6px;
-            background: #FFFFFF;
-            color: #64748B;
-        }
-        
-        .switch-btn.active {
-            background: #10B981;
-            color: white;
-            border-color: #047857;
-            box-shadow: 0 4px 10px rgba(16,185,129,0.3);
-        }
-        
-        .switch-btn.active-actual {
-            background: #3B82F6;
-            color: white;
-            border-color: #1D4ED8;
-            box-shadow: 0 4px 10px rgba(59,130,246,0.3);
-        }
-        
-        #legend-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        
-        .legend-row {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            background: #F8FAFC;
-            padding: 5px 8px;
-            border-radius: 6px;
-            border: 1px solid #E2E8F0;
-        }
-        
-        .color-box {
-            position: relative;
-            width: 22px;
-            height: 20px;
-            overflow: hidden;
-            border-radius: 4px;
-            border: 1px solid #CBD5E1;
-            flex-shrink: 0;
-            cursor: pointer;
-        }
-        
-        .legend-label {
-            font-size: 11px;
-            font-weight: bold;
-            color: #1E293B;
-            flex: 1;
-        }
-        
-        .action-btn {
-            background: none;
-            border: 1px solid #CBD5E1;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            padding: 0 4px;
-            transition: all 0.2s;
-        }
-        
-        .action-btn:hover {
-            background: #F1F5F9;
-        }
-        
-        .delete-btn {
-            background: #FEE2E2;
-            color: #EF4444;
-            border: 1px solid #FCA5A5;
-        }
-        
-        .delete-btn:hover {
-            background: #FECACA;
-        }
-        
-        .reset-btn {
-            background: #E0F2FE;
-            color: #0284C7;
-            border: 1px solid #7DD3FC;
-        }
-        
-        .reset-btn:hover {
-            background: #BAE6FD;
-        }
-        
-        /* 加载遮罩 */
-        #loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255,255,255,0.95);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 99999;
-        }
-        
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid #E2E8F0;
-            border-top: 4px solid #3B82F6;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        #loading-text {
-            margin-top: 20px;
-            font-size: 16px;
-            color: #0F172A;
-            font-weight: bold;
-        }
-        
-        /* 响应式设计 - 手机端 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; background: #F8FAFC; }
+        #plotly-div { width: 100%; height: 100vh; }
+        #data-timestamp-box { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.95); padding: 10px 14px; border-radius: 10px; box-shadow: 0 4px 12px rgba(15,23,42,0.15); z-index: 9999; border: 1px solid #E2E8F0; text-align: center; }
+        #data-timestamp { font-size: 13px; font-weight: bold; color: #0F172A; margin-bottom: 4px; }
+        #refresh-btn { background: #3B82F6; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+        #refresh-btn:hover { background: #2563EB; }
+        #refresh-btn:disabled { background: #94A3B8; cursor: not-allowed; }
+        #super-legend-panel { position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.98); padding: 16px; border-radius: 12px; box-shadow: 0 6px 20px rgba(15,23,42,0.15); z-index: 9999; width: 380px; border: 1px solid #E2E8F0; max-height: 90vh; overflow-y: auto; }
+        .switch-btn { flex: 1; padding: 8px; font-size: 11px; font-weight: bold; border: 2px solid #CBD5E1; cursor: pointer; transition: all 0.2s ease; text-align: center; border-radius: 6px; background: #FFFFFF; color: #64748B; }
+        .switch-btn.active { background: #10B981; color: white; border-color: #047857; box-shadow: 0 4px 10px rgba(16,185,129,0.3); }
+        .switch-btn.active-actual { background: #3B82F6; color: white; border-color: #1D4ED8; box-shadow: 0 4px 10px rgba(59,130,246,0.3); }
+        #legend-list { display: flex; flex-direction: column; gap: 8px; }
+        .legend-row { display: flex; align-items: center; gap: 6px; background: #F8FAFC; padding: 5px 8px; border-radius: 6px; border: 1px solid #E2E8F0; }
+        .color-box { position: relative; width: 22px; height: 20px; overflow: hidden; border-radius: 4px; border: 1px solid #CBD5E1; flex-shrink: 0; cursor: pointer; }
+        .legend-label { font-size: 11px; font-weight: bold; color: #1E293B; flex: 1; }
+        .action-btn { background: none; border: 1px solid #CBD5E1; border-radius: 4px; cursor: pointer; font-size: 12px; padding: 0 4px; transition: all 0.2s; }
+        .action-btn:hover { background: #F1F5F9; }
+        .delete-btn { background: #FEE2E2; color: #EF4444; border: 1px solid #FCA5A5; }
+        .delete-btn:hover { background: #FECACA; }
+        .reset-btn { background: #E0F2FE; color: #0284C7; border: 1px solid #7DD3FC; }
+        .reset-btn:hover { background: #BAE6FD; }
+        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 99999; }
+        .spinner { width: 50px; height: 50px; border: 4px solid #E2E8F0; border-top: 4px solid #3B82F6; border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        #loading-text { margin-top: 20px; font-size: 16px; color: #0F172A; font-weight: bold; }
+        #error-message { margin-top: 10px; font-size: 14px; color: #EF4444; max-width: 600px; text-align: center; padding: 0 20px; white-space: pre-line; }
         @media (max-width: 768px) {
-            #super-legend-panel {
-                position: fixed;
-                top: auto;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                width: 100%;
-                max-height: 50vh;
-                border-radius: 12px 12px 0 0;
-                padding: 12px;
-            }
-            
-            #data-timestamp-box {
-                top: 10px;
-                right: 10px;
-                padding: 8px 10px;
-            }
-            
-            #data-timestamp {
-                font-size: 11px;
-            }
-            
-            #refresh-btn {
-                font-size: 11px;
-                padding: 5px 10px;
-            }
-            
-            .legend-row {
-                padding: 8px;
-            }
-            
-            .legend-label {
-                font-size: 12px;
-            }
-            
-            .action-btn {
-                font-size: 14px;
-                padding: 4px 8px;
-            }
-        }
-        
-        /* 打印样式 */
-        @media print {
-            #super-legend-panel, #data-timestamp-box {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
+            #super-legend-panel { position: fixed; top: auto; bottom: 0; left: 0; right: 0; width: 100%; max-height: 50vh; border-radius: 12px 12px 0 0; padding: 12px; }
+            #data-timestamp-box { top: 10px; right: 10px; padding: 8px 10px; }
+            #data-timestamp { font-size: 11px; }
+            #refresh-btn { font-size: 11px; padding: 5px 10px; }
+            .legend-row { padding: 8px; }
+            .legend-label { font-size: 12px; }
+            .action-btn { font-size: 14px; padding: 4px 8px; }
         }
     </style>
 </head>
 <body>
-    <!-- 加载遮罩 -->
     <div id="loading-overlay">
         <div class="spinner"></div>
         <div id="loading-text">正在加载仓库数据...</div>
+        <div id="error-message"></div>
     </div>
     
-    <!-- 3D 图表容器 -->
     <div id="plotly-div"></div>
     
-    <!-- 数据时间戳 -->
     <div id="data-timestamp-box">
         <div id="data-timestamp">数据加载中...</div>
         <button id="refresh-btn" onclick="refreshData()">🔄 刷新数据</button>
     </div>
     
-    <!-- 控制面板 -->
     <div id="super-legend-panel">
         <div style="background: #F1F5F9; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 12px; border: 1px solid #E2E8F0;">
             <div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')">🟢 规划预期分布</div>
@@ -303,15 +78,21 @@
     
     <script>
         // =======================================================
-        // 🌟 核心配置
+        // 🌟 核心配置 - 请填入您的完整 URL（包括 https://）
         // =======================================================
         const PLAN_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vStLtLccpDSfrf_yU_T9WrNcZufN29BqkDsVS2r9ql1INK_61uA8UetkiW4DZ4_dv63o-DHzFz0tOAq/pub?gid=1276542862&single=true&output=csv";
-        // 🌟 请填入您的 Google Drive xlsx 文件的永久 URL
-        const ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-egK5kKzjLVZx/export?format=xlsx";
         
-        // =======================================================
-        // 🎨 全局配置
-        // =======================================================
+        // 🌟 重要：请填入完整的 URL（包括 https:// 开头）
+        // 例如：https://docs.google.com/spreadsheets/d/您的文件ID/export?format=xlsx
+        const ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-egK5kKzjLVZx/export?format=xlsx";
+        
+        // 🌟 CORS 代理服务列表（按优先级排序，第一个失败会自动尝试下一个）
+        const CORS_PROXIES = [
+            "https://corsproxy.io/?",
+            "https://api.allorigins.win/raw?url=",
+            "https://cors-anywhere.herokuapp.com/"
+        ];
+        
         const GLOBAL_BRAND_COLORS = {
             'LINSY': '#D68F68', 'A区 (oversize沙发区)': '#7DA28A', 'B区 (沙发 Backup区)': '#6C8EA4',
             'G区不良品区': '#949BA2', 'Replica 区域': '#D4CBBE', 'MODE 椅子区': '#9E7E73',
@@ -341,7 +122,6 @@
         let server_data_cache = [];
         let lastRefreshTime = 0;
         
-        // 从 localStorage 加载配置
         try {
             const saved_config = localStorage.getItem("warehouse_twin_master_2026");
             if (saved_config) {
@@ -365,13 +145,72 @@
             console.error("加载配置失败:", e);
         }
         
-        // =======================================================
-        // 📐 坐标计算（与 Python 版本保持一致）
-        // =======================================================
         const COL_WIDTH = 5.0, DEPTH = 3.0, LVL_HEIGHT = 4.0;
         const EASTERN_ALIGN_X = 65.0, SOUTH_BASE_Y = 95.0, NORTH_BASE_Y = 145.0;
         const XWT_ZONE_COL_ORDER = {5: 0, 1: 1, 2: 2, 3: 3, 4: 4};
         const AISLE_GAP = 6.0, SHRINK = 1.0;
+        
+        // =======================================================
+        // 🌟 CORS 代理请求函数（自动尝试多个代理）
+        // =======================================================
+        async function fetchWithProxy(url, isBinary = false) {
+            console.log(`🔗 尝试直接请求: ${url}`);
+            
+            // 先尝试直接请求（如果在 GitHub Pages 上运行，可能不需要代理）
+            try {
+                const response = await fetch(url);
+                if (response.ok) {
+                    console.log("✅ 直接请求成功（无需代理）");
+                    return isBinary ? await response.arrayBuffer() : await response.text();
+                }
+            } catch (e) {
+                console.log("⚠️ 直接请求失败，尝试使用 CORS 代理...");
+            }
+            
+            // 尝试所有 CORS 代理
+            for (let i = 0; i < CORS_PROXIES.length; i++) {
+                const proxy = CORS_PROXIES[i];
+                const proxyUrl = proxy + encodeURIComponent(url);
+                
+                console.log(`🔄 尝试代理 ${i + 1}/${CORS_PROXIES.length}: ${proxy}`);
+                
+                try {
+                    const response = await fetch(proxyUrl);
+                    
+                    if (!response.ok) {
+                        console.log(`❌ 代理 ${i + 1} 返回 HTTP ${response.status}`);
+                        continue;
+                    }
+                    
+                    const result = isBinary ? await response.arrayBuffer() : await response.text();
+                    
+                    // 验证返回的数据是否有效
+                    if (isBinary) {
+                        // 检查是否是有效的 xlsx 文件（前 4 字节应该是 PK）
+                        const bytes = new Uint8Array(result);
+                        if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4B) {
+                            console.log(`❌ 代理 ${i + 1} 返回的不是有效的 xlsx 文件`);
+                            continue;
+                        }
+                    } else {
+                        // 检查是否是有效的 CSV（应该包含逗号）
+                        if (!result.includes(',')) {
+                            console.log(`❌ 代理 ${i + 1} 返回的不是有效的 CSV`);
+                            continue;
+                        }
+                    }
+                    
+                    console.log(`✅ 代理 ${i + 1} 成功`);
+                    return result;
+                    
+                } catch (e) {
+                    console.log(`❌ 代理 ${i + 1} 失败: ${e.message}`);
+                    continue;
+                }
+            }
+            
+            throw new Error("所有 CORS 代理都失败了。请检查网络连接，或将此文件部署到 GitHub Pages。");
+        }
         
         function getPlannedInfo(zone, col, lvl, isGround = false) {
             if (isGround) return ['地面专属区', GLOBAL_BRAND_COLORS['地面专属区']];
@@ -483,13 +322,10 @@
             return [x, y, z];
         }
         
-        // =======================================================
-        // 📦 数据抓取
-        // =======================================================
         async function fetchPlanData() {
             try {
-                const response = await fetch(PLAN_CSV_URL);
-                const text = await response.text();
+                console.log("📡 正在抓取规划数据...");
+                const text = await fetchWithProxy(PLAN_CSV_URL, false);
                 const lines = text.split('\n');
                 const locations = [];
                 
@@ -509,21 +345,27 @@
                     });
                 });
                 
+                console.log(`✅ 规划数据抓取成功：${locations.length} 个库位`);
                 return locations;
             } catch (e) {
-                console.error("抓取规划数据失败:", e);
-                return [];
+                console.error("❌ 抓取规划数据失败:", e);
+                throw new Error("规划数据抓取失败: " + e.message);
             }
         }
         
         async function fetchActualData() {
             try {
-                const url = ACTUAL_XLSX_URL + '&t=' + Date.now();
-                const response = await fetch(url);
-                const arrayBuffer = await response.arrayBuffer();
+                console.log("📦 正在抓取实际库存数据...");
+                const url = ACTUAL_XLSX_URL + (ACTUAL_XLSX_URL.includes('?') ? '&' : '?') + 't=' + Date.now();
+                
+                const arrayBuffer = await fetchWithProxy(url, true);
+                console.log(`📊 下载完成，文件大小: ${(arrayBuffer.byteLength / 1024).toFixed(2)} KB`);
+                
                 const workbook = XLSX.read(arrayBuffer, {type: 'array'});
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
                 const data = XLSX.utils.sheet_to_json(sheet, {header: 1, skiprows: 5});
+                
+                console.log(`📋 读取到 ${data.length} 行数据`);
                 
                 const actual_db = {};
                 data.forEach(row => {
@@ -531,7 +373,6 @@
                     const raw_loc = String(row[1] || '').trim();
                     if (!raw_loc || raw_loc === 'nan' || raw_loc.includes('$') || raw_loc.includes(' ')) return;
                     
-                    // 验证库位格式
                     if (!/^[A-Z]+\d+-\d+$/.test(raw_loc) && !/^G[A-Z]*\d*$/.test(raw_loc)) return;
                     
                     const raw_sku = String(row[2] || '').trim();
@@ -551,18 +392,17 @@
                     }
                 });
                 
+                console.log(`✅ 实际库存数据抓取成功：${Object.keys(actual_db).length} 个库位有库存`);
                 return actual_db;
             } catch (e) {
-                console.error("抓取实际数据失败:", e);
-                return {};
+                console.error("❌ 抓取实际数据失败:", e);
+                throw new Error("实际库存数据抓取失败: " + e.message);
             }
         }
         
-        // =======================================================
-        // 🎨 3D 渲染
-        // =======================================================
         function render3D(locations, actual_db) {
-            // 计算坐标
+            console.log("🎨 开始渲染 3D 图形...");
+            
             locations.forEach(loc => {
                 const [x, y, z] = getAbsoluteCoords(loc.zone, loc.col, loc.lvl);
                 loc.X = x;
@@ -573,7 +413,6 @@
                 loc.color = color;
             });
             
-            // 生成数据缓存
             server_data_cache = locations.map(loc => {
                 const items_in_bin = actual_db[loc.loc] || [];
                 const brands_in_bin = [...new Set(items_in_bin.map(it => it.brand).filter(b => b))];
@@ -613,10 +452,7 @@
                 };
             });
             
-            // 创建 Plotly 图表
             const traces = [];
-            
-            // 地面
             const min_x = Math.min(...locations.map(l => l.X)) - 25;
             const max_x = Math.max(...locations.map(l => l.X)) + 25;
             const min_y = Math.min(...locations.map(l => l.Y)) - 25;
@@ -636,7 +472,6 @@
                 hoverinfo: 'skip'
             });
             
-            // 货架色块
             locations.forEach(loc => {
                 const is_v = ['H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q'].includes(loc.zone);
                 let cw, cd, h;
@@ -686,7 +521,6 @@
                 }
             });
             
-            // 区域标签
             const ZONE_Z_OFFSET_MAP = {'A': 2.0, 'B': 16.0, 'C': 2.0, 'D': 11.0, 'E': 2.0, 'F': 7.0, 'G': 2.0, 'H': 2.0, 'J': 6.0, 'K': 10.0, 'L': 2.0, 'M': 6.0, 'N': 2.0, 'P': 6.0, 'Q': 2.0, 'T': 2.0, 'W': 6.0, 'X': 10.0, 'Y': 2.0};
             
             const zones = [...new Set(locations.filter(l => !l.is_ground).map(l => l.zone))];
@@ -738,13 +572,11 @@
             };
             
             Plotly.newPlot('plotly-div', traces, layout, config);
+            console.log("✅ 3D 图形渲染完成");
             applyAllDBCacheToCanvas();
             renderControlPanel();
         }
         
-        // =======================================================
-        // 🎛️ 交互控制
-        // =======================================================
         function switchGlobalView(viewMode) {
             GLOBAL_CURRENT_VIEW = viewMode;
             document.getElementById("view-plan-btn").className = "switch-btn" + (viewMode==='PLAN'?' active':'');
@@ -1022,6 +854,7 @@
         async function loadData() {
             document.getElementById('loading-overlay').style.display = 'flex';
             document.getElementById('loading-text').innerText = '正在加载仓库数据...';
+            document.getElementById('error-message').innerText = '';
             
             try {
                 const [locations, actual_db] = await Promise.all([
@@ -1031,26 +864,25 @@
                 
                 render3D(locations, actual_db);
                 document.getElementById('loading-overlay').style.display = 'none';
+                document.getElementById('data-timestamp').innerText = '数据更新: ' + new Date().toLocaleString('zh-CN');
+                lastRefreshTime = Date.now();
             } catch (e) {
                 console.error("加载数据失败:", e);
-                document.getElementById('loading-text').innerText = '加载失败: ' + e.message;
+                document.getElementById('loading-text').innerText = '加载失败';
+                document.getElementById('error-message').innerText = e.message + '\n\n💡 建议：将此文件部署到 GitHub Pages 可以彻底解决 CORS 问题';
             }
         }
         
-        // =======================================================
-        // 🚀 初始化
-        // =======================================================
         window.addEventListener('load', async () => {
             await loadData();
             
-            // 每 30 分钟自动刷新
             setInterval(() => {
                 const now = Date.now();
                 if (now - lastRefreshTime >= 30 * 60 * 1000) {
                     console.log("⏰ 30 分钟已到，自动刷新数据...");
                     refreshData();
                 }
-            }, 60000); // 每分钟检查一次
+            }, 60000);
         });
     </script>
 </body>
