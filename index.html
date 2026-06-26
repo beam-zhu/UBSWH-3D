@@ -432,26 +432,44 @@
             strip.classList.remove('show');
         }
         
-        // 🌟 触摸手势支持（左滑收起，右滑展开）
+        // 🌟 优化后的触摸手势支持（不干扰 Plotly 的双指手势）
         let touchStartX = 0;
         let touchStartY = 0;
+        let touchStartTime = 0;
         let isSwiping = false;
+        let touchMoveCount = 0;
+        let initialTouchCount = 0;
         
         document.addEventListener('touchstart', function(e) {
+            // 🌟 关键修复：只在单指触摸时才处理自定义手势
+            // 双指触摸直接让 Plotly 处理（缩放/平移）
+            initialTouchCount = e.touches.length;
+            if (initialTouchCount !== 1) return;
+            
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
+            touchStartTime = Date.now();
             isSwiping = false;
+            touchMoveCount = 0;
         }, {passive: true});
         
         document.addEventListener('touchmove', function(e) {
-            if (touchStartX === 0) return;
+            // 🌟 关键修复：如果变成了双指，立即停止自定义手势处理
+            if (e.touches.length !== 1 || initialTouchCount !== 1) {
+                isSwiping = false;
+                return;
+            }
+            
+            touchMoveCount++;
+            
             const touchX = e.touches[0].clientX;
             const touchY = e.touches[0].clientY;
             const deltaX = touchX - touchStartX;
             const deltaY = touchY - touchStartY;
             
-            // 只有水平滑动大于垂直滑动才认为是滑动手势
-            if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 20) {
+            // 🌟 更严格的条件：只有纯水平滑动才触发
+            // 水平移动 > 垂直移动 * 3，且移动距离 > 50px
+            if (touchMoveCount > 8 && Math.abs(deltaX) > Math.abs(deltaY) * 3 && Math.abs(deltaX) > 50) {
                 isSwiping = true;
             }
         }, {passive: true});
@@ -461,16 +479,19 @@
             
             const touchEndX = e.changedTouches[0].clientX;
             const deltaX = touchEndX - touchStartX;
-            const strip = document.getElementById('panel-expand-strip');
+            const deltaTime = Date.now() - touchStartTime;
             const panel = document.getElementById('super-legend-panel');
             
-            // 左滑超过 80px：收起看板
-            if (deltaX < -80 && !panel.classList.contains('collapsed')) {
-                collapsePanel();
-            }
-            // 右滑超过 80px：展开看板（只在收起状态下响应）
-            else if (deltaX > 80 && panel.classList.contains('collapsed')) {
-                expandPanel();
+            // 🌟 只在快速滑动（<500ms）且距离足够（>100px）时触发
+            if (deltaTime < 500 && Math.abs(deltaX) > 100) {
+                // 左滑：收起看板
+                if (deltaX < 0 && !panel.classList.contains('collapsed')) {
+                    collapsePanel();
+                }
+                // 右滑：展开看板
+                else if (deltaX > 0 && panel.classList.contains('collapsed')) {
+                    expandPanel();
+                }
             }
             
             touchStartX = 0;
@@ -748,18 +769,35 @@
             });
             
             Plotly.newPlot('plotly-div', traces, {
-                autosize: true, margin: {l: 0, r: 0, b: 0, t: 0}, paper_bgcolor: '#F8FAFC',
+                autosize: true, 
+                margin: {l: 0, r: 0, b: 0, t: 0}, 
+                paper_bgcolor: '#F8FAFC',
                 scene: {
-                    xaxis: {visible: false}, yaxis: {visible: false}, zaxis: {visible: false},
+                    xaxis: {visible: false}, 
+                    yaxis: {visible: false}, 
+                    zaxis: {visible: false},
                     aspectmode: 'data',
-                    camera: {projection: {type: "orthographic"}, eye: {x: -0.8, y: -0.8, z: 3.5}, up: {x: 0, y: 0, z: 1}},
+                    camera: {
+                        projection: {type: "orthographic"}, 
+                        eye: {x: -0.8, y: -0.8, z: 3.5}, 
+                        up: {x: 0, y: 0, z: 1}
+                    },
                     hovermode: 'closest'
                 },
                 dragmode: "turntable"
             }, {
-                responsive: true, displayModeBar: true, displaylogo: false,
+                responsive: true, 
+                displayModeBar: true, 
+                displaylogo: false,
                 modeBarButtonsToRemove: ['toImage', 'sendDataToCloud'],
-                scrollZoom: true, doubleClick: 'reset'
+                // 🌟 关键修复：启用触摸手势
+                scrollZoom: true,  // 启用滚轮/双指缩放
+                doubleClick: 'reset',  // 双击重置视角
+                doubleClickDelay: 1000,
+                // 🌟 关键修复：明确启用触摸交互
+                touchStart: true,
+                touchMove: true,
+                touchEnd: true
             });
             
             applyAllDBCacheToCanvas();
