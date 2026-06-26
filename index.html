@@ -15,7 +15,8 @@
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; overflow: hidden; background: #F8FAFC; }
         
-        #plotly-div { width: 100%; height: 100vh; }
+        /* 🌟 关键修复：禁止浏览器默认触摸行为 */
+        #plotly-div { width: 100%; height: 100vh; touch-action: none; }
         
         #data-timestamp-box { 
             position: absolute; top: 20px; right: 20px; 
@@ -258,15 +259,15 @@
     
     <div id="data-timestamp-box">
         <div id="data-timestamp">数据加载中...</div>
-        <button id="refresh-btn" onclick="refreshData()"> 刷新数据</button>
+        <button id="refresh-btn" onclick="refreshData()">🔄 刷新数据</button>
     </div>
     
     <div id="super-legend-panel">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <button onclick="collapsePanel()" style="background: #64748B; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;" title="收起看板">◀ 收起</button>
+            <button onclick="collapsePanel()" style="background: #64748B; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;" title="收起看板"> 收起</button>
         </div>
         <div style="background: #F1F5F9; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 12px; border: 1px solid #E2E8F0;">
-            <div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')"> 规划预期分布</div>
+            <div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')">🟢 规划预期分布</div>
             <div id="view-actual-btn" class="switch-btn" onclick="switchGlobalView('ACTUAL')">🔵 实际库存大盘</div>
         </div>
         <div style="border-bottom: 2px solid #F1F5F9; padding-bottom: 6px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
@@ -466,7 +467,7 @@
                 if (response.ok) {
                     return isBinary ? await response.arrayBuffer() : await response.text();
                 }
-            } catch (e) { console.log("⚠️ 直接请求失败，尝试使用 CORS 代理..."); }
+            } catch (e) { console.log("️ 直接请求失败，尝试使用 CORS 代理..."); }
             
             for (let i = 0; i < CORS_PROXIES.length; i++) {
                 const proxy = CORS_PROXIES[i];
@@ -618,7 +619,7 @@
                 if (brands_in_bin.length === 0) {
                     slices_data.push({brand: "[当前空置]", color: GLOBAL_BRAND_COLORS['[当前空置]'], items: []});
                 } else if (brands_in_bin.length > 4) {
-                    slices_data.push({brand: "[️超过4品牌严重混放]", color: GLOBAL_BRAND_COLORS['[⚠️超过4品牌严重混放]'], items: items_in_bin});
+                    slices_data.push({brand: "[⚠️超过4品牌严重混放]", color: GLOBAL_BRAND_COLORS['[⚠️超过4品牌严重混放]'], items: items_in_bin});
                 } else {
                     brands_in_bin.forEach(b_name => {
                         slices_data.push({
@@ -743,7 +744,6 @@
                 doubleClick: 'reset'
             });
             
-            // 🌟 关键修复：在 Plotly 渲染完成后，再初始化手势监听
             initCustomGestures();
             
             applyAllDBCacheToCanvas();
@@ -751,13 +751,13 @@
         }
         
         // =======================================================
-        // 🌟 方案 2 增强版：自定义慢速平移 + 滑动缩放 (防崩溃修复版)
+        // 🌟 终极修复版：自定义慢速平移 + 滑动缩放
         // =======================================================
-        let currentMode = 'rotate'; 
-        let myCamera = null; 
+        let currentMode = 'rotate';
+        let myCamera = null;
         let touchStartPos = { x: 0, y: 0 };
         const plotDiv = document.getElementById('plotly-div');
-        let isGesturesInitialized = false; // 防重复绑定标志
+        let isGesturesInitialized = false;
 
         function syncCamera() {
             if (plotDiv && plotDiv.layout && plotDiv.layout.scene && plotDiv.layout.scene.camera) {
@@ -766,30 +766,29 @@
         }
 
         function initCustomGestures() {
-            // 如果已经初始化过，直接跳过，防止事件监听器叠加导致卡顿
             if (isGesturesInitialized) return;
             isGesturesInitialized = true;
             
             syncCamera();
             
-            // 🌟 关键修复：在 Plotly.newPlot 之后绑定事件，此时 plotDiv.on 才存在
             plotDiv.on('plotly_relayout', function() {
                 syncCamera();
             });
 
-            plotDiv.addEventListener('touchstart', function(e) {
-                if (currentMode !== 'rotate' && e.touches.length === 1) {
-                    touchStartPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                    e.preventDefault(); 
+            // 🌟 关键修复：使用 pointer events 而不是 touch events，更可靠
+            plotDiv.addEventListener('pointerdown', function(e) {
+                if (currentMode !== 'rotate' && e.pointerType === 'touch' && e.isPrimary) {
+                    touchStartPos = { x: e.clientX, y: e.clientY };
+                    plotDiv.setPointerCapture(e.pointerId);
                 }
-            }, { passive: false });
+            });
 
-            plotDiv.addEventListener('touchmove', function(e) {
-                if (currentMode === 'rotate' || e.touches.length !== 1) return;
+            plotDiv.addEventListener('pointermove', function(e) {
+                if (currentMode === 'rotate' || e.pointerType !== 'touch' || !e.isPrimary) return;
                 e.preventDefault();
 
-                const currX = e.touches[0].clientX;
-                const currY = e.touches[0].clientY;
+                const currX = e.clientX;
+                const currY = e.clientY;
                 const dx = currX - touchStartPos.x;
                 const dy = currY - touchStartPos.y;
 
@@ -797,8 +796,8 @@
                 let newCam = JSON.parse(JSON.stringify(myCamera));
 
                 if (currentMode === 'pan') {
-                    const speed = 0.002; 
-                    const moveX = -dx * speed; 
+                    const speed = 0.002;
+                    const moveX = -dx * speed;
                     const moveY = dy * speed;
                     
                     newCam.center.x += moveX;
@@ -807,8 +806,8 @@
                     newCam.eye.y += moveY;
                 } else if (currentMode === 'zoom') {
                     const zoomSpeed = 0.005;
-                    const scale = 1 + dy * zoomSpeed; 
-                    const safeScale = Math.max(0.1, Math.min(scale, 5.0)); 
+                    const scale = 1 + dy * zoomSpeed;
+                    const safeScale = Math.max(0.1, Math.min(scale, 5.0));
                     
                     const vx = newCam.eye.x - newCam.center.x;
                     const vy = newCam.eye.y - newCam.center.y;
@@ -831,7 +830,13 @@
                 });
 
                 touchStartPos = { x: currX, y: currY };
-            }, { passive: false });
+            });
+
+            plotDiv.addEventListener('pointerup', function(e) {
+                if (e.pointerType === 'touch' && e.isPrimary) {
+                    plotDiv.releasePointerCapture(e.pointerId);
+                }
+            });
         }
 
         function setMode(mode, btnId) {
@@ -843,8 +848,9 @@
             if (mode === 'rotate') {
                 Plotly.relayout(plotDiv, { 'scene.dragmode': 'turntable' });
             } else {
+                // 🌟 关键修复：使用 'false' 禁用 Plotly 原生拖拽
                 Plotly.relayout(plotDiv, { 'scene.dragmode': false });
-                syncCamera(); 
+                syncCamera();
             }
         }
         
@@ -862,7 +868,7 @@
             GLOBAL_CURRENT_VIEW = viewMode;
             document.getElementById("view-plan-btn").className = "switch-btn" + (viewMode==='PLAN'?' active':'');
             document.getElementById("view-actual-btn").className = "switch-btn" + (viewMode==='ACTUAL'?' active-actual':'');
-            document.getElementById("legend-panel-title").innerText = viewMode === 'PLAN' ? " 预期规划品牌图例" : " 实盘现存品牌清点";
+            document.getElementById("legend-panel-title").innerText = viewMode === 'PLAN' ? "📊 预期规划品牌图例" : "🔍 实盘现存品牌清点";
             applyAllDBCacheToCanvas();
             renderControlPanel();
             if (window.innerWidth <= 768) {
@@ -949,7 +955,7 @@
                 
                 const resetBtn = document.createElement("button");
                 resetBtn.className = "action-btn reset-btn";
-                resetBtn.innerText = "🔄";
+                resetBtn.innerText = "";
                 resetBtn.title = "恢复该品牌的初始规划区域";
                 resetBtn.onclick = function(e) {
                     e.stopPropagation();
@@ -1126,7 +1132,7 @@
                     templateCube.opacity = targetColor === 'transparent' ? 0 : 1;
                     templateCube.name = '_SHELF_CUBE_';
                     templateCube.z = node.orig_z;
-                    templateCube.text = Array(8).fill(`<b>库位编码: ${locID} 【规划分布】</b><br>📍 货架区域: ${zChar} 货区<br>📦 预设管理品牌: ${targetLabel}`);
+                    templateCube.text = Array(8).fill(`<b>库位编码: ${locID} 【规划分布】</b><br>📍 货架区域: ${zChar} 货区<br> 预设管理品牌: ${targetLabel}`);
                     finalDynamicTraces.push(templateCube);
                 } else {
                     const slices = node.slices || [];
@@ -1214,7 +1220,7 @@
             updateEditModeButton();
             setInterval(() => {
                 if (Date.now() - lastRefreshTime >= 30 * 60 * 1000) {
-                    console.log(" 30 分钟已到，自动刷新数据...");
+                    console.log("⏰ 30 分钟已到，自动刷新数据...");
                     refreshData();
                 }
             }, 60000);
