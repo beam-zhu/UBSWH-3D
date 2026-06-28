@@ -1,0 +1,59 @@
+name: Auto Update Warehouse Data
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 明确赋予写入权限，防止 push 失败
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4 # 升级到 v4，解决 Node.js 20 警告
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5 # 升级到 v5
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas numpy plotly requests openpyxl
+    
+    - name: Run Python script
+      run: python 3Dwh.py
+      env:
+        GITHUB_ACTIONS: "true"
+    
+    - name: Commit and push changes
+      run: |
+        # 1. 检查 HTML 文件是否真的生成了
+        if [ ! -f "Urban_Sales_Twin_View.html" ]; then
+          echo "❌ 错误: 找不到 Urban_Sales_Twin_View.html！Python 脚本可能运行失败了。"
+          echo "当前目录文件列表："
+          ls -la
+          exit 1
+        fi
+        
+        # 2. 重命名文件
+        mv Urban_Sales_Twin_View.html index.html
+        
+        # 3. 配置 Git
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # 4. 添加文件
+        git add index.html
+        
+        # 5. 检查是否有变化，有变化才 commit 和 push
+        if git diff --staged --quiet; then
+          echo "✅ 数据没有变化，跳过提交。"
+        else
+          git commit -m "Auto-update warehouse data [skip ci]"
+          git push
+        fi
