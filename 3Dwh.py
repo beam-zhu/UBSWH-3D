@@ -698,4 +698,4 @@ if __name__ == "__main__":
                         traceback.print_exc()
                 time.sleep(60)
         except KeyboardInterrupt:
-            print("\n\n👋 收到退出信号，仓库沙盘后台监控已安全停止。")
+            print("\n\n👋 收到退出信号，仓库沙盘后台监控已安全停止。")")
