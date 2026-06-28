@@ -11,14 +11,14 @@ import plotly.graph_objects as go
 import json
 
 # ========================================================
-# 🌟 核心配置区
+# 核心配置区
 # ========================================================
 PLAN_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vStLtLccpDSfrf_yU_T9WrNcZufN29BqkDsVS2r9ql1INK_61uA8UetkiW4DZ4_dv63o-DHzFz0tOAq/pub?gid=1276542862&single=true&output=csv"
 ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-egK5kKzjLVZx/export?format=xlsx"
 OUTPUT_HTML = "Urban_Sales_Twin_View.html"
-TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f" # 默认密码: admin123
+TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f"
 
-# 🌟 新增：云端同步配置链接 (A改B看)
+# 云端同步配置链接 (A改B看)
 CONFIG_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTAuCBLwYldt_n68OGxAgnzApEabBvFjmnOvxKp39i8eaHDHn3iTRqPfaB6X1txjxLDwcBhq0W1nITC/pub?output=csv"
 CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbx-4oPFi4rfmrGsDB31U3K4ifCa8jMv3mG06MVO98eaj5_5V3JR7mZ2eLb34GCuCYpE/exec"
 
@@ -231,7 +231,7 @@ def generate_html():
     res = [get_planned_info(z, c, l, ig) for z, c, l, ig in zip(df_locs['zone'], df_locs['col'], df_locs['lvl'], df_locs['is_ground'])]
     df_locs['brand'], df_locs['color'] = [r[0] for r in res], [r[1] for r in res]
 
-    # 🌟 新增：抓取云端同步配置
+    # 抓取云端同步配置
     cloud_runtime_config = None
     cloud_cell_override_db = None
     try:
@@ -246,7 +246,7 @@ def generate_html():
                 cloud_cell_override_db = json.loads(val)
         print("✅ 云端配置同步成功！")
     except Exception as e:
-        print(f"⚠️ 读取云端配置失败 (可能是首次运行，表为空): {e}")
+        print(f"⚠️ 读取云端配置失败: {e}")
 
     print("🧮 [3/4] 正在生成 3D 桥接数据与画布...")
     python_to_js_cache = []
@@ -383,7 +383,6 @@ def generate_html():
     js_global_colors_string = json.dumps(GLOBAL_BRAND_COLORS)
     js_array_string = json.dumps(python_to_js_cache)  
 
-    # 🌟 新增：决定最终注入 HTML 的配置（优先使用云端配置）
     default_config_list = [
         { "org_name": "LINSY", "color": "#D68F68", "label": "LINSY" }, 
         { "org_name": "A区 (oversize沙发区)", "color": "#7DA28A", "label": "A区 (oversize沙发区)" },
@@ -412,10 +411,8 @@ def generate_html():
         .switch-btn { flex: 1; padding: 8px; font-size: 11px; font-weight: bold; border: 2px solid #CBD5E1; cursor: pointer; transition: all 0.2s ease; text-align: center; border-radius: 6px; background: #FFFFFF; color: #64748B; }
         .switch-btn.active { background: #10B981; color: white; border-color: #047857; }
         .switch-btn.active-actual { background: #3B82F6; color: white; border-color: #1D4ED8; }
-
         #super-legend-panel { transition: transform 0.3s ease; max-height: 80vh; }
         #nav-toggle-btn { position: absolute; top: 10px; left: 10px; z-index: 10001; background: #3B82F6; color: white; border: none; border-radius: 8px; padding: 8px 12px; font-size: 14px; cursor: pointer; display: none; }
-        
         @media (max-width: 768px) {
             #nav-toggle-btn { display: block; }
             #super-legend-panel { width: 85vw !important; max-width: 300px !important; transform: translateX(-120%); opacity: 0; }
@@ -423,39 +420,22 @@ def generate_html():
             #data-timestamp-box { top: 10px !important; right: 10px !important; padding: 5px 8px !important; }
             #data-timestamp { font-size: 10px !important; }
         }
-
-        #control-panel {
-            position: absolute; bottom: 20px; right: 20px; z-index: 10000;
-            background: rgba(255,255,255,0.95); border-radius: 12px; padding: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 6px; border: 1px solid #E2E8F0;
-        }
+        #control-panel { position: absolute; bottom: 20px; right: 20px; z-index: 10000; background: rgba(255,255,255,0.95); border-radius: 12px; padding: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 6px; border: 1px solid #E2E8F0; }
         .control-row { display: flex; gap: 6px; }
-        .ctrl-btn {
-            flex: 1; padding: 10px 0; border: 1px solid #CBD5E1; background: white; border-radius: 8px;
-            cursor: pointer; font-size: 16px; font-weight: bold; color: #475569; transition: all 0.2s;
-            display: flex; justify-content: center; align-items: center;
-        }
+        .ctrl-btn { flex: 1; padding: 10px 0; border: 1px solid #CBD5E1; background: white; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; color: #475569; transition: all 0.2s; display: flex; justify-content: center; align-items: center; }
         .ctrl-btn:active { transform: scale(0.95); }
         .ctrl-btn.active { background: #3B82F6; color: white; border-color: #2563EB; }
-        
-        @media (max-width: 768px) {
-            #control-panel { bottom: 10px; right: 10px; padding: 6px; }
-            .ctrl-btn { padding: 12px 0; font-size: 18px; }
-        }
-
+        @media (max-width: 768px) { #control-panel { bottom: 10px; right: 10px; padding: 6px; } .ctrl-btn { padding: 12px 0; font-size: 18px; } }
         .locked { display: none !important; }
         #pwd-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100002; justify-content: center; align-items: center; }
         .pwd-box { background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; }
     </style>
-
     <button id="nav-toggle-btn" onclick="toggleNav()">☰ 菜单</button>
-
     <div id="data-timestamp-box" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.95); padding: 10px 14px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 9999; border: 1px solid #E2E8F0; text-align: center;">
         <div style="font-size: 10px; color: #666;">📊 数据更新</div>
         <div id="data-timestamp" style="font-size: 13px; font-weight: bold; color: #0F172A;">DATA_TIMESTAMP_PLACEHOLDER</div>
         <button onclick="forceRefreshData()" style="margin-top: 5px; background: #3B82F6; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">🔄 刷新</button>
     </div>
-
     <div id="super-legend-panel" style="position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.98); padding: 16px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.1); z-index: 9999; width: 380px; border: 1px solid #E2E8F0; max-height: 90vh; overflow-y: auto;">
         <div style="background: #F1F5F9; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 12px;">
             <div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')">🟢 规划</div>
@@ -476,7 +456,6 @@ def generate_html():
         </div>
         <div id="legend-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
     </div>
-
     <div id="control-panel">
         <div class="control-row">
             <button class="ctrl-btn active" id="btn-rotate" onclick="setMode('turntable', this)">🔄</button>
@@ -489,7 +468,6 @@ def generate_html():
             <button class="ctrl-btn" onclick="resetCamera()">🏠</button>
         </div>
     </div>
-
     <div id="pwd-modal">
         <div class="pwd-box">
             <h3>🔐 输入编辑密码</h3>
@@ -500,19 +478,15 @@ def generate_html():
             </div>
         </div>
     </div>
-
     <script>
-    // 🌟 接收 Python 注入的云端配置
     let runtime_config = SERVER_CONFIG_INJECT_PLACEHOLDER;
     let cell_override_db = SERVER_OVERRIDES_INJECT_PLACEHOLDER;
     const CONFIG_API_URL = CONFIG_API_URL_PLACEHOLDER;
     const CONFIG_CSV_URL = CONFIG_CSV_URL_PLACEHOLDER;
-
     let GLOBAL_CURRENT_VIEW = "PLAN";
     let server_data_cache = SERVER_DATA_INJECT_PLACEHOLDER;
     let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER;
 
-    // 🌟 核心：页面加载时主动拉取云端最新配置，实现 A 改 B 看
     async function loadCloudConfig() {
         if (!CONFIG_CSV_URL || CONFIG_CSV_URL === 'null') return;
         try {
@@ -526,35 +500,21 @@ def generate_html():
                 if (firstComma === -1) continue;
                 const key = line.substring(0, firstComma).trim();
                 let val = line.substring(firstComma + 1).trim();
-                if (val.startsWith('"') && val.endsWith('"')) {
-                    val = val.substring(1, val.length - 1).replace(/""/g, '"');
-                }
+                if (val.startsWith('"') && val.endsWith('"')) val = val.substring(1, val.length - 1).replace(/""/g, '"');
                 if (key === 'runtime_config' && val) runtime_config = JSON.parse(val);
                 else if (key === 'cell_override_db' && val) cell_override_db = JSON.parse(val);
             }
             console.log("✅ 云端配置加载成功！");
             renderControlPanel();
             applyAllDBCacheToCanvas();
-            lockAllEditBtns(); // 🌟 重新锁定，防止云端配置覆盖后按钮状态错乱
-        } catch (e) {
-            console.warn("⚠️ 加载云端配置失败:", e);
-        }
+            lockAllEditBtns();
+        } catch (e) { console.warn("⚠️ 加载云端配置失败:", e); }
     }
 
-    // 🌟 将修改同步到云端
     function syncConfigToCloud() {
         if (!CONFIG_API_URL || CONFIG_API_URL === 'null') return;
-        fetch(CONFIG_API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ key: 'runtime_config', value: runtime_config }),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        }).catch(err => console.error('Sync runtime_config failed:', err));
-
-        fetch(CONFIG_API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ key: 'cell_override_db', value: cell_override_db }),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        }).catch(err => console.error('Sync cell_override_db failed:', err));
+        fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'runtime_config', value: runtime_config }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(err => console.error('Sync failed:', err));
+        fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'cell_override_db', value: cell_override_db }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(err => console.error('Sync failed:', err));
     }
 
     setInterval(function() {
@@ -584,22 +544,14 @@ def generate_html():
         const colorBox = document.createElement("div"); colorBox.style.cssText = `width:22px; height:20px; border-radius:4px; border:1px solid #CBD5E1; background:${color}; cursor:pointer;`;
         colorBox.onclick = function(e) { e.stopPropagation(); const input = document.createElement('input'); input.type = 'color'; input.value = color; input.style.opacity='0'; input.onchange = function() { updateBrandColor(orgName || name, input.value); }; colorBox.appendChild(input); input.click(); };
         const label = document.createElement("span"); label.style.cssText = "font-size:11px; font-weight:bold; flex:1;"; label.innerText = name;
-        
         let editBtn = document.createElement("button"); editBtn.innerText = "✏️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
         let delBtn = document.createElement("button"); delBtn.innerText = "🗑️"; delBtn.className = "lockable"; delBtn.style.cssText = "background:none; border:none; cursor:pointer;"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`删除 "${name}"?`)) deleteBrand(orgName || name); };
         let resetBtn = document.createElement("button"); resetBtn.innerText = "🔄"; resetBtn.className = "lockable"; resetBtn.style.cssText = "background:none; border:none; cursor:pointer;"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`恢复 "${name}"?`)) resetBrandLocations(orgName || name); };
-
         row.appendChild(colorBox); row.appendChild(label);
         if (GLOBAL_CURRENT_VIEW === 'PLAN') { row.appendChild(editBtn); row.appendChild(delBtn); row.appendChild(resetBtn); }
         container.appendChild(row);
     }
-    function deleteBrand(brandName) { 
-        runtime_config = runtime_config.filter(c => c.org_name !== brandName); 
-        delete GLOBAL_COLOR_POOL[brandName]; 
-        applyAllDBCacheToCanvas(); renderControlPanel(); 
-        syncConfigToCloud(); // 🌟 同步到云端
-    }
-    // 🌟 修复：点击编辑后，自动填充库位信息并滚动到改色工具区
+    function deleteBrand(brandName) { runtime_config = runtime_config.filter(c => c.org_name !== brandName); delete GLOBAL_COLOR_POOL[brandName]; applyAllDBCacheToCanvas(); renderControlPanel(); syncConfigToCloud(); }
     function editBrand(brand) {
         let locs = [];
         server_data_cache.forEach(node => {
@@ -611,156 +563,60 @@ def generate_html():
         document.getElementById('new-brand').value = brand;
         let conf = runtime_config.find(c => c.org_name === brand || c.label === brand);
         document.getElementById('new-color').value = (conf && conf.color !== 'transparent') ? conf.color : "#FFFFFF";
-        document.getElementById('planning-tools-box').scrollIntoView({behavior: 'smooth'}); // 🌟 自动滚动
+        document.getElementById('planning-tools-box').scrollIntoView({behavior: 'smooth'});
     }
-    function resetBrandLocations(brand) { 
-        server_data_cache.forEach(node => { if (node.native_brand === brand) delete cell_override_db[node.loc]; }); 
-        applyAllDBCacheToCanvas(); 
-        syncConfigToCloud(); // 🌟 同步到云端
-    }
-    function formatLocsToRange(locs) { 
-        if (!locs || locs.length === 0) return ""; 
-        let parsed = locs.map(l => { let m = l.match(/^([A-Z]+)(\d+)-(\d+)$/); return m ? { raw: l, z: m[1], c: parseInt(m[2]), l: parseInt(m[3]) } : { raw: l, z: l, c: 0, l: 0 }; }); 
-        parsed.sort((a, b) => a.z.localeCompare(b.z) || a.c - b.c || a.l - b.l); 
-        let ranges = [], i = 0; 
-        while (i < parsed.length) { 
-            let start = parsed[i], end = parsed[i]; 
-            while (i + 1 < parsed.length && parsed[i+1].z === start.z && parsed[i+1].c === start.c && parsed[i+1].l === end.l + 1) { i++; end = parsed[i]; } 
-            ranges.push(start.raw === end.raw ? start.raw : `${start.raw}~${end.raw}`); 
-            i++; 
-        } 
-        return ranges.join(", "); 
-    }
-    function updateBrandColor(brand, newColor) { 
-        let conf = runtime_config.find(c => c.org_name === brand); 
-        if (conf) conf.color = newColor; else runtime_config.push({ org_name: brand, color: newColor, label: brand }); 
-        GLOBAL_COLOR_POOL[brand] = newColor; 
-        applyAllDBCacheToCanvas(); renderControlPanel(); 
-        syncConfigToCloud(); // 🌟 同步到云端
-    }
+    function resetBrandLocations(brand) { server_data_cache.forEach(node => { if (node.native_brand === brand) delete cell_override_db[node.loc]; }); applyAllDBCacheToCanvas(); syncConfigToCloud(); }
+    function formatLocsToRange(locs) { if (!locs || locs.length === 0) return ""; let parsed = locs.map(l => { let m = l.match(/^([A-Z]+)(\d+)-(\d+)$/); return m ? { raw: l, z: m[1], c: parseInt(m[2]), l: parseInt(m[3]) } : { raw: l, z: l, c: 0, l: 0 }; }); parsed.sort((a, b) => a.z.localeCompare(b.z) || a.c - b.c || a.l - b.l); let ranges = [], i = 0; while (i < parsed.length) { let start = parsed[i], end = parsed[i]; while (i + 1 < parsed.length && parsed[i+1].z === start.z && parsed[i+1].c === start.c && parsed[i+1].l === end.l + 1) { i++; end = parsed[i]; } ranges.push(start.raw === end.raw ? start.raw : `${start.raw}~${end.raw}`); i++; } return ranges.join(", "); }
+    function updateBrandColor(brand, newColor) { let conf = runtime_config.find(c => c.org_name === brand); if (conf) conf.color = newColor; else runtime_config.push({ org_name: brand, color: newColor, label: brand }); GLOBAL_COLOR_POOL[brand] = newColor; applyAllDBCacheToCanvas(); renderControlPanel(); syncConfigToCloud(); }
     function applyAllDBCacheToCanvas() { 
         var gd = document.getElementsByClassName('plotly-graph-div')[0]; if(!gd) return; 
         let originalTraces = gd.data, basePlatformAndScatters = [], shelfCubesMap = {}; 
-        for(let i=0; i<originalTraces.length; i++) { 
-            let t = originalTraces[i]; 
-            if(t.name === '_SHELF_CUBE_' || t.name === '_DYNAMIC_SLICE_') { if(t.customdata) shelfCubesMap[t.customdata[0]] = t; } 
-            else basePlatformAndScatters.push(t); 
-        } 
+        for(let i=0; i<originalTraces.length; i++) { let t = originalTraces[i]; if(t.name === '_SHELF_CUBE_' || t.name === '_DYNAMIC_SLICE_') { if(t.customdata) shelfCubesMap[t.customdata[0]] = t; } else basePlatformAndScatters.push(t); } 
         let finalDynamicTraces = [...basePlatformAndScatters]; 
         server_data_cache.forEach(node => { 
-            let locID = node.loc, templateCube = shelfCubesMap[locID]; 
-            if(!templateCube) return; 
+            let locID = node.loc, templateCube = shelfCubesMap[locID]; if(!templateCube) return; 
             let zChar = locID.match(/[A-Z]+/)[0]; 
             if (GLOBAL_CURRENT_VIEW === "PLAN") { 
                 let targetColor = node.native_color, targetLabel = node.native_brand; 
                 if(cell_override_db[locID]) { targetColor = cell_override_db[locID].color; targetLabel = cell_override_db[locID].label; } 
-                else { 
-                    let parentConf = runtime_config.find(c => c.org_name === node.native_brand); 
-                    if(parentConf) { targetColor = parentConf.color || GLOBAL_COLOR_POOL[parentConf.org_name]; targetLabel = parentConf.label; } 
-                    else { targetColor = GLOBAL_COLOR_POOL[node.native_brand] || node.native_color; targetLabel = node.native_brand; } 
-                } 
-                templateCube.color = targetColor; 
-                templateCube.name = '_SHELF_CUBE_'; 
-                templateCube.z = node.orig_z; 
-                templateCube.text = Array(8).fill(`<b>${locID}</b><br>${targetLabel}`); 
-                finalDynamicTraces.push(templateCube); 
+                else { let parentConf = runtime_config.find(c => c.org_name === node.native_brand); if(parentConf) { targetColor = parentConf.color || GLOBAL_COLOR_POOL[parentConf.org_name]; targetLabel = parentConf.label; } else { targetColor = GLOBAL_COLOR_POOL[node.native_brand] || node.native_color; targetLabel = node.native_brand; } } 
+                templateCube.color = targetColor; templateCube.name = '_SHELF_CUBE_'; templateCube.z = node.orig_z; templateCube.text = Array(8).fill(`<b>${locID}</b><br>${targetLabel}`); finalDynamicTraces.push(templateCube); 
             } else { 
-                let slices = node.slices || []; 
-                var origZ = node.orig_z; 
-                var minZ = Math.min(...origZ), maxZ = Math.max(...origZ), fullHeight = maxZ - minZ; 
+                let slices = node.slices || []; var origZ = node.orig_z; var minZ = Math.min(...origZ), maxZ = Math.max(...origZ), fullHeight = maxZ - minZ; 
                 for(let s=0; s<slices.length; s++) { 
                     let currentSlice = slices[s], segmentHeight = fullHeight / slices.length; 
                     let sliceMinZ = minZ + (s * segmentHeight), sliceMaxZ = sliceMinZ + segmentHeight; 
-                    let currentZArray = [...origZ]; 
-                    for(let v=0; v<8; v++) { if(origZ[v] === minZ) currentZArray[v] = sliceMinZ; else currentZArray[v] = sliceMaxZ; } 
+                    let currentZArray = [...origZ]; for(let v=0; v<8; v++) { if(origZ[v] === minZ) currentZArray[v] = sliceMinZ; else currentZArray[v] = sliceMaxZ; } 
                     let sliceColor = GLOBAL_COLOR_POOL[currentSlice.brand] || currentSlice.color; 
-                    let hoverHTML = `<b>${locID}</b><br>${currentSlice.brand}<br>`; 
-                    currentSlice.items.forEach(it => { hoverHTML += `${it.sku}: ${it.qty}<br>`; }); 
-                    finalDynamicTraces.push({ 
-                        type: 'mesh3d', x: templateCube.x, y: templateCube.y, z: currentZArray, 
-                        i: templateCube.i, j: templateCube.j, k: templateCube.k, 
-                        color: sliceColor, customdata: Array(8).fill(locID), text: Array(8).fill(hoverHTML), 
-                        name: '_DYNAMIC_SLICE_', hoverinfo: 'text', showlegend: false 
-                    }); 
+                    let hoverHTML = `<b>${locID}</b><br>${currentSlice.brand}<br>`; currentSlice.items.forEach(it => { hoverHTML += `${it.sku}: ${it.qty}<br>`; }); 
+                    finalDynamicTraces.push({ type: 'mesh3d', x: templateCube.x, y: templateCube.y, z: currentZArray, i: templateCube.i, j: templateCube.j, k: templateCube.k, color: sliceColor, customdata: Array(8).fill(locID), text: Array(8).fill(hoverHTML), name: '_DYNAMIC_SLICE_', hoverinfo: 'text', showlegend: false }); 
                 } 
             } 
         }); 
-        gd.data = finalDynamicTraces; 
-        Plotly.redraw(gd); 
+        gd.data = finalDynamicTraces; Plotly.redraw(gd); 
     }
-    function parseSinglePattern(pat, locID) { 
-        pat = pat.trim().toUpperCase(); if (!pat) return false; 
-        if (pat.includes('~')) { 
-            let parts = pat.split('~'); 
-            if (parts.length === 2) { 
-                let mS = parts[0].match(/^([A-Z]+)(\d+)-(\d+)$/), mE = parts[1].match(/^([A-Z]+)(\d+)-(\d+)$/), mL = locID.match(/^([A-Z]+)(\d+)-(\d+)$/); 
-                if (mS && mE && mL && mL[1] === mS[1]) { 
-                    return (parseInt(mL[2]) >= Math.min(parseInt(mS[2]), parseInt(mE[2])) && parseInt(mL[2]) <= Math.max(parseInt(mS[2]), parseInt(mE[2])) && parseInt(mL[3]) >= Math.min(parseInt(mS[3]), parseInt(mE[3])) && parseInt(mL[3]) <= Math.max(parseInt(mS[3]), parseInt(mE[3]))); 
-                } 
-            } 
-        } 
-        return locID === pat; 
-    }
-    function applyLocationChange() { 
-        let raw = document.getElementById('target-loc').value.trim(), brand = document.getElementById('new-brand').value.trim(), color = document.getElementById('new-color').value; 
-        if(!raw || !brand) return; 
-        let pats = raw.split(','); 
-        let exist = runtime_config.some(c => c.org_name === brand); 
-        let fOrg = exist ? runtime_config.find(c => c.org_name === brand).org_name : brand; 
-        if (!exist) runtime_config.push({ org_name: brand, color: color, label: brand }); 
-        GLOBAL_COLOR_POOL[fOrg] = color; 
-        server_data_cache.forEach(node => { if(pats.some(p => parseSinglePattern(p, node.loc))) cell_override_db[node.loc] = { org_name: fOrg, label: brand, color: color }; }); 
-        document.getElementById('target-loc').value = ""; document.getElementById('new-brand').value = ""; 
-        applyAllDBCacheToCanvas(); renderControlPanel(); 
-        syncConfigToCloud(); // 🌟 同步到云端
-    }
-    function resetToDefault() { 
-        if(confirm("确定要恢复所有初始规划并清除本地和云端保存的修改吗？")) { 
-            if (CONFIG_API_URL) {
-                fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'runtime_config', value: [] }), headers: { 'Content-Type': 'text/plain' } });
-                fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'cell_override_db', value: {} }), headers: { 'Content-Type': 'text/plain' } });
-            }
-            window.location.reload(); 
-        } 
-    }
-
+    function parseSinglePattern(pat, locID) { pat = pat.trim().toUpperCase(); if (!pat) return false; if (pat.includes('~')) { let parts = pat.split('~'); if (parts.length === 2) { let mS = parts[0].match(/^([A-Z]+)(\d+)-(\d+)$/), mE = parts[1].match(/^([A-Z]+)(\d+)-(\d+)$/), mL = locID.match(/^([A-Z]+)(\d+)-(\d+)$/); if (mS && mE && mL && mL[1] === mS[1]) { return (parseInt(mL[2]) >= Math.min(parseInt(mS[2]), parseInt(mE[2])) && parseInt(mL[2]) <= Math.max(parseInt(mS[2]), parseInt(mE[2])) && parseInt(mL[3]) >= Math.min(parseInt(mS[3]), parseInt(mE[3])) && parseInt(mL[3]) <= Math.max(parseInt(mS[3]), parseInt(mE[3]))); } } } return locID === pat; }
+    function applyLocationChange() { let raw = document.getElementById('target-loc').value.trim(), brand = document.getElementById('new-brand').value.trim(), color = document.getElementById('new-color').value; if(!raw || !brand) return; let pats = raw.split(','); let exist = runtime_config.some(c => c.org_name === brand); let fOrg = exist ? runtime_config.find(c => c.org_name === brand).org_name : brand; if (!exist) runtime_config.push({ org_name: brand, color: color, label: brand }); GLOBAL_COLOR_POOL[fOrg] = color; server_data_cache.forEach(node => { if(pats.some(p => parseSinglePattern(p, node.loc))) cell_override_db[node.loc] = { org_name: fOrg, label: brand, color: color }; }); document.getElementById('target-loc').value = ""; document.getElementById('new-brand').value = ""; applyAllDBCacheToCanvas(); renderControlPanel(); syncConfigToCloud(); }
+    function resetToDefault() { if(confirm("恢复初始？")) { if (CONFIG_API_URL) { fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'runtime_config', value: [] }), headers: { 'Content-Type': 'text/plain' } }); fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'cell_override_db', value: {} }), headers: { 'Content-Type': 'text/plain' } }); } window.location.reload(); } }
     function toggleNav() { document.getElementById('super-legend-panel').classList.toggle('nav-open'); }
-    
     function setMode(mode, btn) {
-        var gd = document.getElementsByClassName('plotly-graph-div')[0];
-        if (!gd) return;
+        var gd = document.getElementsByClassName('plotly-graph-div')[0]; if (!gd) return;
         var currentCamera = gd.layout.scene.camera || {eye: {x: -0.8, y: -0.8, z: 3.5}, center: {x: 0, y: 0, z: 0}, up: {x: 0, y: 0, z: 1}};
-        if (btn.classList.contains('active')) {
-            mode = 'turntable';
-            document.getElementById('btn-rotate').classList.add('active');
-            document.getElementById('btn-pan').classList.remove('active');
-        } else {
-            document.querySelectorAll('.ctrl-btn').forEach(b => { if(b.id.startsWith('btn-')) b.classList.remove('active'); });
-            btn.classList.add('active');
-        }
-        var eye = currentCamera.eye;
-        var center = currentCamera.center || {x: 0, y: 0, z: 0};
+        if (btn.classList.contains('active')) { mode = 'turntable'; document.getElementById('btn-rotate').classList.add('active'); document.getElementById('btn-pan').classList.remove('active'); } 
+        else { document.querySelectorAll('.ctrl-btn').forEach(b => { if(b.id.startsWith('btn-')) b.classList.remove('active'); }); btn.classList.add('active'); }
+        var eye = currentCamera.eye; var center = currentCamera.center || {x: 0, y: 0, z: 0};
         var slowFactor = (mode === 'pan') ? 2.0 : 0.5; 
         var newEye = { x: center.x + (eye.x - center.x) * slowFactor, y: center.y + (eye.y - center.y) * slowFactor, z: center.z + (eye.z - center.z) * slowFactor };
-        var update = {'scene.dragmode': mode};
-        update['scene.camera.eye'] = newEye;
-        update['scene.camera.center'] = center;
-        update['scene.camera.up'] = currentCamera.up || {x: 0, y: 0, z: 1};
+        var update = {'scene.dragmode': mode}; update['scene.camera.eye'] = newEye; update['scene.camera.center'] = center; update['scene.camera.up'] = currentCamera.up || {x: 0, y: 0, z: 1};
         Plotly.relayout(gd, update);
     }
-    
     let currentScale = 1.0; 
     function zoomCamera(factor) {
         if (factor < 1) { currentScale = currentScale * 1.2; } else { currentScale = currentScale * 0.8; }
-        if (currentScale > 3.0) currentScale = 3.0;
-        if (currentScale < 0.5) currentScale = 0.5;
+        if (currentScale > 3.0) currentScale = 3.0; if (currentScale < 0.5) currentScale = 0.5;
         var plotContainer = document.querySelector('.plotly-graph-div');
-        if (plotContainer) {
-            plotContainer.style.transform = `scale(${currentScale})`;
-            plotContainer.style.transformOrigin = 'center center';
-        }
+        if (plotContainer) { plotContainer.style.transform = `scale(${currentScale})`; plotContainer.style.transformOrigin = 'center center'; }
     }
-    
     function resetCamera() {
         currentScale = 1.0;
         var plotContainer = document.querySelector('.plotly-graph-div');
@@ -768,84 +624,78 @@ def generate_html():
         var gd = document.getElementsByClassName('plotly-graph-div')[0];
         if (gd) { Plotly.relayout(gd, { 'scene.camera.eye': {x: -0.8, y: -0.8, z: 3.5}, 'scene.camera.center': {x: 0, y: 0, z: 0} }); }
     }
-    
     const TARGET_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f"; 
     let isUnlocked = false;
     function showPwdModal() {
-        if (isUnlocked) {
-            isUnlocked = false; lockAllEditBtns();
-            document.querySelector('#control-panel button:last-child').innerText = "🔒";
-        } else {
-            document.getElementById('pwd-modal').style.display = 'flex';
-            document.getElementById('pwd-input').value = '';
-            document.getElementById('pwd-input').focus();
-        }
+        if (isUnlocked) { isUnlocked = false; lockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = "🔒"; } 
+        else { document.getElementById('pwd-modal').style.display = 'flex'; document.getElementById('pwd-input').value = ''; document.getElementById('pwd-input').focus(); }
     }
     function closePwdModal() { document.getElementById('pwd-modal').style.display = 'none'; }
     async function verifyPwd() {
-        const pwd = document.getElementById('pwd-input').value;
-        if (!pwd) return;
+        const pwd = document.getElementById('pwd-input').value; if (!pwd) return;
         const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));
         const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-        if (hashHex === TARGET_HASH) {
-            isUnlocked = true; closePwdModal(); unlockAllEditBtns();
-            document.querySelector('#control-panel button:last-child').innerText = "🔓";
-        } else { alert('密码错误！'); }
+        if (hashHex === TARGET_HASH) { isUnlocked = true; closePwdModal(); unlockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = "🔓"; } 
+        else { alert('密码错误！'); }
     }
     function lockAllEditBtns() { document.querySelectorAll('.lockable').forEach(btn => btn.classList.add('locked')); }
     function unlockAllEditBtns() { document.querySelectorAll('.lockable').forEach(btn => btn.classList.remove('locked')); }
-
     if (window.innerWidth <= 768) { document.getElementById('super-legend-panel').classList.remove('nav-open'); }
     var checkPlotly = setInterval(function(){
         var gd = document.getElementsByClassName('plotly-graph-div')[0];
-        if(gd && gd._fullLayout) { 
-            clearInterval(checkPlotly); 
-            renderControlPanel(); 
-            applyAllDBCacheToCanvas(); 
-            lockAllEditBtns(); // 🌟 初始化时锁定所有编辑按钮
-            loadCloudConfig(); // 🌟 初始化完成后拉取云端最新配置
-        }
+        if(gd && gd._fullLayout) { clearInterval(checkPlotly); renderControlPanel(); applyAllDBCacheToCanvas(); lockAllEditBtns(); loadCloudConfig(); }
     }, 400);
     </script>
-    """
-    
-    # 🌟 替换占位符
-    interactive_control_script = interactive_control_script.replace("SERVER_CONFIG_INJECT_PLACEHOLDER", js_config_string)\
-                                                           .replace("SERVER_OVERRIDES_INJECT_PLACEHOLDER", js_overrides_string)\
-                                                           .replace("CONFIG_API_URL_PLACEHOLDER", js_api_url_string)\
-                                                           .replace("CONFIG_CSV_URL_PLACEHOLDER", js_csv_url_string)\
-                                                           .replace("SERVER_DATA_INJECT_PLACEHOLDER", js_array_string)\
-                                                           .replace("SERVER_COLORS_INJECT_PLACEHOLDER", js_global_colors_string)\
-                                                           .replace("DATA_TIMESTAMP_PLACEHOLDER", data_timestamp)
+    """.replace("SERVER_CONFIG_INJECT_PLACEHOLDER", js_config_string).replace("SERVER_OVERRIDES_INJECT_PLACEHOLDER", js_overrides_string).replace("CONFIG_API_URL_PLACEHOLDER", js_api_url_string).replace("CONFIG_CSV_URL_PLACEHOLDER", js_csv_url_string).replace("SERVER_DATA_INJECT_PLACEHOLDER", js_array_string).replace("SERVER_COLORS_INJECT_PLACEHOLDER", js_global_colors_string).replace("DATA_TIMESTAMP_PLACEHOLDER", data_timestamp)
     
     final_html = html_content.replace("</body>", interactive_control_script + "</body>")
     with open(OUTPUT_HTML, "w", encoding="utf-8") as f:
         f.write(final_html)
 
+# ========================================================
+# 🌟 关键：根据运行环境自动选择模式
+# ========================================================
 if __name__ == "__main__":
-    print("="*50)
-    print("🏆 仓库沙盘双核系统已启动，进入后台监控模式...")
-    print("💡 程序将每 30 分钟自动抓取最新数据。")
-    print("💡 已启用【智能补跑】：电脑睡眠唤醒后会立刻更新！")
-    print("💡 请保持此窗口运行。按 Ctrl+C 可安全退出程序。")
-    print("="*50)
-    last_run_timestamp = 0 
-    REFRESH_INTERVAL_SECONDS = 30 * 60
-
-    try:
-        while True:
-            now = datetime.datetime.now()
-            current_timestamp = time.time()
-            if last_run_timestamp == 0 or not os.path.exists(OUTPUT_HTML) or (current_timestamp - last_run_timestamp) >= REFRESH_INTERVAL_SECONDS:
-                print(f"\n🔄 [{now.strftime('%Y-%m-%d %H:%M:%S')}] 触发刷新机制，正在生成最新沙盘...")
-                try:
-                    generate_html()
-                    last_run_timestamp = current_timestamp
-                    print("✅ 沙盘更新完成！等待下一次 30 分钟周期...")
-                except Exception as e:
-                    print(f"❌ 生成失败: {e}")
-                    import traceback
-                    traceback.print_exc()
-            time.sleep(60)
-    except KeyboardInterrupt:
-        print("\n\n👋 收到退出信号，仓库沙盘后台监控已安全停止。")
+    # 检测是否在 GitHub Actions 环境中运行
+    is_github_actions = os.environ.get('GITHUB_ACTIONS') == 'true'
+    
+    if is_github_actions:
+        # GitHub Actions 模式：只运行一次就退出（2-3分钟完成）
+        print("="*50)
+        print("🏆 GitHub Actions 模式：单次运行")
+        print("="*50)
+        try:
+            generate_html()
+            print("✅ 沙盘更新完成！")
+        except Exception as e:
+            print(f"❌ 生成失败: {e}")
+            import traceback
+            traceback.print_exc()
+            exit(1)
+    else:
+        # 本地模式：后台持续运行（while True 循环）
+        print("="*50)
+        print("🏆 仓库沙盘双核系统已启动，进入后台监控模式...")
+        print("💡 程序将每 30 分钟自动抓取最新数据。")
+        print("💡 已启用【智能补跑】：电脑睡眠唤醒后会立刻更新！")
+        print("💡 请保持此窗口运行。按 Ctrl+C 可安全退出程序。")
+        print("="*50)
+        last_run_timestamp = 0
+        REFRESH_INTERVAL_SECONDS = 30 * 60
+        try:
+            while True:
+                now = datetime.datetime.now()
+                current_timestamp = time.time()
+                if last_run_timestamp == 0 or not os.path.exists(OUTPUT_HTML) or (current_timestamp - last_run_timestamp) >= REFRESH_INTERVAL_SECONDS:
+                    print(f"\n🔄 [{now.strftime('%Y-%m-%d %H:%M:%S')}] 触发刷新机制，正在生成最新沙盘...")
+                    try:
+                        generate_html()
+                        last_run_timestamp = current_timestamp
+                        print("✅ 沙盘更新完成！等待下一次 30 分钟周期...")
+                    except Exception as e:
+                        print(f"❌ 生成失败: {e}")
+                        import traceback
+                        traceback.print_exc()
+                time.sleep(60)
+        except KeyboardInterrupt:
+            print("\n\n👋 收到退出信号，仓库沙盘后台监控已安全停止。")
