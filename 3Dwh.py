@@ -165,18 +165,16 @@ def generate_html():
     print("📦 [2/4] 正在下载 Google Drive 最新 xlsx 文件...")
     actual_db = {}
     temp_xlsx_path = "temp_inventory.xlsx"
-try:
-    import gdown
-    print("📥 正在使用 gdown 下载 Google Drive 文件...")
-    # gdown 会自动处理 Google 的确认页面和重定向，极其稳定
-    gdown.download(ACTUAL_XLSX_URL, temp_xlsx_path, quiet=False, fuzzy=True)
-    
-    # 检查文件是否真的下载成功了
-    if not os.path.exists(temp_xlsx_path) or os.path.getsize(temp_xlsx_path) < 1000:
-        raise Exception("下载的文件为空或太小，可能被 Google 拦截")
+    try:
+        import gdown
+        print("📥 正在使用 gdown 下载 Google Drive 文件...")
+        gdown.download(ACTUAL_XLSX_URL, temp_xlsx_path, quiet=False, fuzzy=True)
         
-    with pd.ExcelFile(temp_xlsx_path) as xl_file:
-        df_actual = xl_file.parse(sheet_name=0, skiprows=5, header=0)
+        if not os.path.exists(temp_xlsx_path) or os.path.getsize(temp_xlsx_path) < 1000:
+            raise Exception("下载的文件为空或太小，可能被 Google 拦截")
+            
+        with pd.ExcelFile(temp_xlsx_path) as xl_file:
+            df_actual = xl_file.parse(sheet_name=0, skiprows=5, header=0)
         
         df_actual = df_actual[df_actual.iloc[:, 1].astype(str).apply(is_valid_location)]
         print(f"   📊 XLSX 总行数（过滤后）: {len(df_actual)}")
@@ -197,7 +195,7 @@ try:
             actual_db[raw_loc].append({'sku': clean_sku, 'brand': brand, 'qty': int(qty)})
             if brand not in GLOBAL_BRAND_COLORS:
                 GLOBAL_BRAND_COLORS[brand] = get_deterministic_color(brand)
-                
+                 
         ground_locs = ['GA', 'GBC', 'GN1', 'GN2', 'GT', 'GXW', 'GJ', 'GDE', 'GFG', 'GM1', 'GM2', 'GM5', 'GM8', 'GM11']
         for g_loc in ground_locs:
             if g_loc in actual_db: print(f"   ✅ {g_loc} 数据: {len(actual_db[g_loc])} 条记录")
