@@ -656,11 +656,9 @@ def generate_html():
 # 🌟 关键：根据运行环境自动选择模式
 # ========================================================
 if __name__ == "__main__":
-    # 检测是否在 GitHub Actions 环境中运行
     is_github_actions = os.environ.get('GITHUB_ACTIONS') == 'true'
     
     if is_github_actions:
-        # GitHub Actions 模式：只运行一次就退出（2-3分钟完成）
         print("="*50)
         print("🏆 GitHub Actions 模式：单次运行")
         print("="*50)
@@ -673,11 +671,9 @@ if __name__ == "__main__":
             traceback.print_exc()
             exit(1)
     else:
-        # 本地模式：后台持续运行（while True 循环）
         print("="*50)
         print("🏆 仓库沙盘双核系统已启动，进入后台监控模式...")
         print("💡 程序将每 30 分钟自动抓取最新数据。")
-        print("💡 已启用【智能补跑】：电脑睡眠唤醒后会立刻更新！")
         print("💡 请保持此窗口运行。按 Ctrl+C 可安全退出程序。")
         print("="*50)
         last_run_timestamp = 0
@@ -698,4 +694,5 @@ if __name__ == "__main__":
                         traceback.print_exc()
                 time.sleep(60)
         except KeyboardInterrupt:
-            print("\n\n👋 收到退出信号，仓库沙盘后台监控已安全停止。")")
+            print("\n\n👋 收到退出信号，仓库沙盘后台监控已安全停止。")
+            print("\n\n👋 收到退出信号，仓库沙盘后台监控已安全停止。")
