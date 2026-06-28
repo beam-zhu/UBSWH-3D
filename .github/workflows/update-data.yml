@@ -1,10 +1,9 @@
-    - name: Run Python script
-      run: python 3Dwh.py  # ← 改成运行 github 版本
+name: Auto Update Warehouse Data
+
 on:
   schedule:
-    # 每天 UTC 20:00 和 21:00 各触发一次
-    # Python 脚本会自己判断当前新西兰时间，决定要不要真的运行
-    - cron: '0 20,21 * * *'
+    # 每 30 分钟运行一次（UTC 时间，全球通用）
+    - cron: '*/30 * * * *'
   workflow_dispatch: # 允许手动触发
 
 jobs:
@@ -23,21 +22,18 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pandas numpy plotly requests openpyxl pytz
+        pip install pandas numpy plotly requests openpyxl
     
-    - name: Run Python script (with NZ timezone check)
+    - name: Run Python script
       run: python 3Dwh.py
       env:
-        TARGET_NZ_HOUR: "9"  # 🌟 你想在新西兰几点运行？改成你想要的数字
-        GITHUB_ACTIONS: "true"
+        GITHUB_ACTIONS: "true"  # 告诉脚本在 GitHub 环境中运行
     
     - name: Rename and commit HTML
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        if [ -f "Urban_Sales_Twin_View.html" ]; then
-          mv Urban_Sales_Twin_View.html index.html
-          git add index.html
-        fi
+        mv Urban_Sales_Twin_View.html index.html
+        git add index.html
         git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update warehouse data [skip ci]"
         git push
