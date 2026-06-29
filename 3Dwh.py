@@ -379,7 +379,11 @@ def generate_html():
     html_content = html_content.replace('<head>', '<head>' + cache_buster_meta)
 
     print("🎛️ [4/4] 正在编译前端交互引擎...")
-    data_timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    # 使用新西兰时间（自动处理夏令时）
+import pytz
+nz_tz = pytz.timezone('Pacific/Auckland')
+nz_now = datetime.datetime.now(nz_tz)
+data_timestamp = nz_now.strftime('%Y-%m-%d %H:%M:%S NZST/NZDT')
     js_global_colors_string = json.dumps(GLOBAL_BRAND_COLORS)
     js_array_string = json.dumps(python_to_js_cache)  
 
