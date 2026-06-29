@@ -504,7 +504,7 @@ def generate_html():
     </div>
 
     <script>
-    // 🌟 接收 Python 注入的云端配置
+    // 🌟 接收 Python 注入的云端配置（作为默认值）
     let runtime_config = SERVER_CONFIG_INJECT_PLACEHOLDER;
     let cell_override_db = SERVER_OVERRIDES_INJECT_PLACEHOLDER;
     const CONFIG_API_URL = CONFIG_API_URL_PLACEHOLDER;
@@ -514,6 +514,19 @@ def generate_html():
     let server_data_cache = SERVER_DATA_INJECT_PLACEHOLDER;
     let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER;
 
+    //  双保险机制：优先从本地缓存恢复，防止刷新丢失
+    try {
+        let saved_config = localStorage.getItem("warehouse_twin_master_2026");
+        if (saved_config) runtime_config = JSON.parse(saved_config);
+        let s = localStorage.getItem("warehouse_twin_cell_overrides_2026");
+        if (s) cell_override_db = JSON.parse(s);
+    } catch(e) {}
+
+    let GLOBAL_CURRENT_VIEW = "PLAN";
+    let server_data_cache = SERVER_DATA_INJECT_PLACEHOLDER;
+    let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER;
+
+    // 🌟 核心：页面加载时主动拉取云端最新配置，实现 A 改 B 看
     // 🌟 核心：页面加载时主动拉取云端最新配置，实现 A 改 B 看
     async function loadCloudConfig() {
         if (!CONFIG_CSV_URL || CONFIG_CSV_URL === 'null') return;
@@ -528,35 +541,50 @@ def generate_html():
                 if (firstComma === -1) continue;
                 const key = line.substring(0, firstComma).trim();
                 let val = line.substring(firstComma + 1).trim();
-                if (val.startsWith('"') && val.endsWith('"')) {
-                    val = val.substring(1, val.length - 1).replace(/""/g, '"');
-                }
+                if (val.startsWith('"') && val.endsWith('"')) val = val.substring(1, val.length - 1).replace(/""/g, '"');
                 if (key === 'runtime_config' && val) runtime_config = JSON.parse(val);
                 else if (key === 'cell_override_db' && val) cell_override_db = JSON.parse(val);
             }
             console.log("✅ 云端配置加载成功！");
+            //  加载成功后，同步到本地缓存
+            localStorage.setItem("warehouse_twin_master_2026", JSON.stringify(runtime_config));
+            localStorage.setItem("warehouse_twin_cell_overrides_2026", JSON.stringify(cell_override_db));
             renderControlPanel();
             applyAllDBCacheToCanvas();
-            lockAllEditBtns(); // 🌟 重新锁定，防止云端配置覆盖后按钮状态错乱
-        } catch (e) {
-            console.warn("⚠️ 加载云端配置失败:", e);
-        }
+            lockAllEditBtns();
+        } catch (e) { console.warn("⚠️ 加载云端配置失败:", e); }
     }
 
-    // 🌟 将修改同步到云端
+    // 🌟 双保险同步：先存本地，再发云端
     function syncConfigToCloud() {
-        if (!CONFIG_API_URL || CONFIG_API_URL === 'null') return;
-        fetch(CONFIG_API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ key: 'runtime_config', value: runtime_config }),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        }).catch(err => console.error('Sync runtime_config failed:', err));
+        // 1. 立即保存到本地缓存（防止刷新丢失）
+        localStorage.setItem("warehouse_twin_master_2026", JSON.stringify(runtime_config));
+        localStorage.setItem("warehouse_twin_cell_overrides_2026", JSON.stringify(cell_override_db));
+        
+        // 2. 尝试发送到云端（实现 A 改 B 看）
+        if (!CONFIG_API_URL || CONFIG_API_URL === 'null') {
+            console.warn("⚠️ 未配置云端 API，仅保存到本地");
+            return;
+        }
+        
+        console.log("📤 正在同步到云端...");
+        fetch(CONFIG_API_URL, { 
+            method: 'POST', 
+            body: JSON.stringify({ key: 'runtime_config', value: runtime_config }), 
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
+        })
+        .then(res => res.text())
+        .then(data => console.log("✅ runtime_config 同步成功:", data))
+        .catch(err => console.error('❌ runtime_config 同步失败:', err));
 
-        fetch(CONFIG_API_URL, {
-            method: 'POST',
-            body: JSON.stringify({ key: 'cell_override_db', value: cell_override_db }),
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-        }).catch(err => console.error('Sync cell_override_db failed:', err));
+        fetch(CONFIG_API_URL, { 
+            method: 'POST', 
+            body: JSON.stringify({ key: 'cell_override_db', value: cell_override_db }), 
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' } 
+        })
+        .then(res => res.text())
+        .then(data => console.log("✅ cell_override_db 同步成功:", data))
+        .catch(err => console.error(' cell_override_db 同步失败:', err));
     }
 
     setInterval(function() {
