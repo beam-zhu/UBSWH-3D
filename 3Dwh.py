@@ -388,23 +388,22 @@ js_global_colors_string = json.dumps(GLOBAL_BRAND_COLORS)
 js_array_string = json.dumps(python_to_js_cache)  
 
     # 🌟 新增：决定最终注入 HTML 的配置（优先使用云端配置）
-default_config_list = [
-        { "org_name": "LINSY", "color": "#D68F68", "label": "LINSY" }, 
-        { "org_name": "A区 (oversize沙发区)", "color": "#7DA28A", "label": "A区 (oversize沙发区)" },
-        { "org_name": "B区 (沙发 Backup区)", "color": "#6C8EA4", "label": "B区 (沙发 Backup区)" }, 
-        { "org_name": "G区不良品区", "color": "#949BA2", "label": "G区不良品区" },
-        { "org_name": "Replica 区域", "color": "#D4CBBE", "label": "Replica 区域" }, 
-        { "org_name": "MODE 椅子区", "color": "#9E7E73", "label": "MODE 椅子区" },
-        { "org_name": "LOFT 区", "color": "#8B7AA3", "label": "LOFT 区" }, 
-        { "org_name": "Solidwood 区", "color": "#C29B85", "label": "Solidwood 区" },
-        { "org_name": "Boori区", "color": "#C87284", "label": "Boori区" }, 
-        { "org_name": "BOHOBOHO & Alpaka & Boori区", "color": "#2C2D30", "label": "BOHOBOHO & Alpaka & Boori区" },
-        { "org_name": "补件区", "color": "#8A5A58", "label": "补件区" }, 
-        { "org_name": "loft & solidwood backup区", "color": "#EEDCA5", "label": "loft & solidwood backup区" }
+    default_config_list = [
+        {"org_name": "LINSY", "color": "#D68F68", "label": "LINSY"},
+        {"org_name": "A区 (oversize沙发区)", "color": "#7DA28A", "label": "A区 (oversize沙发区)"},
+        {"org_name": "B区 (沙发 Backup区)", "color": "#6C8EA4", "label": "B区 (沙发 Backup区)"},
+        {"org_name": "G区不良品区", "color": "#949BA2", "label": "G区不良品区"},
+        {"org_name": "Replica 区域", "color": "#D4CBBE", "label": "Replica 区域"},
+        {"org_name": "MODE 椅子区", "color": "#9E7E73", "label": "MODE 椅子区"},
+        {"org_name": "LOFT 区", "color": "#8B7AA3", "label": "LOFT 区"},
+        {"org_name": "Solidwood 区", "color": "#C29B85", "label": "Solidwood 区"},
+        {"org_name": "Boori区", "color": "#C87284", "label": "Boori区"},
+        {"org_name": "BOHOBOHO & Alpaka & Boori区", "color": "#2C2D30", "label": "BOHOBOHO & Alpaka & Boori区"},
+        {"org_name": "补件区", "color": "#8A5A58", "label": "补件区"},
+        {"org_name": "loft & solidwood backup区", "color": "#EEDCA5", "label": "loft & solidwood backup区"}
     ]
     final_runtime_config = cloud_runtime_config if cloud_runtime_config else default_config_list
     final_cell_override_db = cloud_cell_override_db if cloud_cell_override_db else {}
-    
     js_config_string = json.dumps(final_runtime_config)
     js_overrides_string = json.dumps(final_cell_override_db)
     js_api_url_string = json.dumps(CONFIG_API_URL)
