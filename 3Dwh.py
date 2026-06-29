@@ -384,11 +384,11 @@ import pytz
 nz_tz = pytz.timezone('Pacific/Auckland')
 nz_now = datetime.datetime.now(nz_tz)
 data_timestamp = nz_now.strftime('%Y-%m-%d %H:%M:%S NZST/NZDT')
-    js_global_colors_string = json.dumps(GLOBAL_BRAND_COLORS)
-    js_array_string = json.dumps(python_to_js_cache)  
+js_global_colors_string = json.dumps(GLOBAL_BRAND_COLORS)
+js_array_string = json.dumps(python_to_js_cache)  
 
     # 🌟 新增：决定最终注入 HTML 的配置（优先使用云端配置）
-    default_config_list = [
+default_config_list = [
         { "org_name": "LINSY", "color": "#D68F68", "label": "LINSY" }, 
         { "org_name": "A区 (oversize沙发区)", "color": "#7DA28A", "label": "A区 (oversize沙发区)" },
         { "org_name": "B区 (沙发 Backup区)", "color": "#6C8EA4", "label": "B区 (沙发 Backup区)" }, 
