@@ -504,17 +504,18 @@ def generate_html():
     </div>
 
     <script>
-    // 🌟 接收 Python 注入的云端配置（作为默认值）
+    // 1. 接收 Python 注入的数据 (只声明一次)
     let runtime_config = SERVER_CONFIG_INJECT_PLACEHOLDER;
     let cell_override_db = SERVER_OVERRIDES_INJECT_PLACEHOLDER;
     const CONFIG_API_URL = CONFIG_API_URL_PLACEHOLDER;
     const CONFIG_CSV_URL = CONFIG_CSV_URL_PLACEHOLDER;
-
-    let GLOBAL_CURRENT_VIEW = "PLAN";
     let server_data_cache = SERVER_DATA_INJECT_PLACEHOLDER;
     let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER;
+    
+    // 2. 定义视图变量 (只定义一次！)
+    let GLOBAL_CURRENT_VIEW = "PLAN";
 
-    //  双保险机制：优先从本地缓存恢复，防止刷新丢失
+    // 3. 双保险：尝试从本地缓存恢复数据
     try {
         let saved_config = localStorage.getItem("warehouse_twin_master_2026");
         if (saved_config) runtime_config = JSON.parse(saved_config);
@@ -522,12 +523,7 @@ def generate_html():
         if (s) cell_override_db = JSON.parse(s);
     } catch(e) {}
 
-    let GLOBAL_CURRENT_VIEW = "PLAN";
-    let server_data_cache = SERVER_DATA_INJECT_PLACEHOLDER;
-    let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER;
-
-    // 🌟 核心：页面加载时主动拉取云端最新配置，实现 A 改 B 看
-    // 🌟 核心：页面加载时主动拉取云端最新配置，实现 A 改 B 看
+    // --- 下面紧接着就是 loadCloudConfig 函数 ---
     async function loadCloudConfig() {
         if (!CONFIG_CSV_URL || CONFIG_CSV_URL === 'null') return;
         try {
