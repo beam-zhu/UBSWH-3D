@@ -608,7 +608,23 @@ def generate_html():
     function appendLegendRow(container, name, color, orgName) {
         const row = document.createElement("div"); row.style.cssText = "display:flex; align-items:center; gap:6px; background:#F8FAFC; padding:5px 8px; border-radius:6px; border:1px solid #E2E8F0;";
         const colorBox = document.createElement("div"); colorBox.style.cssText = `width:22px; height:20px; border-radius:4px; border:1px solid #CBD5E1; background:${color}; cursor:pointer;`;
-        colorBox.onclick = function(e) { e.stopPropagation(); const input = document.createElement('input'); input.type = 'color'; input.value = color; input.style.opacity='0'; input.onchange = function() { updateBrandColor(orgName || name, input.value); }; colorBox.appendChild(input); input.click(); };
+        colorBox.onclick = function(e) {
+    e.stopPropagation();
+    // 🌟 密码保护：未解锁时禁止修改颜色（规划视图和实际视图都生效）
+    if (!isUnlocked) {
+        alert('🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！');
+        return;
+    }
+    const input = document.createElement('input');
+    input.type = 'color';
+    input.value = color;
+    input.style.opacity = '0';
+    input.onchange = function() {
+        updateBrandColor(orgName || name, input.value);
+    };
+    colorBox.appendChild(input);
+    input.click();
+};
         const label = document.createElement("span"); label.style.cssText = "font-size:11px; font-weight:bold; flex:1;"; label.innerText = name;
         
         let editBtn = document.createElement("button"); editBtn.innerText = "✏️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
