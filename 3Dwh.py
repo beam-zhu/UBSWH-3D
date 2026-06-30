@@ -553,15 +553,15 @@ def generate_html():
 
     // 🌟 双保险同步：先存本地，再发云端
     function syncConfigToCloud() {
-        // 1. 立即保存到本地缓存（防止刷新丢失）
+        //  核心修复 1：立即保存到本地缓存（防止刷新丢失，解决“无法保存”问题）
         localStorage.setItem("warehouse_twin_master_2026", JSON.stringify(runtime_config));
         localStorage.setItem("warehouse_twin_cell_overrides_2026", JSON.stringify(cell_override_db));
         
-        // 2. 尝试发送到云端（实现 A 改 B 看）
-        if (!CONFIG_API_URL || CONFIG_API_URL === 'null') {
-            console.warn("⚠️ 未配置云端 API，仅保存到本地");
-            return;
-        }
+        // 🌟 核心修复 2：尝试发送到云端（实现 A 改 B 看）
+        if (!CONFIG_API_URL || CONFIG_API_URL === 'null') return;
+        fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'runtime_config', value: runtime_config }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(err => console.error('Sync failed:', err));
+        fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'cell_override_db', value: cell_override_db }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(err => console.error('Sync failed:', err));
+    }
         
         console.log("📤 正在同步到云端...");
         fetch(CONFIG_API_URL, { 
