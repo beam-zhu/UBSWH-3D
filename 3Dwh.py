@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import json
-import pytz  # 引入时区库
+import pytz
 
 # ========================================================
 # 核心配置区
@@ -19,8 +19,9 @@ ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-e
 OUTPUT_HTML = "Urban_Sales_Twin_View.html"
 TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f" # 默认密码: admin123
 
-# 云端同步配置链接 (A改B看) - 现在统一使用 API 接口，彻底抛弃 CSV 缓存
-CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbyyWfL9pzZo8olGSKfTttXDOfPsASsJ7pgghAF9Ut51sfrjVfBYigcQFf5lKftUJ2gA/exec"
+# 云端同步配置链接 (A改B看)
+CONFIG_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTAuCBLwYldt_n68OGxAgnzApEabBvFjmnOvxKp39i8eaHDHn3iTRqPfaB6X1txjxLDwcBhq0W1nITC/pub?output=csv"
+CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbx-4oPFi4rfmrGsDB31U3K4ifCa8jMv3mG06MVO98eaj5_5V3JR7mZ2eLb34GCuCYpE/exec"
 
 def get_deterministic_color(brand_name):
     hash_val = int(hashlib.md5(brand_name.encode('utf-8')).hexdigest(), 16)
@@ -231,23 +232,23 @@ def generate_html():
     res = [get_planned_info(z, c, l, ig) for z, c, l, ig in zip(df_locs['zone'], df_locs['col'], df_locs['lvl'], df_locs['is_ground'])]
     df_locs['brand'], df_locs['color'] = [r[0] for r in res], [r[1] for r in res]
 
-    # 🌟 核心修改：直接请求 GAS API 获取 JSON，彻底解决 CSV 缓存问题
+    # 抓取云端同步配置
     cloud_runtime_config = None
     cloud_cell_override_db = None
     cloud_actual_colors = None
     try:
-        print("☁️ 正在通过 API 实时同步云端配置... ")
-        api_res = requests.get(CONFIG_API_URL + '?t=' + str(int(time.time())), timeout=15)
-        api_res.raise_for_status()
-        cloud_data = api_res.json()
-        
-        if 'runtime_config' in cloud_data and cloud_data['runtime_config']:
-            cloud_runtime_config = cloud_data['runtime_config']
-        if 'cell_override_db' in cloud_data and cloud_data['cell_override_db']:
-            cloud_cell_override_db = cloud_data['cell_override_db']
-        if 'actual_brand_colors' in cloud_data and cloud_data['actual_brand_colors']:
-            cloud_actual_colors = cloud_data['actual_brand_colors']
-        print("✅ 云端配置实时同步成功！ ")
+        print("☁️ 正在同步云端配置... ")
+        df_config = pd.read_csv(CONFIG_CSV_URL)
+        for idx, row in df_config.iterrows():
+            key = str(row.get('Key', '')).strip()
+            val = str(row.get('Value', '')).strip()
+            if key == 'runtime_config' and val and val != 'nan':
+                cloud_runtime_config = json.loads(val)
+            elif key == 'cell_override_db' and val and val != 'nan':
+                cloud_cell_override_db = json.loads(val)
+            elif key == 'actual_brand_colors' and val and val != 'nan':
+                cloud_actual_colors = json.loads(val)
+        print("✅ 云端配置同步成功！ ")
     except Exception as e:
         print(f"⚠️ 读取云端配置失败 (可能是首次运行，表为空): {e} ")
 
@@ -382,8 +383,7 @@ def generate_html():
     html_content = html_content.replace('<head>', '<head>' + cache_buster_meta)
 
     print("🎛️ [4/4] 正在编译前端交互引擎... ")
-    
-    # 🌟 使用新西兰时间（自动处理夏令时）
+    # 使用新西兰时间（自动处理夏令时）
     nz_tz = pytz.timezone('Pacific/Auckland')
     nz_now = datetime.datetime.now(nz_tz)
     data_timestamp = nz_now.strftime('%Y-%m-%d %H:%M:%S')
@@ -413,6 +413,7 @@ def generate_html():
     js_overrides_string = json.dumps(final_cell_override_db)
     js_actual_colors_string = json.dumps(final_actual_colors)
     js_api_url_string = json.dumps(CONFIG_API_URL)
+    js_csv_url_string = json.dumps(CONFIG_CSV_URL)
 
     interactive_control_script = '''
 <style>
@@ -511,6 +512,7 @@ let actual_brand_colors = ACTUAL_COLORS_INJECT_PLACEHOLDER;
 if (!actual_brand_colors) actual_brand_colors = {};
 
 const CONFIG_API_URL = CONFIG_API_URL_PLACEHOLDER;
+const CONFIG_CSV_URL = CONFIG_CSV_URL_PLACEHOLDER;
 let GLOBAL_CURRENT_VIEW = "PLAN";
 let server_data_cache = SERVER_DATA_INJECT_PLACEHOLDER;
 let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER;
@@ -530,21 +532,30 @@ Object.assign(GLOBAL_COLOR_POOL, parsed);
 }
 } catch(e) {}
 
-// 🌟 核心修改：直接请求 API 获取最新 JSON，彻底绕过 Google CSV 缓存
 async function loadCloudConfig() {
-if (!CONFIG_API_URL || CONFIG_API_URL === 'null') return;
+if (!CONFIG_CSV_URL || CONFIG_CSV_URL === 'null') return;
 try {
-const res = await fetch(CONFIG_API_URL + '?t=' + Date.now());
-const data = await res.json();
-
-if (data.runtime_config) runtime_config = data.runtime_config;
-if (data.cell_override_db) cell_override_db = data.cell_override_db;
-if (data.actual_brand_colors) {
-actual_brand_colors = data.actual_brand_colors;
+const res = await fetch(CONFIG_CSV_URL + '?t=' + Date.now());
+const csvText = await res.text(); 
+const lines = csvText.split('\\n');
+for (let line of lines) {
+line = line.trim();
+if (!line || line.startsWith('Key')) continue;
+const firstComma = line.indexOf(',');
+if (firstComma === -1) continue;
+const key = line.substring(0, firstComma).trim();
+let val = line.substring(firstComma + 1).trim();
+if (val.startsWith('"') && val.endsWith('"')) {
+val = val.substring(1, val.length - 1).replace(/""/g, '"');
+}
+if (key === 'runtime_config' && val) runtime_config = JSON.parse(val);
+else if (key === 'cell_override_db' && val) cell_override_db = JSON.parse(val);
+else if (key === 'actual_brand_colors' && val) {
+actual_brand_colors = JSON.parse(val);
 Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors);
 }
-
-console.log("✅ 云端配置实时加载成功！");
+}
+console.log("✅ 云端配置加载成功！ ");
 renderControlPanel();
 applyAllDBCacheToCanvas();
 lockAllEditBtns(); 
@@ -569,7 +580,7 @@ let now = new Date(); let minute = now.getMinutes();
 if (minute % 30 == 0 && now.getSeconds() < 10) { window.location.href = window.location.pathname + '?t=' + Date.now(); }
 }, 5000);
 
-function forceRefreshData() { if(confirm("确定刷新？")) { window.location.href = window.location.pathname + '?t=' + Date.now(); } }
+function forceRefreshData() { if(confirm("确定刷新？ ")) { window.location.href = window.location.pathname + '?t=' + Date.now(); } }
 
 function switchGlobalView(viewMode) {
 GLOBAL_CURRENT_VIEW = viewMode;
@@ -587,41 +598,108 @@ document.getElementById("add-brand-btn").style.display = "none";
 applyAllDBCacheToCanvas(); renderControlPanel();
 }
 
+// 🌟 核心修改：统计实际库存数量与百分比
 function renderControlPanel() {
-const listContainer = document.getElementById("legend-list"); listContainer.innerHTML = "";
-if (GLOBAL_CURRENT_VIEW === "PLAN") { runtime_config.forEach(item => appendLegendRow(listContainer, item.label, item.color, item.org_name)); } 
-else {
-let activeActualBrands = {};
-server_data_cache.forEach(node => { (node.slices || []).forEach(sl => { if (sl.brand && sl.brand !== '[当前空置]' && sl.brand !== '[⚠️超过4品牌严重混放]') { let c = GLOBAL_COLOR_POOL[sl.brand]; if (c) activeActualBrands[sl.brand] = c; } }); });
-Object.keys(activeActualBrands).sort().forEach(bName => appendLegendRow(listContainer, bName, activeActualBrands[bName], bName));
-}
+    const listContainer = document.getElementById("legend-list"); 
+    listContainer.innerHTML = "";
+    
+    if (GLOBAL_CURRENT_VIEW === "PLAN") { 
+        runtime_config.forEach(item => appendLegendRow(listContainer, item.label, item.color, item.org_name)); 
+    } else {
+        let brandStats = {};
+        let totalQty = 0;
+        
+        server_data_cache.forEach(node => {
+            (node.slices || []).forEach(sl => {
+                if (sl.brand === '[当前空置]') return;
+                
+                if (sl.brand === '[⚠️超过4品牌严重混放]') {
+                    (sl.items || []).forEach(it => {
+                        let b = it.brand;
+                        let q = parseInt(it.qty) || 0;
+                        if (b) {
+                            if (!brandStats[b]) brandStats[b] = { qty: 0, color: GLOBAL_COLOR_POOL[b] || '#CBD5E1' };
+                            brandStats[b].qty += q;
+                            totalQty += q;
+                        }
+                    });
+                } else {
+                    let b = sl.brand;
+                    let q = 0;
+                    (sl.items || []).forEach(it => {
+                        q += (parseInt(it.qty) || 0);
+                    });
+                    if (!brandStats[b]) brandStats[b] = { qty: 0, color: GLOBAL_COLOR_POOL[b] || sl.color };
+                    brandStats[b].qty += q;
+                    totalQty += q;
+                }
+            });
+        });
+        
+        // 按数量降序排列
+        let sortedBrands = Object.keys(brandStats).sort((a, b) => brandStats[b].qty - brandStats[a].qty);
+        
+        sortedBrands.forEach(bName => {
+            let stat = brandStats[bName];
+            let percent = totalQty > 0 ? ((stat.qty / totalQty) * 100).toFixed(1) : '0.0';
+            appendLegendRow(listContainer, bName, stat.color, bName, stat.qty, percent + '%');
+        });
+        
+        // 底部总计行
+        let totalRow = document.createElement("div");
+        totalRow.style.cssText = "display:flex; justify-content:space-between; padding:6px 8px; font-size:12px; font-weight:bold; color:#0F172A; border-top:2px solid #CBD5E1; margin-top:6px; background:#F1F5F9; border-radius:4px;";
+        totalRow.innerHTML = `<span>📦 总库存数量</span><span>${totalQty.toLocaleString()}</span>`;
+        listContainer.appendChild(totalRow);
+    }
 }
 
-function appendLegendRow(container, name, color, orgName) {
-const row = document.createElement("div"); row.style.cssText = "display:flex; align-items:center; gap:6px; background:#F8FAFC; padding:5px 8px; border-radius:6px; border:1px solid #E2E8F0;";
-const colorBox = document.createElement("div"); colorBox.style.cssText = `width:22px; height:20px; border-radius:4px; border:1px solid #CBD5E1; background:${color}; cursor:pointer;`;
-colorBox.onclick = function(e) {
-e.stopPropagation();
-if (!isUnlocked) {
-alert('🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！');
-return;
-}
-const input = document.createElement('input');
-input.type = 'color';
-input.value = color;
-input.style.opacity='0';
-input.onchange = function() { updateBrandColor(orgName || name, input.value); };
-colorBox.appendChild(input);
-input.click();
-};
-const label = document.createElement("span"); label.style.cssText = "font-size:11px; font-weight:bold; flex:1;"; label.innerText = name;
-let editBtn = document.createElement("button"); editBtn.innerText = "✏️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
-let delBtn = document.createElement("button"); delBtn.innerText = "🗑️"; delBtn.className = "lockable"; delBtn.style.cssText = "background:none; border:none; cursor:pointer;"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`删除 "${name}"?`)) deleteBrand(orgName || name); };
-let resetBtn = document.createElement("button"); resetBtn.innerText = "🔄"; resetBtn.className = "lockable"; resetBtn.style.cssText = "background:none; border:none; cursor:pointer;"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`恢复 "${name}"?`)) resetBrandLocations(orgName || name); };
+// 🌟 核心修改：支持显示数量和百分比
+function appendLegendRow(container, name, color, orgName, qty, percent) {
+    const row = document.createElement("div"); 
+    row.style.cssText = "display:flex; align-items:center; gap:6px; background:#F8FAFC; padding:5px 8px; border-radius:6px; border:1px solid #E2E8F0;";
+    
+    const colorBox = document.createElement("div"); 
+    colorBox.style.cssText = `width:22px; height:20px; border-radius:4px; border:1px solid #CBD5E1; background:${color}; cursor:pointer; flex-shrink:0;`;
+    colorBox.onclick = function(e) {
+        e.stopPropagation();
+        if (!isUnlocked) {
+            alert('🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！');
+            return;
+        }
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.value = color;
+        input.style.opacity='0';
+        input.onchange = function() { updateBrandColor(orgName || name, input.value); };
+        colorBox.appendChild(input);
+        input.click();
+    };
+    
+    const label = document.createElement("span"); 
+    label.style.cssText = "font-size:11px; font-weight:bold; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"; 
+    label.innerText = name;
+    label.title = name;
+    
+    let statsSpan = document.createElement("span");
+    statsSpan.style.cssText = "font-size:10px; color:#64748B; white-space:nowrap; flex-shrink:0;";
+    if (qty !== undefined && percent !== undefined) {
+        statsSpan.innerText = `${qty.toLocaleString()} (${percent})`;
+    }
 
-row.appendChild(colorBox); row.appendChild(label);
-if (GLOBAL_CURRENT_VIEW === 'PLAN') { row.appendChild(editBtn); row.appendChild(delBtn); row.appendChild(resetBtn); }
-container.appendChild(row);
+    let editBtn = document.createElement("button"); editBtn.innerText = "✏️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
+    let delBtn = document.createElement("button"); delBtn.innerText = "🗑️"; delBtn.className = "lockable"; delBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`删除 "${name}"?`)) deleteBrand(orgName || name); };
+    let resetBtn = document.createElement("button"); resetBtn.innerText = "🔄"; resetBtn.className = "lockable"; resetBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`恢复 "${name}"?`)) resetBrandLocations(orgName || name); };
+
+    row.appendChild(colorBox); 
+    row.appendChild(label);
+    if (qty !== undefined) row.appendChild(statsSpan);
+    
+    if (GLOBAL_CURRENT_VIEW === 'PLAN') { 
+        row.appendChild(editBtn); 
+        row.appendChild(delBtn); 
+        row.appendChild(resetBtn); 
+    }
+    container.appendChild(row);
 }
 
 function deleteBrand(brandName) { 
@@ -784,7 +862,7 @@ syncConfigToCloud();
 }
 
 function resetToDefault() { 
-if(confirm("确定要恢复所有初始规划并清除本地和云端保存的修改吗？")) { 
+if(confirm("确定要恢复所有初始规划并清除本地和云端保存的修改吗？ ")) { 
 if (CONFIG_API_URL) {
 fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'runtime_config', value: [] }), headers: { 'Content-Type': 'text/plain' } });
 fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'cell_override_db', value: {} }), headers: { 'Content-Type': 'text/plain' } });
@@ -885,6 +963,7 @@ loadCloudConfig();
     interactive_control_script = interactive_control_script.replace("SERVER_CONFIG_INJECT_PLACEHOLDER", js_config_string)\
                                                            .replace("SERVER_OVERRIDES_INJECT_PLACEHOLDER", js_overrides_string)\
                                                            .replace("CONFIG_API_URL_PLACEHOLDER", js_api_url_string)\
+                                                           .replace("CONFIG_CSV_URL_PLACEHOLDER", js_csv_url_string)\
                                                            .replace("SERVER_DATA_INJECT_PLACEHOLDER", js_array_string)\
                                                            .replace("SERVER_COLORS_INJECT_PLACEHOLDER", js_global_colors_string)\
                                                            .replace("ACTUAL_COLORS_INJECT_PLACEHOLDER", js_actual_colors_string)\
