@@ -553,11 +553,8 @@ def generate_html():
 
     // 🌟 双保险同步：先存本地，再发云端
     function syncConfigToCloud() {
-        //  核心修复 1：立即保存到本地缓存（防止刷新丢失，解决“无法保存”问题）
         localStorage.setItem("warehouse_twin_master_2026", JSON.stringify(runtime_config));
         localStorage.setItem("warehouse_twin_cell_overrides_2026", JSON.stringify(cell_override_db));
-        
-        // 🌟 核心修复 2：尝试发送到云端（实现 A 改 B 看）
         if (!CONFIG_API_URL || CONFIG_API_URL === 'null') return;
         fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'runtime_config', value: runtime_config }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(err => console.error('Sync failed:', err));
         fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'cell_override_db', value: cell_override_db }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(err => console.error('Sync failed:', err));
@@ -608,23 +605,22 @@ def generate_html():
     function appendLegendRow(container, name, color, orgName) {
         const row = document.createElement("div"); row.style.cssText = "display:flex; align-items:center; gap:6px; background:#F8FAFC; padding:5px 8px; border-radius:6px; border:1px solid #E2E8F0;";
         const colorBox = document.createElement("div"); colorBox.style.cssText = `width:22px; height:20px; border-radius:4px; border:1px solid #CBD5E1; background:${color}; cursor:pointer;`;
-        colorBox.onclick = function(e) {
-    e.stopPropagation();
-    // 🌟 密码保护：未解锁时禁止修改颜色（规划视图和实际视图都生效）
-    if (!isUnlocked) {
-        alert('🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！');
-        return;
-    }
-    const input = document.createElement('input');
-    input.type = 'color';
-    input.value = color;
-    input.style.opacity = '0';
-    input.onchange = function() {
-        updateBrandColor(orgName || name, input.value);
+    colorBox.onclick = function(e) {
+        e.stopPropagation();
+        if (!isUnlocked) {
+            alert('🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！');
+            return;
+        }
+        const input = document.createElement('input');
+        input.type = 'color';
+        input.value = color;
+        input.style.opacity = '0';
+        input.onchange = function() {
+            updateBrandColor(orgName || name, input.value);
+        };
+        colorBox.appendChild(input);
+        input.click();
     };
-    colorBox.appendChild(input);
-    input.click();
-};
         const label = document.createElement("span"); label.style.cssText = "font-size:11px; font-weight:bold; flex:1;"; label.innerText = name;
         
         let editBtn = document.createElement("button"); editBtn.innerText = "✏️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
