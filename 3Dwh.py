@@ -136,40 +136,76 @@ def generate_html():
     actual_db = {}
     temp_xlsx_path = "temp_inventory.xlsx"
     try:
-        timestamp = int(time.time())
-        # 🌟 核心修复：彻底清除 URL 和关键字中的隐形空格
-        url_with_timestamp = f"{ACTUAL_XLSX_URL}&t={timestamp}"
-        headers = {'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0'}
-        response = requests.get(url_with_timestamp, headers=headers, timeout=30)
-        response.raise_for_status()
-        with open(temp_xlsx_path, 'wb') as f: f.write(response.content)
+        # 构建带时间戳的 URL 防止缓存
+        url_with_timestamp = f"{ACTUAL_XLSX_URL}&t={int(time.time())}"
+        
+        # 设置请求头，模拟浏览器并禁用缓存
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        }
+        
+        # 发起请求，设置较长的超时时间
+        response = requests.get(url_with_timestamp, headers=headers, timeout=60)
+        response.raise_for_status()  # 如果状态码不是200，会抛出异常
+        
+        # 将内容写入临时文件
+        with open(temp_xlsx_path, 'wb') as f:
+            f.write(response.content)
+        
+        # 使用 pandas 读取 Excel 文件
         with pd.ExcelFile(temp_xlsx_path) as xl_file:
             df_actual = xl_file.parse(sheet_name=0, skiprows=5, header=0)
         
+        # 过滤有效库位
         df_actual = df_actual[df_actual.iloc[:, 1].astype(str).apply(is_valid_location)]
         print(f"   📊 XLSX 总行数（过滤后）: {len(df_actual)} ")
         
+        # 解析库存数据
         for idx, row in df_actual.iterrows():
-            if len(row) < 7: continue
+            if len(row) < 7:
+                continue
             raw_loc = str(row.iloc[1]).strip()
-            if not raw_loc or raw_loc.lower() in ['nan', 'none', '']: continue 
+            if not raw_loc or raw_loc.lower() in ['nan', 'none', '']:
+                continue 
             raw_sku = str(row.iloc[2]).strip()
             clean_sku = raw_sku.split('~')[-1] if '~' in raw_sku else raw_sku
             brand = str(row.iloc[3]).strip() if len(row) > 3 else 'Other'
             try:
                 qty = float(row.iloc[6]) if len(row) > 6 else 0.0
-                if np.isnan(qty): qty = 0.0
-            except: qty = 0.0
+                if np.isnan(qty):
+                    qty = 0.0
+            except:
+                qty = 0.0
             
-            if raw_loc not in actual_db: actual_db[raw_loc] = []
+            if raw_loc not in actual_db:
+                actual_db[raw_loc] = []
             actual_db[raw_loc].append({'sku': clean_sku, 'brand': brand, 'qty': int(qty)})
-            if brand not in GLOBAL_BRAND_COLORS: GLOBAL_BRAND_COLORS[brand] = get_deterministic_color(brand)
+            if brand not in GLOBAL_BRAND_COLORS:
+                GLOBAL_BRAND_COLORS[brand] = get_deterministic_color(brand)
+                 
+        ground_locs = ['GA', 'GBC', 'GN1', 'GN2', 'GT', 'GXW', 'GJ', 'GDE', 'GFG', 'GM1', 'GM2', 'GM5', 'GM8', 'GM11']
+        for g_loc in ground_locs:
+            if g_loc in actual_db:
+                print(f"   ✅ {g_loc} 数据: {len(actual_db[g_loc])} 条记录 ")
+            else:
+                print(f"   ⚠️ {g_loc} 未在 XLSX 中找到数据 ")
+
     except Exception as e:
+        # 🌟 关键修复：在 GitHub Actions 环境下，如果失败才抛出异常；本地则继续运行。
         print(f"⚠️ 下载 xlsx 失败: {e} ")
+        if os.environ.get('GITHUB_ACTIONS') == 'true':
+            # 在 GitHub 上，必须让 Actions 失败，以便你能看到错误日志
+            raise e
+        # 在本地，即使失败也继续，方便调试
     finally:
         try:
-            if os.path.exists(temp_xlsx_path): os.remove(temp_xlsx_path)
-        except: pass
+            if os.path.exists(temp_xlsx_path):
+                os.remove(temp_xlsx_path)
+        except:
+            pass
 
     coords = [get_absolute_coords(z, c, l) for z, c, l in zip(df_locs['zone'], df_locs['col'], df_locs['lvl'])]
     df_locs['X'], df_locs['Y'], df_locs['Z'] = [c[0] for c in coords], [c[1] for c in coords], [c[2] for c in coords]
