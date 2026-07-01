@@ -20,7 +20,8 @@ OUTPUT_HTML = "index.html"  # 直接输出为 index.html，完美契合 GitHub P
 TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f" 
 
 CONFIG_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTAuCBLwYldt_n68OGxAgnzApEabBvFjmnOvxKp39i8eaHDHn3iTRqPfaB6X1txjxLDwcBhq0W1nITC/pub?output=csv"
-CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbx-4oPFi4rfmrGsDB31U3K4ifCa8jMv3mG06MVO98eaj5_5V3JR7mZ2eLb34GCuCYpE/exec"
+# 🌟 更新为你提供的新 API URL
+CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbyyWfL9pzZo8olGSKfTttXDOfPsASsJ7pgghAF9Ut51sfrjVfBYigcQFf5lKftUJ2gA/exec"
 
 def get_deterministic_color(brand_name):
     hash_val = int(hashlib.md5(brand_name.encode('utf-8')).hexdigest(), 16)
@@ -229,7 +230,7 @@ def generate_html():
             "slices": slices_data, "orig_z": [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h]
         })
 
-    # 🌟 核心新增：统计 Google Drive 中的全量库存（包含所有未建模的地面库位）
+    # 🌟 核心：统计 Google Drive 中的全量库存（包含所有未建模的地面库位）
     actual_total_stats = {}
     actual_total_qty = 0
     for locID, items in actual_db.items():
@@ -346,9 +347,12 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 </style>
 <button id="nav-toggle-btn" onclick="toggleNav()">☰ 菜单</button>
 <div id="data-timestamp-box" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.95); padding: 10px 14px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 9999; border: 1px solid #E2E8F0; text-align: center;">
-<div style="font-size: 10px; color: #666;">📊 数据更新 (NZ Time)</div>
+<div id="data-update-label" style="font-size: 10px; color: #666;">📊 数据更新 (NZ Time)</div>
 <div id="data-timestamp" style="font-size: 13px; font-weight: bold; color: #0F172A;">DATA_TIMESTAMP_PLACEHOLDER</div>
-<button onclick="forceRefreshData()" style="margin-top: 5px; background: #3B82F6; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">🔄 刷新</button>
+<div style="display:flex; gap:5px; align-items:center; justify-content:center; margin-top: 5px;">
+<button onclick="toggleLanguage()" id="lang-toggle-btn" style="background:#F1F5F9; color:#0F172A; border:1px solid #CBD5E1; border-radius:4px; padding:3px 8px; font-size:11px; cursor:pointer; font-weight:bold;">EN/中</button>
+<button onclick="forceRefreshData()" style="background:#3B82F6; color:white; border:none; border-radius:4px; padding:3px 8px; font-size:11px; cursor:pointer;">🔄 <span id="btn-refresh-text">刷新</span></button>
+</div>
 </div>
 <div id="super-legend-panel" style="position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.98); padding: 16px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.1); z-index: 9999; width: 380px; border: 1px solid #E2E8F0; max-height: 90vh; overflow-y: auto;">
 <div style="background: #F1F5F9; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 12px;">
@@ -360,12 +364,12 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 <button id="reset-master-btn" class="lockable" onclick="resetToDefault()" style="background:#EF4444; color:white; border:none; border-radius:4px; padding:2px 8px; font-size:10px; cursor:pointer;">恢复初始</button>
 </div>
 <div id="planning-tools-box" style="background: #F8FAFC; padding: 8px; border-radius: 8px; border: 1px dashed #5B7B9C; margin-bottom: 12px;">
-<label style="font-size: 11px; display:block; margin-bottom:4px; font-weight: bold;">📐 快速改色工具:</label>
+<label id="quick-tool-label" style="font-size: 11px; display:block; margin-bottom:4px; font-weight: bold;">📐 快速改色工具:</label>
 <textarea id="target-loc" rows="2" placeholder="如：Q01-01~Q01-04" style="width: 100%; padding: 4px; border: 1px solid #CBD5E1; border-radius: 4px; box-sizing: border-box; font-size: 11px;"></textarea>
 <div style="display: flex; gap: 4px; margin-top: 6px;">
 <input type="text" id="new-brand" placeholder="品牌" style="flex:1; padding: 4px; border: 1px solid #CBD5E1; border-radius: 4px; font-size: 11px;">
 <input type="color" id="new-color" value="#DF9F57" style="width: 24px; height: 22px; border: 1px solid #CBD5E1; border-radius: 4px;">
-<button class="lockable" onclick="applyLocationChange()" style="background: #5B7B9C; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">修改</button>
+<button id="apply-btn" class="lockable" onclick="applyLocationChange()" style="background: #5B7B9C; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">修改</button>
 </div>
 </div>
 <div id="legend-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
@@ -385,29 +389,89 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 </div>
 <div id="pwd-modal">
 <div class="pwd-box">
-<h3>🔐 输入编辑密码</h3>
+<h3 id="pwd-title">🔐 输入编辑密码</h3>
 <input type="password" id="pwd-input" placeholder="请输入密码" onkeypress="if(event.key==='Enter') verifyPwd()" style="width: 80%; padding: 10px; border: 2px solid #E2E8F0; border-radius: 6px; margin-bottom: 15px;">
 <div>
-<button onclick="closePwdModal()" style="padding: 8px 16px; background: #E2E8F0; border: none; border-radius: 6px; cursor: pointer; margin: 0 5px;">取消</button>
-<button onclick="verifyPwd()" style="padding: 8px 16px; background: #3B82F6; color: white; border: none; border-radius: 6px; cursor: pointer; margin: 0 5px;">确认</button>
+<button id="pwd-cancel-btn" onclick="closePwdModal()" style="padding: 8px 16px; background: #E2E8F0; border: none; border-radius: 6px; cursor: pointer; margin: 0 5px;">取消</button>
+<button id="pwd-confirm-btn" onclick="verifyPwd()" style="padding: 8px 16px; background: #3B82F6; color: white; border: none; border-radius: 6px; cursor: pointer; margin: 0 5px;">确认</button>
 </div>
 </div>
 </div>
 <script>
-let runtime_config = SERVER_CONFIG_INJECT_PLACEHOLDER;
-let cell_override_db = SERVER_OVERRIDES_INJECT_PLACEHOLDER;
-let actual_brand_colors = ACTUAL_COLORS_INJECT_PLACEHOLDER;
-let actual_total_stats = ACTUAL_TOTAL_STATS_PLACEHOLDER;
-let actual_total_qty = ACTUAL_TOTAL_QTY_PLACEHOLDER;
-if (!actual_brand_colors) actual_brand_colors = {};
+// 🌟 加固：为所有注入变量增加默认值保护，防止 JS 崩溃
+let runtime_config = SERVER_CONFIG_INJECT_PLACEHOLDER || [];
+let cell_override_db = SERVER_OVERRIDES_INJECT_PLACEHOLDER || {};
+let actual_brand_colors = ACTUAL_COLORS_INJECT_PLACEHOLDER || {};
+let actual_total_stats = ACTUAL_TOTAL_STATS_PLACEHOLDER || {};
+let actual_total_qty = ACTUAL_TOTAL_QTY_PLACEHOLDER || 0;
 
 const CONFIG_API_URL = CONFIG_API_URL_PLACEHOLDER;
 const CONFIG_CSV_URL = CONFIG_CSV_URL_PLACEHOLDER;
 let GLOBAL_CURRENT_VIEW = "PLAN";
-let server_data_cache = SERVER_DATA_INJECT_PLACEHOLDER;
-let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER;
+let server_data_cache = SERVER_DATA_INJECT_PLACEHOLDER || [];
+let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER || {};
 
 Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors);
+
+// 🌟 国际化 (i18n) 配置
+const translations = {
+    zh: {
+        dataUpdate: "📊 数据更新 (NZ Time)", refresh: "刷新", confirmRefresh: "确定刷新？",
+        plan: "🟢 规划", actual: "🔵 实际", planTitle: "📊 预期规划品牌图例", actualTitle: "🔍 实盘现存品牌清点 (全量)",
+        reset: "恢复初始", confirmReset: "确定要恢复所有初始规划并清除本地和云端保存的修改吗？",
+        quickTool: "📐 快速改色工具:", locPlaceholder: "如：Q01-01~Q01-04", brandPlaceholder: "品牌", apply: "修改",
+        addBrand: "➕ 增加规划品牌", promptBrandName: "请输入新品牌名称：", promptBrandExists: "该品牌已存在于规划中！",
+        promptBrandColor: "请输入品牌颜色 HEX 值 (如 #FF5733)，或留空使用默认蓝色：", totalInventory: "📦 仓库总库存 (全量)",
+        deleteConfirm: "删除", restoreConfirm: "恢复", pwdTitle: "🔐 输入编辑密码", pwdPlaceholder: "请输入密码",
+        cancel: "取消", confirm: "确认", unlockAlert: "🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！", wrongPwd: "密码错误！"
+    },
+    en: {
+        dataUpdate: "📊 Data Update (NZ Time)", refresh: "Refresh", confirmRefresh: "Are you sure to refresh?",
+        plan: "🟢 Plan", actual: "🔵 Actual", planTitle: "📊 Planned Brand Legend", actualTitle: "🔍 Actual Inventory (Full)",
+        reset: "Reset", confirmReset: "Reset all plans and clear local/cloud changes?",
+        quickTool: "📐 Quick Color Tool:", locPlaceholder: "e.g.: Q01-01~Q01-04", brandPlaceholder: "Brand", apply: "Apply",
+        addBrand: "➕ Add Planned Brand", promptBrandName: "Enter new brand name:", promptBrandExists: "This brand already exists!",
+        promptBrandColor: "Enter HEX color (e.g. #FF5733) or leave empty:", totalInventory: "📦 Total Inventory (Full)",
+        deleteConfirm: "Delete", restoreConfirm: "Restore", pwdTitle: "🔐 Enter Password", pwdPlaceholder: "Enter password",
+        cancel: "Cancel", confirm: "OK", unlockAlert: "🔒 Click the 🔒 button at bottom right to unlock!", wrongPwd: "Wrong password!"
+    }
+};
+let currentLang = localStorage.getItem('warehouse_lang') || 'zh';
+// 🌟 加固：增加 try-catch 防止语言包读取崩溃
+function t(key) { 
+    try {
+        return (translations[currentLang] && translations[currentLang][key]) ? translations[currentLang][key] : key; 
+    } catch(e) { return key; }
+}
+
+function applyLanguage() {
+    document.getElementById('data-update-label').innerText = t('dataUpdate');
+    document.getElementById('btn-refresh-text').innerText = t('refresh');
+    document.getElementById('view-plan-btn').innerText = t('plan');
+    document.getElementById('view-actual-btn').innerText = t('actual');
+    document.getElementById('reset-master-btn').innerText = t('reset');
+    document.getElementById('quick-tool-label').innerText = t('quickTool');
+    document.getElementById('target-loc').placeholder = t('locPlaceholder');
+    document.getElementById('new-brand').placeholder = t('brandPlaceholder');
+    document.getElementById('apply-btn').innerText = t('apply');
+    document.getElementById('add-brand-btn').innerText = t('addBrand');
+    document.getElementById('pwd-title').innerText = t('pwdTitle');
+    document.getElementById('pwd-input').placeholder = t('pwdPlaceholder');
+    document.getElementById('pwd-cancel-btn').innerText = t('cancel');
+    document.getElementById('pwd-confirm-btn').innerText = t('confirm');
+    document.getElementById('lang-toggle-btn').innerText = currentLang === 'zh' ? 'EN/中' : '中/EN';
+    
+    if(GLOBAL_CURRENT_VIEW === 'PLAN') document.getElementById("legend-panel-title").innerText = t('planTitle');
+    else document.getElementById("legend-panel-title").innerText = t('actualTitle');
+    
+    if (typeof renderControlPanel === 'function') renderControlPanel();
+}
+
+function toggleLanguage() {
+    currentLang = currentLang === 'zh' ? 'en' : 'zh';
+    localStorage.setItem('warehouse_lang', currentLang);
+    applyLanguage();
+}
 
 try {
 let saved_config = localStorage.getItem("warehouse_twin_master_2026");
@@ -455,25 +519,24 @@ fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'actual_bran
 }
 
 setInterval(function() { let now = new Date(); let minute = now.getMinutes(); if (minute % 30 == 0 && now.getSeconds() < 10) { window.location.href = window.location.pathname + '?t=' + Date.now(); } }, 5000);
-function forceRefreshData() { if(confirm("确定刷新？")) { window.location.href = window.location.pathname + '?t=' + Date.now(); } }
+function forceRefreshData() { if(confirm(t('confirmRefresh'))) { window.location.href = window.location.pathname + '?t=' + Date.now(); } }
 
 function switchGlobalView(viewMode) {
 GLOBAL_CURRENT_VIEW = viewMode;
 document.getElementById("view-plan-btn").className = "switch-btn " + (viewMode==='PLAN'?' active':'');
 document.getElementById("view-actual-btn").className = "switch-btn " + (viewMode==='ACTUAL'?' active-actual':'');
 if(viewMode === 'PLAN') { 
-document.getElementById("legend-panel-title").innerText = "📊 预期规划品牌图例"; 
+document.getElementById("legend-panel-title").innerText = t('planTitle'); 
 document.getElementById("planning-tools-box").style.display = "block"; 
 document.getElementById("add-brand-btn").style.display = "block";
 } else { 
-document.getElementById("legend-panel-title").innerText = "🔍 实盘现存品牌清点 (全量)"; 
+document.getElementById("legend-panel-title").innerText = t('actualTitle'); 
 document.getElementById("planning-tools-box").style.display = "none"; 
 document.getElementById("add-brand-btn").style.display = "none";
 }
 applyAllDBCacheToCanvas(); renderControlPanel();
 }
 
-// 🌟 核心修改：使用全量统计数据渲染看板
 function renderControlPanel() {
     const listContainer = document.getElementById("legend-list"); 
     listContainer.innerHTML = "";
@@ -482,17 +545,15 @@ function renderControlPanel() {
         runtime_config.forEach(item => appendLegendRow(listContainer, item.label, item.color, item.org_name)); 
     } else {
         let sortedBrands = Object.keys(actual_total_stats).sort((a, b) => actual_total_stats[b] - actual_total_stats[a]);
-        
         sortedBrands.forEach(bName => {
             let qty = actual_total_stats[bName];
             let percent = actual_total_qty > 0 ? ((qty / actual_total_qty) * 100).toFixed(1) : '0.0';
             let color = GLOBAL_COLOR_POOL[bName] || '#CBD5E1';
             appendLegendRow(listContainer, bName, color, bName, qty, percent + '%');
         });
-        
         let totalRow = document.createElement("div");
         totalRow.style.cssText = "display:flex; justify-content:space-between; padding:6px 8px; font-size:12px; font-weight:bold; color:#0F172A; border-top:2px solid #CBD5E1; margin-top:6px; background:#F1F5F9; border-radius:4px;";
-        totalRow.innerHTML = `<span>📦 仓库总库存 (全量)</span><span>${actual_total_qty.toLocaleString()}</span>`;
+        totalRow.innerHTML = `<span>${t('totalInventory')}</span><span>${actual_total_qty.toLocaleString()}</span>`;
         listContainer.appendChild(totalRow);
     }
 }
@@ -502,7 +563,7 @@ function appendLegendRow(container, name, color, orgName, qty, percent) {
     const colorBox = document.createElement("div"); colorBox.style.cssText = `width:22px; height:20px; border-radius:4px; border:1px solid #CBD5E1; background:${color}; cursor:pointer; flex-shrink:0;`;
     colorBox.onclick = function(e) {
         e.stopPropagation();
-        if (!isUnlocked) { alert('🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！'); return; }
+        if (!isUnlocked) { alert(t('unlockAlert')); return; }
         const input = document.createElement('input'); input.type = 'color'; input.value = color; input.style.opacity='0';
         input.onchange = function() { updateBrandColor(orgName || name, input.value); };
         colorBox.appendChild(input); input.click();
@@ -512,8 +573,8 @@ function appendLegendRow(container, name, color, orgName, qty, percent) {
     if (qty !== undefined && percent !== undefined) statsSpan.innerText = `${qty.toLocaleString()} (${percent})`;
 
     let editBtn = document.createElement("button"); editBtn.innerText = "✏️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
-    let delBtn = document.createElement("button"); delBtn.innerText = "🗑️"; delBtn.className = "lockable"; delBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`删除 "${name}"?`)) deleteBrand(orgName || name); };
-    let resetBtn = document.createElement("button"); resetBtn.innerText = "🔄"; resetBtn.className = "lockable"; resetBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`恢复 "${name}"?`)) resetBrandLocations(orgName || name); };
+    let delBtn = document.createElement("button"); delBtn.innerText = "🗑️"; delBtn.className = "lockable"; delBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`${t('deleteConfirm')} "${name}"?`)) deleteBrand(orgName || name); };
+    let resetBtn = document.createElement("button"); resetBtn.innerText = "🔄"; resetBtn.className = "lockable"; resetBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`${t('restoreConfirm')} "${name}"?`)) resetBrandLocations(orgName || name); };
 
     row.appendChild(colorBox); row.appendChild(label);
     if (qty !== undefined) row.appendChild(statsSpan);
@@ -581,13 +642,13 @@ function applyLocationChange() {
     document.getElementById('target-loc').value = ""; document.getElementById('new-brand').value = ""; applyAllDBCacheToCanvas(); renderControlPanel(); syncConfigToCloud(); 
 }
 function addNewBrand() {
-    let brandName = prompt("请输入新品牌名称："); if (!brandName || !brandName.trim()) return; brandName = brandName.trim();
-    if (runtime_config.some(c => c.org_name === brandName)) { alert("该品牌已存在于规划中！"); return; }
-    let colorHex = prompt("请输入品牌颜色 HEX 值 (如 #FF5733)，或留空使用默认蓝色：", "#3B82F6"); if (colorHex === null) return; if (!colorHex.trim()) colorHex = "#3B82F6";
+    let brandName = prompt(t('promptBrandName')); if (!brandName || !brandName.trim()) return; brandName = brandName.trim();
+    if (runtime_config.some(c => c.org_name === brandName)) { alert(t('promptBrandExists')); return; }
+    let colorHex = prompt(t('promptBrandColor'), "#3B82F6"); if (colorHex === null) return; if (!colorHex.trim()) colorHex = "#3B82F6";
     runtime_config.push({ org_name: brandName, color: colorHex, label: brandName }); GLOBAL_COLOR_POOL[brandName] = colorHex; applyAllDBCacheToCanvas(); renderControlPanel(); syncConfigToCloud();
 }
 function resetToDefault() { 
-    if(confirm("确定要恢复所有初始规划并清除本地和云端保存的修改吗？")) { 
+    if(confirm(t('confirmReset'))) { 
         if (CONFIG_API_URL) { fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'runtime_config', value: [] }), headers: { 'Content-Type': 'text/plain' } }); fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'cell_override_db', value: {} }), headers: { 'Content-Type': 'text/plain' } }); fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'actual_brand_colors', value: {} }), headers: { 'Content-Type': 'text/plain' } }); }
         localStorage.removeItem("warehouse_twin_master_2026"); localStorage.removeItem("warehouse_twin_cell_overrides_2026"); localStorage.removeItem("warehouse_twin_actual_colors_2026"); window.location.reload(); 
     } 
@@ -607,24 +668,40 @@ function resetCamera() { currentScale = 1.0; var plotContainer = document.queryS
 const TARGET_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f"; let isUnlocked = false;
 function showPwdModal() { if (isUnlocked) { isUnlocked = false; lockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = "🔒"; } else { document.getElementById('pwd-modal').style.display = 'flex'; document.getElementById('pwd-input').value = ''; document.getElementById('pwd-input').focus(); } }
 function closePwdModal() { document.getElementById('pwd-modal').style.display = 'none'; }
-async function verifyPwd() { const pwd = document.getElementById('pwd-input').value; if (!pwd) return; const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd)); const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join(''); if (hashHex === TARGET_HASH) { isUnlocked = true; closePwdModal(); unlockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = "🔓"; } else { alert('密码错误！'); } }
+async function verifyPwd() { const pwd = document.getElementById('pwd-input').value; if (!pwd) return; const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd)); const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join(''); if (hashHex === TARGET_HASH) { isUnlocked = true; closePwdModal(); unlockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = "🔓"; } else { alert(t('wrongPwd')); } }
 function lockAllEditBtns() { document.querySelectorAll('.lockable').forEach(btn => btn.classList.add('locked')); }
 function unlockAllEditBtns() { document.querySelectorAll('.lockable').forEach(btn => btn.classList.remove('locked')); }
+
 if (window.innerWidth <= 768) { document.getElementById('super-legend-panel').classList.remove('nav-open'); }
-var checkPlotly = setInterval(function(){ var gd = document.getElementsByClassName('plotly-graph-div')[0]; if(gd && gd._fullLayout) { clearInterval(checkPlotly); renderControlPanel(); applyAllDBCacheToCanvas(); lockAllEditBtns(); loadCloudConfig(); } }, 400);
+var checkPlotly = setInterval(function(){ 
+    var gd = document.getElementsByClassName('plotly-graph-div')[0]; 
+    if(gd && gd._fullLayout) { 
+        clearInterval(checkPlotly); 
+        applyLanguage(); 
+        renderControlPanel(); 
+        applyAllDBCacheToCanvas(); 
+        lockAllEditBtns(); 
+        loadCloudConfig(); 
+    }
+}, 400);
 </script>
 '''
 
-    interactive_control_script = interactive_control_script.replace("SERVER_CONFIG_INJECT_PLACEHOLDER", js_config_string)\
-                                                           .replace("SERVER_OVERRIDES_INJECT_PLACEHOLDER", js_overrides_string)\
-                                                           .replace("CONFIG_API_URL_PLACEHOLDER", js_api_url_string)\
-                                                           .replace("CONFIG_CSV_URL_PLACEHOLDER", js_csv_url_string)\
-                                                           .replace("SERVER_DATA_INJECT_PLACEHOLDER", js_array_string)\
-                                                           .replace("SERVER_COLORS_INJECT_PLACEHOLDER", js_global_colors_string)\
-                                                           .replace("ACTUAL_COLORS_INJECT_PLACEHOLDER", js_actual_colors_string)\
-                                                           .replace("ACTUAL_TOTAL_STATS_PLACEHOLDER", js_actual_total_stats)\
-                                                           .replace("ACTUAL_TOTAL_QTY_PLACEHOLDER", js_actual_total_qty)\
-                                                           .replace("DATA_TIMESTAMP_PLACEHOLDER", data_timestamp)
+    # 🌟 核心加固：使用字典循环替换，彻底杜绝占位符遗漏导致的 JS 崩溃
+    replacements = {
+        "SERVER_CONFIG_INJECT_PLACEHOLDER": js_config_string,
+        "SERVER_OVERRIDES_INJECT_PLACEHOLDER": js_overrides_string,
+        "ACTUAL_COLORS_INJECT_PLACEHOLDER": js_actual_colors_string,
+        "ACTUAL_TOTAL_STATS_PLACEHOLDER": js_actual_total_stats,
+        "ACTUAL_TOTAL_QTY_PLACEHOLDER": js_actual_total_qty,
+        "CONFIG_API_URL_PLACEHOLDER": js_api_url_string,
+        "CONFIG_CSV_URL_PLACEHOLDER": js_csv_url_string,
+        "SERVER_DATA_INJECT_PLACEHOLDER": js_array_string,
+        "SERVER_COLORS_INJECT_PLACEHOLDER": js_global_colors_string,
+        "DATA_TIMESTAMP_PLACEHOLDER": data_timestamp
+    }
+    for key, value in replacements.items():
+        interactive_control_script = interactive_control_script.replace(key, str(value))
 
     final_html = html_content.replace("</body>", interactive_control_script + "</body>")
     with open(OUTPUT_HTML, "w", encoding="utf-8") as f: f.write(final_html)
