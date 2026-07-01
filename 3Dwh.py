@@ -16,11 +16,10 @@ from zoneinfo import ZoneInfo  # 使用Python内置时区库，无需pip install
 # ========================================================
 PLAN_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vStLtLccpDSfrf_yU_T9WrNcZufN29BqkDsVS2r9ql1INK_61uA8UetkiW4DZ4_dv63o-DHzFz0tOAq/pub?gid=1276542862&single=true&output=csv"
 ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-egK5kKzjLVZx/export?format=xlsx"
-OUTPUT_HTML = "index.html"  # 直接输出为 index.html，完美契合 GitHub Pages
+OUTPUT_HTML = "index.html"  # 完美契合 GitHub Pages
 TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f" 
 
 CONFIG_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTAuCBLwYldt_n68OGxAgnzApEabBvFjmnOvxKp39i8eaHDHn3iTRqPfaB6X1txjxLDwcBhq0W1nITC/pub?output=csv"
-# 🌟 更新为你提供的新 API URL
 CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbyyWfL9pzZo8olGSKfTttXDOfPsASsJ7pgghAF9Ut51sfrjVfBYigcQFf5lKftUJ2gA/exec"
 
 def get_deterministic_color(brand_name):
@@ -138,6 +137,7 @@ def generate_html():
     temp_xlsx_path = "temp_inventory.xlsx"
     try:
         timestamp = int(time.time())
+        # 🌟 核心修复：彻底清除 URL 和关键字中的隐形空格
         url_with_timestamp = f"{ACTUAL_XLSX_URL}&t={timestamp}"
         headers = {'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0'}
         response = requests.get(url_with_timestamp, headers=headers, timeout=30)
@@ -230,7 +230,7 @@ def generate_html():
             "slices": slices_data, "orig_z": [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h]
         })
 
-    # 🌟 核心：统计 Google Drive 中的全量库存（包含所有未建模的地面库位）
+    # 🌟 核心：统计全量库存
     actual_total_stats = {}
     actual_total_qty = 0
     for locID, items in actual_db.items():
@@ -320,7 +320,8 @@ def generate_html():
     js_api_url_string = json.dumps(CONFIG_API_URL)
     js_csv_url_string = json.dumps(CONFIG_CSV_URL)
 
-    interactive_control_script = '''
+    # 🌟 核心修复：使用 r''' (Raw String) 彻底解决 JS 中 \n 和 \d+ 的转义崩溃问题
+    interactive_control_script = r'''
 <style>
 body { margin: 0; overflow: hidden; font-family: sans-serif; }
 .switch-btn { flex: 1; padding: 8px; font-size: 11px; font-weight: bold; border: 2px solid #CBD5E1; cursor: pointer; transition: all 0.2s ease; text-align: center; border-radius: 6px; background: #FFFFFF; color: #64748B; }
@@ -398,7 +399,6 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 </div>
 </div>
 <script>
-// 🌟 加固：为所有注入变量增加默认值保护，防止 JS 崩溃
 let runtime_config = SERVER_CONFIG_INJECT_PLACEHOLDER || [];
 let cell_override_db = SERVER_OVERRIDES_INJECT_PLACEHOLDER || {};
 let actual_brand_colors = ACTUAL_COLORS_INJECT_PLACEHOLDER || {};
@@ -413,7 +413,6 @@ let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER || {};
 
 Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors);
 
-// 🌟 国际化 (i18n) 配置
 const translations = {
     zh: {
         dataUpdate: "📊 数据更新 (NZ Time)", refresh: "刷新", confirmRefresh: "确定刷新？",
@@ -437,12 +436,7 @@ const translations = {
     }
 };
 let currentLang = localStorage.getItem('warehouse_lang') || 'zh';
-// 🌟 加固：增加 try-catch 防止语言包读取崩溃
-function t(key) { 
-    try {
-        return (translations[currentLang] && translations[currentLang][key]) ? translations[currentLang][key] : key; 
-    } catch(e) { return key; }
-}
+function t(key) { try { return (translations[currentLang] && translations[currentLang][key]) ? translations[currentLang][key] : key; } catch(e) { return key; } }
 
 function applyLanguage() {
     document.getElementById('data-update-label').innerText = t('dataUpdate');
@@ -460,18 +454,11 @@ function applyLanguage() {
     document.getElementById('pwd-cancel-btn').innerText = t('cancel');
     document.getElementById('pwd-confirm-btn').innerText = t('confirm');
     document.getElementById('lang-toggle-btn').innerText = currentLang === 'zh' ? 'EN/中' : '中/EN';
-    
     if(GLOBAL_CURRENT_VIEW === 'PLAN') document.getElementById("legend-panel-title").innerText = t('planTitle');
     else document.getElementById("legend-panel-title").innerText = t('actualTitle');
-    
     if (typeof renderControlPanel === 'function') renderControlPanel();
 }
-
-function toggleLanguage() {
-    currentLang = currentLang === 'zh' ? 'en' : 'zh';
-    localStorage.setItem('warehouse_lang', currentLang);
-    applyLanguage();
-}
+function toggleLanguage() { currentLang = currentLang === 'zh' ? 'en' : 'zh'; localStorage.setItem('warehouse_lang', currentLang); applyLanguage(); }
 
 try {
 let saved_config = localStorage.getItem("warehouse_twin_master_2026");
@@ -479,11 +466,7 @@ if (saved_config) runtime_config = JSON.parse(saved_config);
 let s = localStorage.getItem("warehouse_twin_cell_overrides_2026");
 if (s) cell_override_db = JSON.parse(s);
 let saved_actual = localStorage.getItem("warehouse_twin_actual_colors_2026");
-if (saved_actual) {
-let parsed = JSON.parse(saved_actual);
-Object.assign(actual_brand_colors, parsed);
-Object.assign(GLOBAL_COLOR_POOL, parsed);
-}
+if (saved_actual) { let parsed = JSON.parse(saved_actual); Object.assign(actual_brand_colors, parsed); Object.assign(GLOBAL_COLOR_POOL, parsed); }
 } catch(e) {}
 
 async function loadCloudConfig() {
@@ -491,7 +474,7 @@ if (!CONFIG_CSV_URL || CONFIG_CSV_URL === 'null') return;
 try {
 const res = await fetch(CONFIG_CSV_URL + '?t=' + Date.now());
 const csvText = await res.text(); 
-const lines = csvText.split('\\n');
+const lines = csvText.split('\n');
 for (let line of lines) {
 line = line.trim();
 if (!line || line.startsWith('Key')) continue;
@@ -540,7 +523,6 @@ applyAllDBCacheToCanvas(); renderControlPanel();
 function renderControlPanel() {
     const listContainer = document.getElementById("legend-list"); 
     listContainer.innerHTML = "";
-    
     if (GLOBAL_CURRENT_VIEW === "PLAN") { 
         runtime_config.forEach(item => appendLegendRow(listContainer, item.label, item.color, item.org_name)); 
     } else {
@@ -594,7 +576,7 @@ function editBrand(brand) {
 function resetBrandLocations(brand) { server_data_cache.forEach(node => { if (node.native_brand === brand) delete cell_override_db[node.loc]; }); applyAllDBCacheToCanvas(); syncConfigToCloud(); }
 function formatLocsToRange(locs) { 
     if (!locs || locs.length === 0) return ""; 
-    let parsed = locs.map(l => { let m = l.match(/^([A-Z]+)(\\d+)-(\\d+)$/); return m ? { raw: l, z: m[1], c: parseInt(m[2]), l: parseInt(m[3]) } : { raw: l, z: l, c: 0, l: 0 }; }); 
+    let parsed = locs.map(l => { let m = l.match(/^([A-Z]+)(\d+)-(\d+)$/); return m ? { raw: l, z: m[1], c: parseInt(m[2]), l: parseInt(m[3]) } : { raw: l, z: l, c: 0, l: 0 }; }); 
     parsed.sort((a, b) => a.z.localeCompare(b.z) || a.c - b.c || a.l - b.l); 
     let ranges = [], i = 0; 
     while (i < parsed.length) { let start = parsed[i], end = parsed[i]; while (i + 1 < parsed.length && parsed[i+1].z === start.z && parsed[i+1].c === start.c && parsed[i+1].l === end.l + 1) { i++; end = parsed[i]; } ranges.push(start.raw === end.raw ? start.raw : `${start.raw}~${end.raw}`); i++; } 
@@ -631,7 +613,7 @@ function applyAllDBCacheToCanvas() {
 }
 function parseSinglePattern(pat, locID) { 
     pat = pat.trim().toUpperCase(); if (!pat) return false; 
-    if (pat.includes('~')) { let parts = pat.split('~'); if (parts.length === 2) { let mS = parts[0].match(/^([A-Z]+)(\\d+)-(\\d+)$/), mE = parts[1].match(/^([A-Z]+)(\\d+)-(\\d+)$/), mL = locID.match(/^([A-Z]+)(\\d+)-(\\d+)$/); if (mS && mE && mL && mL[1] === mS[1]) return (parseInt(mL[2]) >= Math.min(parseInt(mS[2]), parseInt(mE[2])) && parseInt(mL[2]) <= Math.max(parseInt(mS[2]), parseInt(mE[2])) && parseInt(mL[3]) >= Math.min(parseInt(mS[3]), parseInt(mE[3])) && parseInt(mL[3]) <= Math.max(parseInt(mS[3]), parseInt(mE[3]))); } } 
+    if (pat.includes('~')) { let parts = pat.split('~'); if (parts.length === 2) { let mS = parts[0].match(/^([A-Z]+)(\d+)-(\d+)$/), mE = parts[1].match(/^([A-Z]+)(\d+)-(\d+)$/), mL = locID.match(/^([A-Z]+)(\d+)-(\d+)$/); if (mS && mE && mL && mL[1] === mS[1]) return (parseInt(mL[2]) >= Math.min(parseInt(mS[2]), parseInt(mE[2])) && parseInt(mL[2]) <= Math.max(parseInt(mS[2]), parseInt(mE[2])) && parseInt(mL[3]) >= Math.min(parseInt(mS[3]), parseInt(mE[3])) && parseInt(mL[3]) <= Math.max(parseInt(mS[3]), parseInt(mE[3]))); } } 
     return locID === pat; 
 }
 function applyLocationChange() { 
@@ -687,7 +669,7 @@ var checkPlotly = setInterval(function(){
 </script>
 '''
 
-    # 🌟 核心加固：使用字典循环替换，彻底杜绝占位符遗漏导致的 JS 崩溃
+    # 🌟 核心加固：使用字典循环替换，彻底杜绝占位符遗漏
     replacements = {
         "SERVER_CONFIG_INJECT_PLACEHOLDER": js_config_string,
         "SERVER_OVERRIDES_INJECT_PLACEHOLDER": js_overrides_string,
