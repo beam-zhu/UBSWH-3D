@@ -33,8 +33,8 @@ jobs:
     - name: Commit and push changes
       run: |
         # 1. 检查 HTML 文件是否真的生成了
-        if [ ! -f "Urban_Sales_Twin_View.html" ]; then
-          echo "❌ 错误: 找不到 Urban_Sales_Twin_View.html！Python 脚本可能运行失败了。"
+        if [ ! -f "index.html" ]; then
+          echo "❌ 错误: 找不到 index.html！Python 脚本可能运行失败了。"
           echo "当前目录文件列表："
           ls -la
           exit 1
