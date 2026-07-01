@@ -9,17 +9,16 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import json
-import pytz
+from zoneinfo import ZoneInfo  # 使用Python内置时区库，无需pip install
 
 # ========================================================
 # 核心配置区
 # ========================================================
 PLAN_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vStLtLccpDSfrf_yU_T9WrNcZufN29BqkDsVS2r9ql1INK_61uA8UetkiW4DZ4_dv63o-DHzFz0tOAq/pub?gid=1276542862&single=true&output=csv"
 ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-egK5kKzjLVZx/export?format=xlsx"
-OUTPUT_HTML = "index.html"
-TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f" # 默认密码: admin123
+OUTPUT_HTML = "index.html"  # 直接输出为 index.html，完美契合 GitHub Pages
+TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f" 
 
-# 云端同步配置链接 (A改B看)
 CONFIG_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTAuCBLwYldt_n68OGxAgnzApEabBvFjmnOvxKp39i8eaHDHn3iTRqPfaB6X1txjxLDwcBhq0W1nITC/pub?output=csv"
 CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbx-4oPFi4rfmrGsDB31U3K4ifCa8jMv3mG06MVO98eaj5_5V3JR7mZ2eLb34GCuCYpE/exec"
 
@@ -71,35 +70,21 @@ SHRINK = 0.92
 
 def get_absolute_coords(zone, col, lvl):
     z = (lvl - 1) * LVL_HEIGHT
-    if zone == 'Y':
-        x = EASTERN_ALIGN_X - ((col - 1) * COL_WIDTH)
-        y = NORTH_BASE_Y + 15
+    if zone == 'Y': x, y = EASTERN_ALIGN_X - ((col - 1) * COL_WIDTH), NORTH_BASE_Y + 15
     elif zone in ['X', 'W', 'T']:
         step = XWT_ZONE_COL_ORDER.get(col, col - 1)
         x = EASTERN_ALIGN_X - (step * COL_WIDTH)
-        if zone == 'X': y = NORTH_BASE_Y
-        elif zone == 'W': y = NORTH_BASE_Y - DEPTH
-        elif zone == 'T': y = NORTH_BASE_Y - (DEPTH * 2) - 12
+        y = NORTH_BASE_Y if zone == 'X' else (NORTH_BASE_Y - DEPTH if zone == 'W' else NORTH_BASE_Y - (DEPTH * 2) - 12)
     elif zone == 'H':
         x = 55.0 + 0.8
-        if col <= 10: y = SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2)
-        else: y = SOUTH_BASE_Y + (col - 10) * COL_WIDTH - (COL_WIDTH / 2)
+        y = SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2) if col <= 10 else SOUTH_BASE_Y + (col - 10) * COL_WIDTH - (COL_WIDTH / 2)
     elif zone == 'J':
         x = 55.0 - DEPTH - 0.8
-        if col <= 11: y = SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2)
-        else: y = SOUTH_BASE_Y + (col - 11) * COL_WIDTH - (COL_WIDTH / 2)
-    elif zone == 'K':
-        x = 30.0 + 0.8
-        y = SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2)
-    elif zone == 'L':
-        x = 30.0 - DEPTH - 0.8
-        y = SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2)
-    elif zone == 'P':
-        x = 30.0 + 0.8
-        y = SOUTH_BASE_Y + (col - 1) * COL_WIDTH + (COL_WIDTH / 2)
-    elif zone == 'Q':
-        x = 30.0 - DEPTH - 0.8
-        y = SOUTH_BASE_Y + (col - 1) * COL_WIDTH + (COL_WIDTH / 2)
+        y = SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2) if col <= 11 else SOUTH_BASE_Y + (col - 11) * COL_WIDTH - (COL_WIDTH / 2)
+    elif zone == 'K': x, y = 30.0 + 0.8, SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2)
+    elif zone == 'L': x, y = 30.0 - DEPTH - 0.8, SOUTH_BASE_Y - (col - 1) * COL_WIDTH - (COL_WIDTH / 2)
+    elif zone == 'P': x, y = 30.0 + 0.8, SOUTH_BASE_Y + (col - 1) * COL_WIDTH + (COL_WIDTH / 2)
+    elif zone == 'Q': x, y = 30.0 - DEPTH - 0.8, SOUTH_BASE_Y + (col - 1) * COL_WIDTH + (COL_WIDTH / 2)
     elif zone == 'M':
         x = 5.0
         base_offset = (col - 1) * COL_WIDTH + (COL_WIDTH / 2)
@@ -113,29 +98,14 @@ def get_absolute_coords(zone, col, lvl):
         base_offset = (col - 1) * COL_WIDTH + (COL_WIDTH / 2) + AISLE_GAP
         if col >= 3: base_offset += AISLE_GAP
         y = SOUTH_BASE_Y + base_offset
-    elif zone == 'A':
-        x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2)
-        y = SOUTH_BASE_Y
-    elif zone == 'B':
-        x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2)
-        y = 80.0 - (DEPTH / 2)
-    elif zone == 'C':
-        x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2)
-        y = 80.0 - (DEPTH / 2) - DEPTH
-    elif zone == 'D':
-        x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2)
-        y = 56.0 - (DEPTH / 2)
-    elif zone == 'E':
-        x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2)
-        y = 56.0 - (DEPTH / 2) - DEPTH
-    elif zone == 'F':
-        x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2)
-        y = 32.0 - (DEPTH / 2)
-    elif zone == 'G':
-        x = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2)
-        y = 32.0 - (DEPTH / 2) - DEPTH
-    else:
-        x, y = 200, 50
+    elif zone == 'A': x, y = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2), SOUTH_BASE_Y
+    elif zone == 'B': x, y = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2), 80.0 - (DEPTH / 2)
+    elif zone == 'C': x, y = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2), 80.0 - (DEPTH / 2) - DEPTH
+    elif zone == 'D': x, y = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2), 56.0 - (DEPTH / 2)
+    elif zone == 'E': x, y = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2), 56.0 - (DEPTH / 2) - DEPTH
+    elif zone == 'F': x, y = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2), 32.0 - (DEPTH / 2)
+    elif zone == 'G': x, y = 82 + (col - 1) * COL_WIDTH + (COL_WIDTH / 2), 32.0 - (DEPTH / 2) - DEPTH
+    else: x, y = 200, 50
     return x, y, z
 
 def is_valid_location(loc):
@@ -150,8 +120,7 @@ def generate_html():
     print("📡 [1/4] 正在同步云端规划底座...")
     df_raw = pd.read_csv(PLAN_CSV_URL, header=None)
     all_raw_locs = []
-    for col in df_raw.columns:
-        all_raw_locs.extend(df_raw[col].dropna().astype(str).tolist())
+    for col in df_raw.columns: all_raw_locs.extend(df_raw[col].dropna().astype(str).tolist())
     
     valid_locations = []
     for loc in all_raw_locs:
@@ -172,8 +141,7 @@ def generate_html():
         headers = {'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0'}
         response = requests.get(url_with_timestamp, headers=headers, timeout=30)
         response.raise_for_status()
-        with open(temp_xlsx_path, 'wb') as f:
-            f.write(response.content)
+        with open(temp_xlsx_path, 'wb') as f: f.write(response.content)
         with pd.ExcelFile(temp_xlsx_path) as xl_file:
             df_actual = xl_file.parse(sheet_name=0, skiprows=5, header=0)
         
@@ -194,13 +162,7 @@ def generate_html():
             
             if raw_loc not in actual_db: actual_db[raw_loc] = []
             actual_db[raw_loc].append({'sku': clean_sku, 'brand': brand, 'qty': int(qty)})
-            if brand not in GLOBAL_BRAND_COLORS:
-                GLOBAL_BRAND_COLORS[brand] = get_deterministic_color(brand)
-                 
-        ground_locs = ['GA', 'GBC', 'GN1', 'GN2', 'GT', 'GXW', 'GJ', 'GDE', 'GFG', 'GM1', 'GM2', 'GM5', 'GM8', 'GM11']
-        for g_loc in ground_locs:
-            if g_loc in actual_db: print(f"   ✅ {g_loc} 数据: {len(actual_db[g_loc])} 条记录 ")
-            else: print(f"   ⚠️ {g_loc} 未在 XLSX 中找到数据 ")
+            if brand not in GLOBAL_BRAND_COLORS: GLOBAL_BRAND_COLORS[brand] = get_deterministic_color(brand)
     except Exception as e:
         print(f"⚠️ 下载 xlsx 失败: {e} ")
     finally:
@@ -232,25 +194,16 @@ def generate_html():
     res = [get_planned_info(z, c, l, ig) for z, c, l, ig in zip(df_locs['zone'], df_locs['col'], df_locs['lvl'], df_locs['is_ground'])]
     df_locs['brand'], df_locs['color'] = [r[0] for r in res], [r[1] for r in res]
 
-    # 抓取云端同步配置
-    cloud_runtime_config = None
-    cloud_cell_override_db = None
-    cloud_actual_colors = None
+    cloud_runtime_config, cloud_cell_override_db, cloud_actual_colors = None, None, None
     try:
         print("☁️ 正在同步云端配置... ")
         df_config = pd.read_csv(CONFIG_CSV_URL)
         for idx, row in df_config.iterrows():
-            key = str(row.get('Key', '')).strip()
-            val = str(row.get('Value', '')).strip()
-            if key == 'runtime_config' and val and val != 'nan':
-                cloud_runtime_config = json.loads(val)
-            elif key == 'cell_override_db' and val and val != 'nan':
-                cloud_cell_override_db = json.loads(val)
-            elif key == 'actual_brand_colors' and val and val != 'nan':
-                cloud_actual_colors = json.loads(val)
-        print("✅ 云端配置同步成功！ ")
-    except Exception as e:
-        print(f"⚠️ 读取云端配置失败 (可能是首次运行，表为空): {e} ")
+            key, val = str(row.get('Key', '')).strip(), str(row.get('Value', '')).strip()
+            if key == 'runtime_config' and val and val != 'nan': cloud_runtime_config = json.loads(val)
+            elif key == 'cell_override_db' and val and val != 'nan': cloud_cell_override_db = json.loads(val)
+            elif key == 'actual_brand_colors' and val and val != 'nan': cloud_actual_colors = json.loads(val)
+    except Exception as e: print(f"⚠️ 读取云端配置失败: {e} ")
 
     print("🧮 [3/4] 正在生成 3D 桥接数据与画布... ")
     python_to_js_cache = []
@@ -261,10 +214,8 @@ def generate_html():
         brand_count = len(brands_in_bin)
         slices_data = []
         
-        if brand_count == 0:
-            slices_data.append({"brand": "[当前空置]", "color": GLOBAL_BRAND_COLORS['[当前空置]'], "items": []})
-        elif brand_count > 4:
-            slices_data.append({"brand": "[⚠️超过4品牌严重混放]", "color": GLOBAL_BRAND_COLORS['[⚠️超过4品牌严重混放]'], "items": [{"sku": it['sku'], "qty": it['qty'], "brand": it['brand']} for it in items_in_bin]})
+        if brand_count == 0: slices_data.append({"brand": "[当前空置]", "color": GLOBAL_BRAND_COLORS['[当前空置]'], "items": []})
+        elif brand_count > 4: slices_data.append({"brand": "[⚠️超过4品牌严重混放]", "color": GLOBAL_BRAND_COLORS['[⚠️超过4品牌严重混放]'], "items": [{"sku": it['sku'], "qty": it['qty'], "brand": it['brand']} for it in items_in_bin]})
         else:
             for b_name in brands_in_bin:
                 b_color = GLOBAL_BRAND_COLORS.get(b_name, "#CBD5E1") 
@@ -277,6 +228,18 @@ def generate_html():
             "is_ground": bool(row['is_ground']), "native_brand": str(row['brand']), "native_color": str(row['color']),
             "slices": slices_data, "orig_z": [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h]
         })
+
+    # 🌟 核心新增：统计 Google Drive 中的全量库存（包含所有未建模的地面库位）
+    actual_total_stats = {}
+    actual_total_qty = 0
+    for locID, items in actual_db.items():
+        for it in items:
+            brand = str(it.get('brand', '')).strip()
+            qty = int(it.get('qty', 0))
+            if brand and brand not in ['[当前空置]', '[⚠️超过4品牌严重混放]']:
+                actual_total_stats[brand] = actual_total_stats.get(brand, 0) + qty
+                actual_total_qty += qty
+    print(f"   📦 仓库全量库存统计完成，总计: {actual_total_qty} 件")
 
     fig = go.Figure()
     min_x, max_x = df_locs['X'].min() - 25, df_locs['X'].max() + 25
@@ -294,8 +257,7 @@ def generate_html():
         cx, cy, cz = row['X'], row['Y'], row['Z']
         x0, x1, y0, y1, z0, z1 = cx-cw, cx+cw, cy-cd, cy+cd, cz, cz+h
         edges = [(x0,y0,z0,x1,y0,z0),(x1,y0,z0,x1,y1,z0),(x1,y1,z0,x0,y1,z0),(x0,y1,z0,x0,y0,z0),(x0,y0,z1,x1,y0,z1),(x1,y0,z1,x1,y1,z1),(x1,y1,z1,x0,y1,z1),(x0,y1,z1,x0,y0,z1),(x0,y0,z0,x0,y0,z1),(x1,y0,z0,x1,y0,z1),(x1,y1,z0,x1,y1,z1),(x0,y1,z0,x0,y1,z1)]
-        for e in edges:
-            border_x.extend([e[0], e[3], None]); border_y.extend([e[1], e[4], None]); border_z.extend([e[2], e[5], None])
+        for e in edges: border_x.extend([e[0], e[3], None]); border_y.extend([e[1], e[4], None]); border_z.extend([e[2], e[5], None])
     fig.add_trace(go.Scatter3d(x=border_x, y=border_y, z=border_z, mode='lines', line=dict(color='#1E293B', width=2), hoverinfo='skip', showlegend=False, name='_BORDERS_'))
 
     for idx, row in df_locs.iterrows():
@@ -310,52 +272,19 @@ def generate_html():
         y = [cy-cd, cy-cd, cy+cd, cy+cd, cy-cd, cy-cd, cy+cd, cy+cd]
         z = [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h]
         
-        fig.add_trace(go.Mesh3d(
-            x=x, y=y, z=z, name='_SHELF_CUBE_', 
-            i=[7,0,0,0,4,4,1,1,2,2,3,3], j=[0,1,2,3,5,7,2,5,3,6,0,7], k=[4,4,3,4,6,5,5,6,6,7,7,4], 
-            color=row['color'], customdata=[row['loc']]*8, text=[f"库位: {row['loc']}"]*8, 
-            lighting=dict(ambient=0.7, diffuse=0.85, specular=0.05), flatshading=True, hoverinfo='text', showlegend=False
-        ))
+        fig.add_trace(go.Mesh3d(x=x, y=y, z=z, name='_SHELF_CUBE_', i=[7,0,0,0,4,4,1,1,2,2,3,3], j=[0,1,2,3,5,7,2,5,3,6,0,7], k=[4,4,3,4,6,5,5,6,6,7,7,4], color=row['color'], customdata=[row['loc']]*8, text=[f"库位: {row['loc']}"]*8, lighting=dict(ambient=0.7, diffuse=0.85, specular=0.05), flatshading=True, hoverinfo='text', showlegend=False))
         
-        if row['zone'] in ['H', 'K', 'P']:
-            hover_cx = cx + 0.1
-            hover_cw = cw + 0.1
-        elif row['zone'] in ['J', 'L', 'Q']:
-            hover_cx = cx - 0.1
-            hover_cw = cw + 0.1
-        else:
-            hover_cx = cx 
-            hover_cw = cw
-         
-        hover_x = [hover_cx-hover_cw, hover_cx+hover_cw, hover_cx+hover_cw, hover_cx-hover_cw, 
-                   hover_cx-hover_cw, hover_cx+hover_cw, hover_cx+hover_cw, hover_cx-hover_cw]
+        hover_cx = cx + 0.1 if row['zone'] in ['H', 'K', 'P'] else (cx - 0.1 if row['zone'] in ['J', 'L', 'Q'] else cx)
+        hover_cw = cw + 0.1
+        hover_x = [hover_cx-hover_cw, hover_cx+hover_cw, hover_cx+hover_cw, hover_cx-hover_cw, hover_cx-hover_cw, hover_cx+hover_cw, hover_cx+hover_cw, hover_cx-hover_cw]
         hover_y = [cy-cd, cy-cd, cy+cd, cy+cd, cy-cd, cy-cd, cy+cd, cy+cd]
         hover_z = [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h]
+        hover_text = f"库位: {row['loc']} (地面)" if row['is_ground'] else f"库位: {row['loc']} <br>区域: {row['zone']}区 <br>品牌: {row['brand']}"
+        
+        fig.add_trace(go.Mesh3d(x=hover_x, y=hover_y, z=hover_z, name=f'_HOVER_{row["loc"]}', i=[7,0,0,0,4,4,1,1,2,2,3,3], j=[0,1,2,3,5,7,2,5,3,6,0,7], k=[4,4,3,4,6,5,5,6,6,7,7,4], color='white', opacity=0.01, hoverinfo='text', text=[hover_text] * 8, showlegend=False))
         
         if row['is_ground']:
-            hover_text = f"库位: {row['loc']} (地面)"
-        else:
-            hover_text = f"库位: {row['loc']} <br>区域: {row['zone']}区 <br>品牌: {row['brand']}"
-        
-        fig.add_trace(go.Mesh3d(
-            x=hover_x, y=hover_y, z=hover_z,
-            name=f'_HOVER_{row["loc"]}',
-            i=[7,0,0,0,4,4,1,1,2,2,3,3],
-            j=[0,1,2,3,5,7,2,5,3,6,0,7],
-            k=[4,4,3,4,6,5,5,6,6,7,7,4],
-            color='white',
-            opacity=0.01,  
-            hoverinfo='text',
-            text=[hover_text] * 8,
-            showlegend=False
-        ))
-        
-        if row['is_ground']:
-            fig.add_trace(go.Scatter3d(
-                x=[row['X']], y=[row['Y']], z=[row['Z'] + h + 0.5], mode='text', text=[row['loc']], 
-                textposition="top center", textfont=dict(size=12, color="#0F172A", family="Arial Black"), 
-                showlegend=False, hoverinfo='skip'
-            ))
+            fig.add_trace(go.Scatter3d(x=[row['X']], y=[row['Y']], z=[row['Z'] + h + 0.5], mode='text', text=[row['loc']], textposition="top center", textfont=dict(size=12, color="#0F172A", family="Arial Black"), showlegend=False, hoverinfo='skip'))
 
     ZONE_Z_OFFSET_MAP = {'A': 2.0, 'B': 16.0, 'C': 2.0, 'D': 11.0, 'E': 2.0, 'F': 7.0, 'G': 2.0, 'H': 2.0, 'J': 6.0, 'K': 10.0, 'L': 2.0, 'M': 6.0, 'N': 2.0, 'P': 6.0, 'Q': 2.0, 'T': 2.0, 'W': 6.0, 'X': 10.0, 'Y': 2.0}
     for zone, group in df_locs.groupby('zone'):
@@ -364,47 +293,22 @@ def generate_html():
         target_text_z = group['Z'].max() + LVL_HEIGHT + ZONE_Z_OFFSET_MAP.get(zone, 2.0)
         fig.add_trace(go.Scatter3d(x=[mean_x], y=[mean_y], z=[target_text_z], mode='text', text=[f"{zone}区"], textposition="top center", textfont=dict(size=19, color="#0F172A"), showlegend=False, hoverinfo='skip'))
 
-    fig.update_layout(
-        autosize=True, margin=dict(l=0, r=0, b=0, t=0), paper_bgcolor='#F8FAFC', 
-        scene=dict(
-            xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectmode='data', 
-            camera=dict(projection=dict(type="orthographic"), eye=dict(x=-0.8, y=-0.8, z=3.5), up=dict(x=0, y=0, z=1)), 
-            hovermode='closest'
-        ), 
-        dragmode="turntable"
-    )
-
-    html_content = fig.to_html(
-        include_plotlyjs='cdn', 
-        config={'scrollZoom': True, 'responsive': True, 'displayModeBar': False, 'doubleClick': 'reset'}
-    )
-
+    fig.update_layout(autosize=True, margin=dict(l=0, r=0, b=0, t=0), paper_bgcolor='#F8FAFC', scene=dict(xaxis=dict(visible=False), yaxis=dict(visible=False), zaxis=dict(visible=False), aspectmode='data', camera=dict(projection=dict(type="orthographic"), eye=dict(x=-0.8, y=-0.8, z=3.5), up=dict(x=0, y=0, z=1)), hovermode='closest'), dragmode="turntable")
+    html_content = fig.to_html(include_plotlyjs='cdn', config={'scrollZoom': True, 'responsive': True, 'displayModeBar': False, 'doubleClick': 'reset'})
     cache_buster_meta = '''<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"> <meta http-equiv="Pragma" content="no-cache"> <meta http-equiv="Expires" content="0">'''
     html_content = html_content.replace('<head>', '<head>' + cache_buster_meta)
 
     print("🎛️ [4/4] 正在编译前端交互引擎... ")
-    # 使用新西兰时间（自动处理夏令时）
-    nz_tz = pytz.timezone('Pacific/Auckland')
-    nz_now = datetime.datetime.now(nz_tz)
+    nz_now = datetime.datetime.now(ZoneInfo('Pacific/Auckland'))
     data_timestamp = nz_now.strftime('%Y-%m-%d %H:%M:%S')
 
     js_global_colors_string = json.dumps(GLOBAL_BRAND_COLORS)
-    js_array_string = json.dumps(python_to_js_cache)   
+    js_array_string = json.dumps(python_to_js_cache)
+    js_actual_total_stats = json.dumps(actual_total_stats)
+    js_actual_total_qty = json.dumps(actual_total_qty)
 
-    default_config_list = [
-        {"org_name": "LINSY", "color": "#D68F68", "label": "LINSY"}, 
-        {"org_name": "A区 (oversize沙发区)", "color": "#7DA28A", "label": "A区 (oversize沙发区)"},
-        {"org_name": "B区 (沙发 Backup区)", "color": "#6C8EA4", "label": "B区 (沙发 Backup区)"}, 
-        {"org_name": "G区不良品区", "color": "#949BA2", "label": "G区不良品区"},
-        {"org_name": "Replica 区域", "color": "#D4CBBE", "label": "Replica 区域"}, 
-        {"org_name": "MODE 椅子区", "color": "#9E7E73", "label": "MODE 椅子区"},
-        {"org_name": "LOFT 区", "color": "#8B7AA3", "label": "LOFT 区"}, 
-        {"org_name": "Solidwood 区", "color": "#C29B85", "label": "Solidwood 区"},
-        {"org_name": "Boori区", "color": "#C87284", "label": "Boori区"}, 
-        {"org_name": "BOHOBOHO & Alpaka & Boori区", "color": "#2C2D30", "label": "BOHOBOHO & Alpaka & Boori区"},
-        {"org_name": "补件区", "color": "#8A5A58", "label": "补件区"}, 
-        {"org_name": "loft & solidwood backup区", "color": "#EEDCA5", "label": "loft & solidwood backup区"}
-    ]
+    default_config_list = [{"org_name": "LINSY", "color": "#D68F68", "label": "LINSY"}, {"org_name": "A区 (oversize沙发区)", "color": "#7DA28A", "label": "A区 (oversize沙发区)"}, {"org_name": "B区 (沙发 Backup区)", "color": "#6C8EA4", "label": "B区 (沙发 Backup区)"}, {"org_name": "G区不良品区", "color": "#949BA2", "label": "G区不良品区"}, {"org_name": "Replica 区域", "color": "#D4CBBE", "label": "Replica 区域"}, {"org_name": "MODE 椅子区", "color": "#9E7E73", "label": "MODE 椅子区"}, {"org_name": "LOFT 区", "color": "#8B7AA3", "label": "LOFT 区"}, {"org_name": "Solidwood 区", "color": "#C29B85", "label": "Solidwood 区"}, {"org_name": "Boori区", "color": "#C87284", "label": "Boori区"}, {"org_name": "BOHOBOHO & Alpaka & Boori区", "color": "#2C2D30", "label": "BOHOBOHO & Alpaka & Boori区"}, {"org_name": "补件区", "color": "#8A5A58", "label": "补件区"}, {"org_name": "loft & solidwood backup区", "color": "#EEDCA5", "label": "loft & solidwood backup区"}]
+    
     final_runtime_config = cloud_runtime_config if cloud_runtime_config else default_config_list
     final_cell_override_db = cloud_cell_override_db if cloud_cell_override_db else {}  
     final_actual_colors = cloud_actual_colors if cloud_actual_colors else {}
@@ -421,10 +325,8 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 .switch-btn { flex: 1; padding: 8px; font-size: 11px; font-weight: bold; border: 2px solid #CBD5E1; cursor: pointer; transition: all 0.2s ease; text-align: center; border-radius: 6px; background: #FFFFFF; color: #64748B; }
 .switch-btn.active { background: #10B981; color: white; border-color: #047857; }
 .switch-btn.active-actual { background: #3B82F6; color: white; border-color: #1D4ED8; }
-
 #super-legend-panel { transition: transform 0.3s ease; max-height: 80vh; }
 #nav-toggle-btn { position: absolute; top: 10px; left: 10px; z-index: 10001; background: #3B82F6; color: white; border: none; border-radius: 8px; padding: 8px 12px; font-size: 14px; cursor: pointer; display: none; }
-
 @media (max-width: 768px) {
 #nav-toggle-btn { display: block; }
 #super-legend-panel { width: 85vw !important; max-width: 300px !important; transform: translateX(-120%); opacity: 0; }
@@ -432,26 +334,12 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 #data-timestamp-box { top: 10px !important; right: 10px !important; padding: 5px 8px !important; }
 #data-timestamp { font-size: 10px !important; }
 }
-
-#control-panel {
-position: absolute; bottom: 20px; right: 20px; z-index: 10000;
-background: rgba(255,255,255,0.95); border-radius: 12px; padding: 8px;
-box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 6px; border: 1px solid #E2E8F0;
-}
+#control-panel { position: absolute; bottom: 20px; right: 20px; z-index: 10000; background: rgba(255,255,255,0.95); border-radius: 12px; padding: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 6px; border: 1px solid #E2E8F0; }
 .control-row { display: flex; gap: 6px; }
-.ctrl-btn {
-flex: 1; padding: 10px 0; border: 1px solid #CBD5E1; background: white; border-radius: 8px;
-cursor: pointer; font-size: 16px; font-weight: bold; color: #475569; transition: all 0.2s;
-display: flex; justify-content: center; align-items: center;
-}
+.ctrl-btn { flex: 1; padding: 10px 0; border: 1px solid #CBD5E1; background: white; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; color: #475569; transition: all 0.2s; display: flex; justify-content: center; align-items: center; }
 .ctrl-btn:active { transform: scale(0.95); }
 .ctrl-btn.active { background: #3B82F6; color: white; border-color: #2563EB; }
-
-@media (max-width: 768px) {
-#control-panel { bottom: 10px; right: 10px; padding: 6px; }
-.ctrl-btn { padding: 12px 0; font-size: 18px; }
-}
-
+@media (max-width: 768px) { #control-panel { bottom: 10px; right: 10px; padding: 6px; } .ctrl-btn { padding: 12px 0; font-size: 18px; } }
 .locked { display: none !important; }
 #pwd-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100002; justify-content: center; align-items: center; }
 .pwd-box { background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; }
@@ -509,6 +397,8 @@ display: flex; justify-content: center; align-items: center;
 let runtime_config = SERVER_CONFIG_INJECT_PLACEHOLDER;
 let cell_override_db = SERVER_OVERRIDES_INJECT_PLACEHOLDER;
 let actual_brand_colors = ACTUAL_COLORS_INJECT_PLACEHOLDER;
+let actual_total_stats = ACTUAL_TOTAL_STATS_PLACEHOLDER;
+let actual_total_qty = ACTUAL_TOTAL_QTY_PLACEHOLDER;
 if (!actual_brand_colors) actual_brand_colors = {};
 
 const CONFIG_API_URL = CONFIG_API_URL_PLACEHOLDER;
@@ -545,42 +435,27 @@ const firstComma = line.indexOf(',');
 if (firstComma === -1) continue;
 const key = line.substring(0, firstComma).trim();
 let val = line.substring(firstComma + 1).trim();
-if (val.startsWith('"') && val.endsWith('"')) {
-val = val.substring(1, val.length - 1).replace(/""/g, '"');
-}
+if (val.startsWith('"') && val.endsWith('"')) val = val.substring(1, val.length - 1).replace(/""/g, '"');
 if (key === 'runtime_config' && val) runtime_config = JSON.parse(val);
 else if (key === 'cell_override_db' && val) cell_override_db = JSON.parse(val);
-else if (key === 'actual_brand_colors' && val) {
-actual_brand_colors = JSON.parse(val);
-Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors);
+else if (key === 'actual_brand_colors' && val) { actual_brand_colors = JSON.parse(val); Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors); }
 }
-}
-console.log("✅ 云端配置加载成功！ ");
-renderControlPanel();
-applyAllDBCacheToCanvas();
-lockAllEditBtns(); 
-} catch (e) {
-console.warn("⚠️ 加载云端配置失败: ", e);
-}
+renderControlPanel(); applyAllDBCacheToCanvas(); lockAllEditBtns(); 
+} catch (e) { console.warn("⚠️ 加载云端配置失败: ", e); }
 }
 
 function syncConfigToCloud() {
 localStorage.setItem("warehouse_twin_master_2026", JSON.stringify(runtime_config));
 localStorage.setItem("warehouse_twin_cell_overrides_2026", JSON.stringify(cell_override_db));
 localStorage.setItem("warehouse_twin_actual_colors_2026", JSON.stringify(actual_brand_colors));
-
 if (!CONFIG_API_URL || CONFIG_API_URL === 'null') return;
-fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'runtime_config', value: runtime_config }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(err => console.error('Sync runtime_config failed:', err));
-fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'cell_override_db', value: cell_override_db }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(err => console.error('Sync cell_override_db failed:', err));
-fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'actual_brand_colors', value: actual_brand_colors }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(err => console.error('Sync actual_brand_colors failed:', err));
+fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'runtime_config', value: runtime_config }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(err => console.error('Sync failed:', err));
+fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'cell_override_db', value: cell_override_db }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(err => console.error('Sync failed:', err));
+fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'actual_brand_colors', value: actual_brand_colors }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } }).catch(err => console.error('Sync failed:', err));
 }
 
-setInterval(function() {
-let now = new Date(); let minute = now.getMinutes();
-if (minute % 30 == 0 && now.getSeconds() < 10) { window.location.href = window.location.pathname + '?t=' + Date.now(); }
-}, 5000);
-
-function forceRefreshData() { if(confirm("确定刷新？ ")) { window.location.href = window.location.pathname + '?t=' + Date.now(); } }
+setInterval(function() { let now = new Date(); let minute = now.getMinutes(); if (minute % 30 == 0 && now.getSeconds() < 10) { window.location.href = window.location.pathname + '?t=' + Date.now(); } }, 5000);
+function forceRefreshData() { if(confirm("确定刷新？")) { window.location.href = window.location.pathname + '?t=' + Date.now(); } }
 
 function switchGlobalView(viewMode) {
 GLOBAL_CURRENT_VIEW = viewMode;
@@ -591,14 +466,14 @@ document.getElementById("legend-panel-title").innerText = "📊 预期规划品�
 document.getElementById("planning-tools-box").style.display = "block"; 
 document.getElementById("add-brand-btn").style.display = "block";
 } else { 
-document.getElementById("legend-panel-title").innerText = "🔍 实盘现存品牌清点"; 
+document.getElementById("legend-panel-title").innerText = "🔍 实盘现存品牌清点 (全量)"; 
 document.getElementById("planning-tools-box").style.display = "none"; 
 document.getElementById("add-brand-btn").style.display = "none";
 }
 applyAllDBCacheToCanvas(); renderControlPanel();
 }
 
-// 🌟 核心修改：统计实际库存数量与百分比
+// 🌟 核心修改：使用全量统计数据渲染看板
 function renderControlPanel() {
     const listContainer = document.getElementById("legend-list"); 
     listContainer.innerHTML = "";
@@ -606,357 +481,137 @@ function renderControlPanel() {
     if (GLOBAL_CURRENT_VIEW === "PLAN") { 
         runtime_config.forEach(item => appendLegendRow(listContainer, item.label, item.color, item.org_name)); 
     } else {
-        let brandStats = {};
-        let totalQty = 0;
-        
-        server_data_cache.forEach(node => {
-            (node.slices || []).forEach(sl => {
-                if (sl.brand === '[当前空置]') return;
-                
-                if (sl.brand === '[⚠️超过4品牌严重混放]') {
-                    (sl.items || []).forEach(it => {
-                        let b = it.brand;
-                        let q = parseInt(it.qty) || 0;
-                        if (b) {
-                            if (!brandStats[b]) brandStats[b] = { qty: 0, color: GLOBAL_COLOR_POOL[b] || '#CBD5E1' };
-                            brandStats[b].qty += q;
-                            totalQty += q;
-                        }
-                    });
-                } else {
-                    let b = sl.brand;
-                    let q = 0;
-                    (sl.items || []).forEach(it => {
-                        q += (parseInt(it.qty) || 0);
-                    });
-                    if (!brandStats[b]) brandStats[b] = { qty: 0, color: GLOBAL_COLOR_POOL[b] || sl.color };
-                    brandStats[b].qty += q;
-                    totalQty += q;
-                }
-            });
-        });
-        
-        // 按数量降序排列
-        let sortedBrands = Object.keys(brandStats).sort((a, b) => brandStats[b].qty - brandStats[a].qty);
+        let sortedBrands = Object.keys(actual_total_stats).sort((a, b) => actual_total_stats[b] - actual_total_stats[a]);
         
         sortedBrands.forEach(bName => {
-            let stat = brandStats[bName];
-            let percent = totalQty > 0 ? ((stat.qty / totalQty) * 100).toFixed(1) : '0.0';
-            appendLegendRow(listContainer, bName, stat.color, bName, stat.qty, percent + '%');
+            let qty = actual_total_stats[bName];
+            let percent = actual_total_qty > 0 ? ((qty / actual_total_qty) * 100).toFixed(1) : '0.0';
+            let color = GLOBAL_COLOR_POOL[bName] || '#CBD5E1';
+            appendLegendRow(listContainer, bName, color, bName, qty, percent + '%');
         });
         
-        // 底部总计行
         let totalRow = document.createElement("div");
         totalRow.style.cssText = "display:flex; justify-content:space-between; padding:6px 8px; font-size:12px; font-weight:bold; color:#0F172A; border-top:2px solid #CBD5E1; margin-top:6px; background:#F1F5F9; border-radius:4px;";
-        totalRow.innerHTML = `<span>📦 总库存数量</span><span>${totalQty.toLocaleString()}</span>`;
+        totalRow.innerHTML = `<span>📦 仓库总库存 (全量)</span><span>${actual_total_qty.toLocaleString()}</span>`;
         listContainer.appendChild(totalRow);
     }
 }
 
-// 🌟 核心修改：支持显示数量和百分比
 function appendLegendRow(container, name, color, orgName, qty, percent) {
-    const row = document.createElement("div"); 
-    row.style.cssText = "display:flex; align-items:center; gap:6px; background:#F8FAFC; padding:5px 8px; border-radius:6px; border:1px solid #E2E8F0;";
-    
-    const colorBox = document.createElement("div"); 
-    colorBox.style.cssText = `width:22px; height:20px; border-radius:4px; border:1px solid #CBD5E1; background:${color}; cursor:pointer; flex-shrink:0;`;
+    const row = document.createElement("div"); row.style.cssText = "display:flex; align-items:center; gap:6px; background:#F8FAFC; padding:5px 8px; border-radius:6px; border:1px solid #E2E8F0;";
+    const colorBox = document.createElement("div"); colorBox.style.cssText = `width:22px; height:20px; border-radius:4px; border:1px solid #CBD5E1; background:${color}; cursor:pointer; flex-shrink:0;`;
     colorBox.onclick = function(e) {
         e.stopPropagation();
-        if (!isUnlocked) {
-            alert('🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！');
-            return;
-        }
-        const input = document.createElement('input');
-        input.type = 'color';
-        input.value = color;
-        input.style.opacity='0';
+        if (!isUnlocked) { alert('🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！'); return; }
+        const input = document.createElement('input'); input.type = 'color'; input.value = color; input.style.opacity='0';
         input.onchange = function() { updateBrandColor(orgName || name, input.value); };
-        colorBox.appendChild(input);
-        input.click();
+        colorBox.appendChild(input); input.click();
     };
-    
-    const label = document.createElement("span"); 
-    label.style.cssText = "font-size:11px; font-weight:bold; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"; 
-    label.innerText = name;
-    label.title = name;
-    
-    let statsSpan = document.createElement("span");
-    statsSpan.style.cssText = "font-size:10px; color:#64748B; white-space:nowrap; flex-shrink:0;";
-    if (qty !== undefined && percent !== undefined) {
-        statsSpan.innerText = `${qty.toLocaleString()} (${percent})`;
-    }
+    const label = document.createElement("span"); label.style.cssText = "font-size:11px; font-weight:bold; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"; label.innerText = name; label.title = name;
+    let statsSpan = document.createElement("span"); statsSpan.style.cssText = "font-size:10px; color:#64748B; white-space:nowrap; flex-shrink:0;";
+    if (qty !== undefined && percent !== undefined) statsSpan.innerText = `${qty.toLocaleString()} (${percent})`;
 
     let editBtn = document.createElement("button"); editBtn.innerText = "✏️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
     let delBtn = document.createElement("button"); delBtn.innerText = "🗑️"; delBtn.className = "lockable"; delBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`删除 "${name}"?`)) deleteBrand(orgName || name); };
     let resetBtn = document.createElement("button"); resetBtn.innerText = "🔄"; resetBtn.className = "lockable"; resetBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`恢复 "${name}"?`)) resetBrandLocations(orgName || name); };
 
-    row.appendChild(colorBox); 
-    row.appendChild(label);
+    row.appendChild(colorBox); row.appendChild(label);
     if (qty !== undefined) row.appendChild(statsSpan);
-    
-    if (GLOBAL_CURRENT_VIEW === 'PLAN') { 
-        row.appendChild(editBtn); 
-        row.appendChild(delBtn); 
-        row.appendChild(resetBtn); 
-    }
+    if (GLOBAL_CURRENT_VIEW === 'PLAN') { row.appendChild(editBtn); row.appendChild(delBtn); row.appendChild(resetBtn); }
     container.appendChild(row);
 }
 
-function deleteBrand(brandName) { 
-runtime_config = runtime_config.filter(c => c.org_name !== brandName);
-applyAllDBCacheToCanvas(); 
-renderControlPanel(); 
-syncConfigToCloud();
-}
-
+function deleteBrand(brandName) { runtime_config = runtime_config.filter(c => c.org_name !== brandName); applyAllDBCacheToCanvas(); renderControlPanel(); syncConfigToCloud(); }
 function editBrand(brand) {
-let locs = [];
-server_data_cache.forEach(node => {
-let currentBrand = node.native_brand;
-if (cell_override_db[node.loc]) currentBrand = cell_override_db[node.loc].org_name;
-if (currentBrand === brand) locs.push(node.loc);
-});
-document.getElementById('target-loc').value = formatLocsToRange(locs);
-document.getElementById('new-brand').value = brand;
-let conf = runtime_config.find(c => c.org_name === brand || c.label === brand);
-document.getElementById('new-color').value = (conf && conf.color !== 'transparent') ? conf.color : "#FFFFFF";
-document.getElementById('planning-tools-box').scrollIntoView({behavior: 'smooth'}); 
+    let locs = [];
+    server_data_cache.forEach(node => { let currentBrand = node.native_brand; if (cell_override_db[node.loc]) currentBrand = cell_override_db[node.loc].org_name; if (currentBrand === brand) locs.push(node.loc); });
+    document.getElementById('target-loc').value = formatLocsToRange(locs); document.getElementById('new-brand').value = brand;
+    let conf = runtime_config.find(c => c.org_name === brand || c.label === brand);
+    document.getElementById('new-color').value = (conf && conf.color !== 'transparent') ? conf.color : "#FFFFFF";
+    document.getElementById('planning-tools-box').scrollIntoView({behavior: 'smooth'}); 
 }
-
-function resetBrandLocations(brand) { 
-server_data_cache.forEach(node => { if (node.native_brand === brand) delete cell_override_db[node.loc]; }); 
-applyAllDBCacheToCanvas(); 
-syncConfigToCloud(); 
-}
-
+function resetBrandLocations(brand) { server_data_cache.forEach(node => { if (node.native_brand === brand) delete cell_override_db[node.loc]; }); applyAllDBCacheToCanvas(); syncConfigToCloud(); }
 function formatLocsToRange(locs) { 
-if (!locs || locs.length === 0) return ""; 
-let parsed = locs.map(l => { let m = l.match(/^([A-Z]+)(\\d+)-(\\d+)$/); return m ? { raw: l, z: m[1], c: parseInt(m[2]), l: parseInt(m[3]) } : { raw: l, z: l, c: 0, l: 0 }; }); 
-parsed.sort((a, b) => a.z.localeCompare(b.z) || a.c - b.c || a.l - b.l); 
-let ranges = [], i = 0; 
-while (i < parsed.length) { 
-let start = parsed[i], end = parsed[i]; 
-while (i + 1 < parsed.length && parsed[i+1].z === start.z && parsed[i+1].c === start.c && parsed[i+1].l === end.l + 1) { i++; end = parsed[i]; } 
-ranges.push(start.raw === end.raw ? start.raw : `${start.raw}~${end.raw}`); 
-i++; 
-} 
-return ranges.join(", "); 
+    if (!locs || locs.length === 0) return ""; 
+    let parsed = locs.map(l => { let m = l.match(/^([A-Z]+)(\\d+)-(\\d+)$/); return m ? { raw: l, z: m[1], c: parseInt(m[2]), l: parseInt(m[3]) } : { raw: l, z: l, c: 0, l: 0 }; }); 
+    parsed.sort((a, b) => a.z.localeCompare(b.z) || a.c - b.c || a.l - b.l); 
+    let ranges = [], i = 0; 
+    while (i < parsed.length) { let start = parsed[i], end = parsed[i]; while (i + 1 < parsed.length && parsed[i+1].z === start.z && parsed[i+1].c === start.c && parsed[i+1].l === end.l + 1) { i++; end = parsed[i]; } ranges.push(start.raw === end.raw ? start.raw : `${start.raw}~${end.raw}`); i++; } 
+    return ranges.join(", "); 
 }
-
 function updateBrandColor(brand, newColor) { 
-let conf = runtime_config.find(c => c.org_name === brand); 
-if (conf) {
-conf.color = newColor; 
-} else {
-actual_brand_colors[brand] = newColor;
+    let conf = runtime_config.find(c => c.org_name === brand); 
+    if (conf) conf.color = newColor; else actual_brand_colors[brand] = newColor;
+    GLOBAL_COLOR_POOL[brand] = newColor; applyAllDBCacheToCanvas(); renderControlPanel(); syncConfigToCloud(); 
 }
-GLOBAL_COLOR_POOL[brand] = newColor; 
-applyAllDBCacheToCanvas(); 
-renderControlPanel(); 
-syncConfigToCloud(); 
-}
-
 function applyAllDBCacheToCanvas() { 
-var gd = document.getElementsByClassName('plotly-graph-div')[0]; if(!gd) return; 
-let originalTraces = gd.data, basePlatformAndScatters = [], shelfCubesMap = {}; 
-for(let i=0; i<originalTraces.length; i++) { 
-let t = originalTraces[i]; 
-if(t.name === '_SHELF_CUBE_' || t.name === '_DYNAMIC_SLICE_') { if(t.customdata) shelfCubesMap[t.customdata[0]] = t; } 
-else basePlatformAndScatters.push(t); 
-} 
-let finalDynamicTraces = [...basePlatformAndScatters]; 
-server_data_cache.forEach(node => { 
-let locID = node.loc, templateCube = shelfCubesMap[locID]; 
-if(!templateCube) return; 
-let zChar = locID.match(/[A-Z]+/)[0]; 
-if (GLOBAL_CURRENT_VIEW === "PLAN") { 
-let targetColor = node.native_color, targetLabel = node.native_brand; 
-if(cell_override_db[locID]) { targetColor = cell_override_db[locID].color; targetLabel = cell_override_db[locID].label; } 
-else { 
-let parentConf = runtime_config.find(c => c.org_name === node.native_brand); 
-if(parentConf) { targetColor = parentConf.color || GLOBAL_COLOR_POOL[parentConf.org_name]; targetLabel = parentConf.label; } 
-else { targetColor = GLOBAL_COLOR_POOL[node.native_brand] || node.native_color; targetLabel = node.native_brand; } 
-} 
-templateCube.color = targetColor; 
-templateCube.name = '_SHELF_CUBE_'; 
-templateCube.z = node.orig_z; 
-templateCube.text = Array(8).fill(`<b>${locID}</b><br>${targetLabel}`); 
-finalDynamicTraces.push(templateCube); 
-} else { 
-let slices = node.slices || []; 
-var origZ = node.orig_z; 
-var minZ = Math.min(...origZ), maxZ = Math.max(...origZ), fullHeight = maxZ - minZ; 
-for(let s=0; s<slices.length; s++) { 
-let currentSlice = slices[s], segmentHeight = fullHeight / slices.length; 
-let sliceMinZ = minZ + (s * segmentHeight), sliceMaxZ = sliceMinZ + segmentHeight; 
-let currentZArray = [...origZ]; 
-for(let v=0; v<8; v++) { if(origZ[v] === minZ) currentZArray[v] = sliceMinZ; else currentZArray[v] = sliceMaxZ; } 
-let sliceColor = GLOBAL_COLOR_POOL[currentSlice.brand] || currentSlice.color; 
-let hoverHTML = `<b>${locID}</b><br>${currentSlice.brand}<br>`; 
-currentSlice.items.forEach(it => { hoverHTML += `${it.sku}: ${it.qty}<br>`; }); 
-finalDynamicTraces.push({ 
-type: 'mesh3d', x: templateCube.x, y: templateCube.y, z: currentZArray, 
-i: templateCube.i, j: templateCube.j, k: templateCube.k, 
-color: sliceColor, customdata: Array(8).fill(locID), text: Array(8).fill(hoverHTML), 
-name: '_DYNAMIC_SLICE_', hoverinfo: 'text', showlegend: false 
-}); 
-} 
-} 
-}); 
-gd.data = finalDynamicTraces; 
-Plotly.redraw(gd); 
+    var gd = document.getElementsByClassName('plotly-graph-div')[0]; if(!gd) return; 
+    let originalTraces = gd.data, basePlatformAndScatters = [], shelfCubesMap = {}; 
+    for(let i=0; i<originalTraces.length; i++) { let t = originalTraces[i]; if(t.name === '_SHELF_CUBE_' || t.name === '_DYNAMIC_SLICE_') { if(t.customdata) shelfCubesMap[t.customdata[0]] = t; } else basePlatformAndScatters.push(t); } 
+    let finalDynamicTraces = [...basePlatformAndScatters]; 
+    server_data_cache.forEach(node => { 
+        let locID = node.loc, templateCube = shelfCubesMap[locID]; if(!templateCube) return; 
+        if (GLOBAL_CURRENT_VIEW === "PLAN") { 
+            let targetColor = node.native_color, targetLabel = node.native_brand; 
+            if(cell_override_db[locID]) { targetColor = cell_override_db[locID].color; targetLabel = cell_override_db[locID].label; } 
+            else { let parentConf = runtime_config.find(c => c.org_name === node.native_brand); if(parentConf) { targetColor = parentConf.color || GLOBAL_COLOR_POOL[parentConf.org_name]; targetLabel = parentConf.label; } else { targetColor = GLOBAL_COLOR_POOL[node.native_brand] || node.native_color; targetLabel = node.native_brand; } } 
+            templateCube.color = targetColor; templateCube.name = '_SHELF_CUBE_'; templateCube.z = node.orig_z; templateCube.text = Array(8).fill(`<b>${locID}</b><br>${targetLabel}`); finalDynamicTraces.push(templateCube); 
+        } else { 
+            let slices = node.slices || []; var origZ = node.orig_z; var minZ = Math.min(...origZ), maxZ = Math.max(...origZ), fullHeight = maxZ - minZ; 
+            for(let s=0; s<slices.length; s++) { 
+                let currentSlice = slices[s], segmentHeight = fullHeight / slices.length; let sliceMinZ = minZ + (s * segmentHeight), sliceMaxZ = sliceMinZ + segmentHeight; 
+                let currentZArray = [...origZ]; for(let v=0; v<8; v++) { if(origZ[v] === minZ) currentZArray[v] = sliceMinZ; else currentZArray[v] = sliceMaxZ; } 
+                let sliceColor = GLOBAL_COLOR_POOL[currentSlice.brand] || currentSlice.color; let hoverHTML = `<b>${locID}</b><br>${currentSlice.brand}<br>`; 
+                currentSlice.items.forEach(it => { hoverHTML += `${it.sku}: ${it.qty}<br>`; }); 
+                finalDynamicTraces.push({ type: 'mesh3d', x: templateCube.x, y: templateCube.y, z: currentZArray, i: templateCube.i, j: templateCube.j, k: templateCube.k, color: sliceColor, customdata: Array(8).fill(locID), text: Array(8).fill(hoverHTML), name: '_DYNAMIC_SLICE_', hoverinfo: 'text', showlegend: false }); 
+            } 
+        } 
+    }); gd.data = finalDynamicTraces; Plotly.redraw(gd); 
 }
-
 function parseSinglePattern(pat, locID) { 
-pat = pat.trim().toUpperCase(); if (!pat) return false; 
-if (pat.includes('~')) { 
-let parts = pat.split('~'); 
-if (parts.length === 2) { 
-let mS = parts[0].match(/^([A-Z]+)(\\d+)-(\\d+)$/), mE = parts[1].match(/^([A-Z]+)(\\d+)-(\\d+)$/), mL = locID.match(/^([A-Z]+)(\\d+)-(\\d+)$/); 
-if (mS && mE && mL && mL[1] === mS[1]) { 
-return (parseInt(mL[2]) >= Math.min(parseInt(mS[2]), parseInt(mE[2])) && parseInt(mL[2]) <= Math.max(parseInt(mS[2]), parseInt(mE[2])) && parseInt(mL[3]) >= Math.min(parseInt(mS[3]), parseInt(mE[3])) && parseInt(mL[3]) <= Math.max(parseInt(mS[3]), parseInt(mE[3]))); 
-} 
-} 
-} 
-return locID === pat; 
+    pat = pat.trim().toUpperCase(); if (!pat) return false; 
+    if (pat.includes('~')) { let parts = pat.split('~'); if (parts.length === 2) { let mS = parts[0].match(/^([A-Z]+)(\\d+)-(\\d+)$/), mE = parts[1].match(/^([A-Z]+)(\\d+)-(\\d+)$/), mL = locID.match(/^([A-Z]+)(\\d+)-(\\d+)$/); if (mS && mE && mL && mL[1] === mS[1]) return (parseInt(mL[2]) >= Math.min(parseInt(mS[2]), parseInt(mE[2])) && parseInt(mL[2]) <= Math.max(parseInt(mS[2]), parseInt(mE[2])) && parseInt(mL[3]) >= Math.min(parseInt(mS[3]), parseInt(mE[3])) && parseInt(mL[3]) <= Math.max(parseInt(mS[3]), parseInt(mE[3]))); } } 
+    return locID === pat; 
 }
-
 function applyLocationChange() { 
-let raw = document.getElementById('target-loc').value.trim(), brand = document.getElementById('new-brand').value.trim(), color = document.getElementById('new-color').value; 
-if(!raw || !brand) return; 
-let pats = raw.split(','); 
-let exist = runtime_config.some(c => c.org_name === brand); 
-let fOrg = exist ? runtime_config.find(c => c.org_name === brand).org_name : brand; 
-
-if (!exist) {
-runtime_config.push({ org_name: brand, color: color, label: brand }); 
-} else {
-let conf = runtime_config.find(c => c.org_name === brand);
-if(conf) conf.color = color;
+    let raw = document.getElementById('target-loc').value.trim(), brand = document.getElementById('new-brand').value.trim(), color = document.getElementById('new-color').value; 
+    if(!raw || !brand) return; let pats = raw.split(','); let exist = runtime_config.some(c => c.org_name === brand); let fOrg = exist ? runtime_config.find(c => c.org_name === brand).org_name : brand; 
+    if (!exist) runtime_config.push({ org_name: brand, color: color, label: brand }); else { let conf = runtime_config.find(c => c.org_name === brand); if(conf) conf.color = color; }
+    GLOBAL_COLOR_POOL[fOrg] = color; server_data_cache.forEach(node => { if(pats.some(p => parseSinglePattern(p, node.loc))) cell_override_db[node.loc] = { org_name: fOrg, label: brand, color: color }; }); 
+    document.getElementById('target-loc').value = ""; document.getElementById('new-brand').value = ""; applyAllDBCacheToCanvas(); renderControlPanel(); syncConfigToCloud(); 
 }
-
-GLOBAL_COLOR_POOL[fOrg] = color; 
-server_data_cache.forEach(node => { if(pats.some(p => parseSinglePattern(p, node.loc))) cell_override_db[node.loc] = { org_name: fOrg, label: brand, color: color }; }); 
-document.getElementById('target-loc').value = ""; document.getElementById('new-brand').value = ""; 
-applyAllDBCacheToCanvas(); renderControlPanel(); 
-syncConfigToCloud(); 
-}
-
 function addNewBrand() {
-let brandName = prompt("请输入新品牌名称：");
-if (!brandName || !brandName.trim()) return;
-brandName = brandName.trim();
-if (runtime_config.some(c => c.org_name === brandName)) {
-alert("该品牌已存在于规划中！");
-return;
+    let brandName = prompt("请输入新品牌名称："); if (!brandName || !brandName.trim()) return; brandName = brandName.trim();
+    if (runtime_config.some(c => c.org_name === brandName)) { alert("该品牌已存在于规划中！"); return; }
+    let colorHex = prompt("请输入品牌颜色 HEX 值 (如 #FF5733)，或留空使用默认蓝色：", "#3B82F6"); if (colorHex === null) return; if (!colorHex.trim()) colorHex = "#3B82F6";
+    runtime_config.push({ org_name: brandName, color: colorHex, label: brandName }); GLOBAL_COLOR_POOL[brandName] = colorHex; applyAllDBCacheToCanvas(); renderControlPanel(); syncConfigToCloud();
 }
-let colorHex = prompt("请输入品牌颜色 HEX 值 (如 #FF5733)，或留空使用默认蓝色：", "#3B82F6");
-if (colorHex === null) return; 
-if (!colorHex.trim()) colorHex = "#3B82F6";
-
-runtime_config.push({ org_name: brandName, color: colorHex, label: brandName });
-GLOBAL_COLOR_POOL[brandName] = colorHex;
-applyAllDBCacheToCanvas();
-renderControlPanel();
-syncConfigToCloud();
-}
-
 function resetToDefault() { 
-if(confirm("确定要恢复所有初始规划并清除本地和云端保存的修改吗？ ")) { 
-if (CONFIG_API_URL) {
-fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'runtime_config', value: [] }), headers: { 'Content-Type': 'text/plain' } });
-fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'cell_override_db', value: {} }), headers: { 'Content-Type': 'text/plain' } });
-fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'actual_brand_colors', value: {} }), headers: { 'Content-Type': 'text/plain' } });
+    if(confirm("确定要恢复所有初始规划并清除本地和云端保存的修改吗？")) { 
+        if (CONFIG_API_URL) { fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'runtime_config', value: [] }), headers: { 'Content-Type': 'text/plain' } }); fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'cell_override_db', value: {} }), headers: { 'Content-Type': 'text/plain' } }); fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ key: 'actual_brand_colors', value: {} }), headers: { 'Content-Type': 'text/plain' } }); }
+        localStorage.removeItem("warehouse_twin_master_2026"); localStorage.removeItem("warehouse_twin_cell_overrides_2026"); localStorage.removeItem("warehouse_twin_actual_colors_2026"); window.location.reload(); 
+    } 
 }
-localStorage.removeItem("warehouse_twin_master_2026");
-localStorage.removeItem("warehouse_twin_cell_overrides_2026");
-localStorage.removeItem("warehouse_twin_actual_colors_2026");
-window.location.reload(); 
-} 
-}
-
 function toggleNav() { document.getElementById('super-legend-panel').classList.toggle('nav-open'); }
-
 function setMode(mode, btn) {
-var gd = document.getElementsByClassName('plotly-graph-div')[0];
-if (!gd) return;
-var currentCamera = gd.layout.scene.camera || {eye: {x: -0.8, y: -0.8, z: 3.5}, center: {x: 0, y: 0, z: 0}, up: {x: 0, y: 0, z: 1}};
-if (btn.classList.contains('active')) {
-mode = 'turntable';
-document.getElementById('btn-rotate').classList.add('active');
-document.getElementById('btn-pan').classList.remove('active');
-} else {
-document.querySelectorAll('.ctrl-btn').forEach(b => { if(b.id.startsWith('btn-')) b.classList.remove('active'); });
-btn.classList.add('active');
+    var gd = document.getElementsByClassName('plotly-graph-div')[0]; if (!gd) return;
+    var currentCamera = gd.layout.scene.camera || {eye: {x: -0.8, y: -0.8, z: 3.5}, center: {x: 0, y: 0, z: 0}, up: {x: 0, y: 0, z: 1}};
+    if (btn.classList.contains('active')) { mode = 'turntable'; document.getElementById('btn-rotate').classList.add('active'); document.getElementById('btn-pan').classList.remove('active'); } else { document.querySelectorAll('.ctrl-btn').forEach(b => { if(b.id.startsWith('btn-')) b.classList.remove('active'); }); btn.classList.add('active'); }
+    var eye = currentCamera.eye; var center = currentCamera.center || {x: 0, y: 0, z: 0}; var slowFactor = (mode === 'pan') ? 2.0 : 0.5; 
+    var newEye = { x: center.x + (eye.x - center.x) * slowFactor, y: center.y + (eye.y - center.y) * slowFactor, z: center.z + (eye.z - center.z) * slowFactor };
+    var update = {'scene.dragmode': mode}; update['scene.camera.eye'] = newEye; update['scene.camera.center'] = center; update['scene.camera.up'] = currentCamera.up || {x: 0, y: 0, z: 1}; Plotly.relayout(gd, update);
 }
-var eye = currentCamera.eye;
-var center = currentCamera.center || {x: 0, y: 0, z: 0};
-var slowFactor = (mode === 'pan') ? 2.0 : 0.5; 
-var newEye = { x: center.x + (eye.x - center.x) * slowFactor, y: center.y + (eye.y - center.y) * slowFactor, z: center.z + (eye.z - center.z) * slowFactor };
-var update = {'scene.dragmode': mode};
-update['scene.camera.eye'] = newEye;
-update['scene.camera.center'] = center;
-update['scene.camera.up'] = currentCamera.up || {x: 0, y: 0, z: 1};
-Plotly.relayout(gd, update);
-}
-
 let currentScale = 1.0; 
-function zoomCamera(factor) {
-if (factor < 1) { currentScale = currentScale * 1.2; } else { currentScale = currentScale * 0.8; }
-if (currentScale > 3.0) currentScale = 3.0;
-if (currentScale < 0.5) currentScale = 0.5;
-var plotContainer = document.querySelector('.plotly-graph-div');
-if (plotContainer) {
-plotContainer.style.transform = `scale(${currentScale})`;
-plotContainer.style.transformOrigin = 'center center';
-}
-}
-
-function resetCamera() {
-currentScale = 1.0;
-var plotContainer = document.querySelector('.plotly-graph-div');
-if (plotContainer) { plotContainer.style.transform = 'scale(1)'; }
-var gd = document.getElementsByClassName('plotly-graph-div')[0];
-if (gd) { Plotly.relayout(gd, { 'scene.camera.eye': {x: -0.8, y: -0.8, z: 3.5}, 'scene.camera.center': {x: 0, y: 0, z: 0} }); }
-}
-
-const TARGET_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f"; 
-let isUnlocked = false;
-function showPwdModal() {
-if (isUnlocked) {
-isUnlocked = false; lockAllEditBtns();
-document.querySelector('#control-panel button:last-child').innerText = "🔒";
-} else {
-document.getElementById('pwd-modal').style.display = 'flex';
-document.getElementById('pwd-input').value = '';
-document.getElementById('pwd-input').focus();
-}
-}
+function zoomCamera(factor) { if (factor < 1) { currentScale = currentScale * 1.2; } else { currentScale = currentScale * 0.8; } if (currentScale > 3.0) currentScale = 3.0; if (currentScale < 0.5) currentScale = 0.5; var plotContainer = document.querySelector('.plotly-graph-div'); if (plotContainer) { plotContainer.style.transform = `scale(${currentScale})`; plotContainer.style.transformOrigin = 'center center'; } }
+function resetCamera() { currentScale = 1.0; var plotContainer = document.querySelector('.plotly-graph-div'); if (plotContainer) { plotContainer.style.transform = 'scale(1)'; } var gd = document.getElementsByClassName('plotly-graph-div')[0]; if (gd) { Plotly.relayout(gd, { 'scene.camera.eye': {x: -0.8, y: -0.8, z: 3.5}, 'scene.camera.center': {x: 0, y: 0, z: 0} }); } }
+const TARGET_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f"; let isUnlocked = false;
+function showPwdModal() { if (isUnlocked) { isUnlocked = false; lockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = "🔒"; } else { document.getElementById('pwd-modal').style.display = 'flex'; document.getElementById('pwd-input').value = ''; document.getElementById('pwd-input').focus(); } }
 function closePwdModal() { document.getElementById('pwd-modal').style.display = 'none'; }
-async function verifyPwd() {
-const pwd = document.getElementById('pwd-input').value;
-if (!pwd) return;
-const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd));
-const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-if (hashHex === TARGET_HASH) {
-isUnlocked = true; closePwdModal(); unlockAllEditBtns();
-document.querySelector('#control-panel button:last-child').innerText = "🔓";
-} else { alert('密码错误！'); }
-}
+async function verifyPwd() { const pwd = document.getElementById('pwd-input').value; if (!pwd) return; const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd)); const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join(''); if (hashHex === TARGET_HASH) { isUnlocked = true; closePwdModal(); unlockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = "🔓"; } else { alert('密码错误！'); } }
 function lockAllEditBtns() { document.querySelectorAll('.lockable').forEach(btn => btn.classList.add('locked')); }
 function unlockAllEditBtns() { document.querySelectorAll('.lockable').forEach(btn => btn.classList.remove('locked')); }
-
 if (window.innerWidth <= 768) { document.getElementById('super-legend-panel').classList.remove('nav-open'); }
-var checkPlotly = setInterval(function(){
-var gd = document.getElementsByClassName('plotly-graph-div')[0];
-if(gd && gd._fullLayout) { 
-clearInterval(checkPlotly); 
-renderControlPanel(); 
-applyAllDBCacheToCanvas(); 
-lockAllEditBtns(); 
-loadCloudConfig(); 
-}
-}, 400);
+var checkPlotly = setInterval(function(){ var gd = document.getElementsByClassName('plotly-graph-div')[0]; if(gd && gd._fullLayout) { clearInterval(checkPlotly); renderControlPanel(); applyAllDBCacheToCanvas(); lockAllEditBtns(); loadCloudConfig(); } }, 400);
 </script>
 '''
 
@@ -967,34 +622,25 @@ loadCloudConfig();
                                                            .replace("SERVER_DATA_INJECT_PLACEHOLDER", js_array_string)\
                                                            .replace("SERVER_COLORS_INJECT_PLACEHOLDER", js_global_colors_string)\
                                                            .replace("ACTUAL_COLORS_INJECT_PLACEHOLDER", js_actual_colors_string)\
+                                                           .replace("ACTUAL_TOTAL_STATS_PLACEHOLDER", js_actual_total_stats)\
+                                                           .replace("ACTUAL_TOTAL_QTY_PLACEHOLDER", js_actual_total_qty)\
                                                            .replace("DATA_TIMESTAMP_PLACEHOLDER", data_timestamp)
 
     final_html = html_content.replace("</body>", interactive_control_script + "</body>")
-    with open(OUTPUT_HTML, "w", encoding="utf-8") as f:
-        f.write(final_html)
+    with open(OUTPUT_HTML, "w", encoding="utf-8") as f: f.write(final_html)
 
-# ========================================================
-# 关键：根据运行环境自动选择模式
-# ========================================================
 if __name__ == "__main__":
     is_github_actions = os.environ.get('GITHUB_ACTIONS') == 'true'
     if is_github_actions:
         print("="*50)
         print(" GitHub Actions 模式：单次运行 ")
         print("="*50)
-        try:
-            generate_html()
-            print("✅ 沙盘更新完成！ ")
-        except Exception as e:
-            print(f" 生成失败: {e} ")
-            import traceback
-            traceback.print_exc()
-            exit(1)
+        try: generate_html(); print("✅ 沙盘更新完成！ ")
+        except Exception as e: print(f" 生成失败: {e} "); import traceback; traceback.print_exc(); exit(1)
     else:
         print("="*50)
         print(" 仓库沙盘双核系统已启动，进入后台监控模式... ")
         print("💡 程序将每 30 分钟自动抓取最新数据。 ")
-        print("💡 已启用【智能补跑】：电脑睡眠唤醒后会立刻更新！ ")
         print(" 请保持此窗口运行。按 Ctrl+C 可安全退出程序。 ")
         print("="*50)
         last_run_timestamp = 0
@@ -1005,14 +651,7 @@ if __name__ == "__main__":
                 current_timestamp = time.time()
                 if last_run_timestamp == 0 or not os.path.exists(OUTPUT_HTML) or (current_timestamp - last_run_timestamp) >= REFRESH_INTERVAL_SECONDS:
                     print(f"\n🔄 [{now.strftime('%Y-%m-%d %H:%M:%S')}] 触发刷新机制，正在生成最新沙盘... ")
-                    try:
-                        generate_html()
-                        last_run_timestamp = current_timestamp
-                        print("✅ 沙盘更新完成！等待下一次 30 分钟周期... ")
-                    except Exception as e:
-                        print(f" 生成失败: {e} ")
-                        import traceback
-                        traceback.print_exc()
+                    try: generate_html(); last_run_timestamp = current_timestamp; print("✅ 沙盘更新完成！等待下一次 30 分钟周期... ")
+                    except Exception as e: print(f" 生成失败: {e} "); import traceback; traceback.print_exc()
                 time.sleep(60)
-        except KeyboardInterrupt:
-            print("\n\n👋 收到退出信号，仓库沙盘后台监控已安全停止。 ")
+        except KeyboardInterrupt: print("\n\n👋 收到退出信号，仓库沙盘后台监控已安全停止。 ")
