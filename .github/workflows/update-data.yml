@@ -41,7 +41,7 @@ jobs:
         fi
         
         # 2. 重命名文件
-        mv Urban_Sales_Twin_View.html index.html
+
         
         # 3. 配置 Git
         git config --local user.email "action@github.com"
