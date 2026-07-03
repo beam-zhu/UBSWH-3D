@@ -1,14 +1,9 @@
 name: Auto Update Warehouse Data
 
 on:
-  # 1. 定时触发：每 30 分钟运行一次
   schedule:
-    - cron: '*/30 * * * *'
-  
-  # 2. 允许在 GitHub 网页上手动点击按钮触发
+    - cron: '*/30 * * * *'  # 确保引号是英文单引号
   workflow_dispatch:
-  
-  # 3. 当你推送代码修改时触发
   push:
     branches: [ "main" ]
 
