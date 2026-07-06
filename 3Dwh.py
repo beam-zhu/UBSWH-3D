@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import json
-from zoneinfo import ZoneInfo  # 使用Python内置时区库，无需pip install
+from zoneinfo import ZoneInfo  # 使用Python内置时区库，无需pip install pytz
 
 # ========================================================
 # 核心配置区
@@ -136,76 +136,49 @@ def generate_html():
     actual_db = {}
     temp_xlsx_path = "temp_inventory.xlsx"
     try:
-        # 构建带时间戳的 URL 防止缓存
-        url_with_timestamp = f"{ACTUAL_XLSX_URL}&t={int(time.time())}"
-        
-        # 设置请求头，模拟浏览器并禁用缓存
+        timestamp = int(time.time())
+        url_with_timestamp = f"{ACTUAL_XLSX_URL}&t={timestamp}"
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',
             'Expires': '0'
         }
-        
-        # 发起请求，设置较长的超时时间
         response = requests.get(url_with_timestamp, headers=headers, timeout=60)
-        response.raise_for_status()  # 如果状态码不是200，会抛出异常
-        
-        # 将内容写入临时文件
-        with open(temp_xlsx_path, 'wb') as f:
-            f.write(response.content)
-        
-        # 使用 pandas 读取 Excel 文件
+        response.raise_for_status()
+        with open(temp_xlsx_path, 'wb') as f: f.write(response.content)
         with pd.ExcelFile(temp_xlsx_path) as xl_file:
             df_actual = xl_file.parse(sheet_name=0, skiprows=5, header=0)
         
-        # 过滤有效库位
         df_actual = df_actual[df_actual.iloc[:, 1].astype(str).apply(is_valid_location)]
         print(f"   📊 XLSX 总行数（过滤后）: {len(df_actual)} ")
         
-        # 解析库存数据
         for idx, row in df_actual.iterrows():
-            if len(row) < 7:
-                continue
+            if len(row) < 7: continue
             raw_loc = str(row.iloc[1]).strip()
-            if not raw_loc or raw_loc.lower() in ['nan', 'none', '']:
-                continue 
+            if not raw_loc or raw_loc.lower() in ['nan', 'none', '']: continue 
             raw_sku = str(row.iloc[2]).strip()
             clean_sku = raw_sku.split('~')[-1] if '~' in raw_sku else raw_sku
             brand = str(row.iloc[3]).strip() if len(row) > 3 else 'Other'
             try:
                 qty = float(row.iloc[6]) if len(row) > 6 else 0.0
-                if np.isnan(qty):
-                    qty = 0.0
-            except:
-                qty = 0.0
+                if np.isnan(qty): qty = 0.0
+            except: qty = 0.0
             
-            if raw_loc not in actual_db:
-                actual_db[raw_loc] = []
+            # 🌟 核心修改：忽略数量为负数或0的记录，认为货架上没有该产品
+            if qty <= 0:
+                continue
+            
+            if raw_loc not in actual_db: actual_db[raw_loc] = []
             actual_db[raw_loc].append({'sku': clean_sku, 'brand': brand, 'qty': int(qty)})
-            if brand not in GLOBAL_BRAND_COLORS:
-                GLOBAL_BRAND_COLORS[brand] = get_deterministic_color(brand)
-                 
-        ground_locs = ['GA', 'GBC', 'GN1', 'GN2', 'GT', 'GXW', 'GJ', 'GDE', 'GFG', 'GM1', 'GM2', 'GM5', 'GM8', 'GM11']
-        for g_loc in ground_locs:
-            if g_loc in actual_db:
-                print(f"   ✅ {g_loc} 数据: {len(actual_db[g_loc])} 条记录 ")
-            else:
-                print(f"   ⚠️ {g_loc} 未在 XLSX 中找到数据 ")
-
+            if brand not in GLOBAL_BRAND_COLORS: GLOBAL_BRAND_COLORS[brand] = get_deterministic_color(brand)
     except Exception as e:
-        # 🌟 关键修复：在 GitHub Actions 环境下，如果失败才抛出异常；本地则继续运行。
         print(f"⚠️ 下载 xlsx 失败: {e} ")
-        if os.environ.get('GITHUB_ACTIONS') == 'true':
-            # 在 GitHub 上，必须让 Actions 失败，以便你能看到错误日志
-            raise e
-        # 在本地，即使失败也继续，方便调试
+        if os.environ.get('GITHUB_ACTIONS') == 'true': raise e
     finally:
         try:
-            if os.path.exists(temp_xlsx_path):
-                os.remove(temp_xlsx_path)
-        except:
-            pass
+            if os.path.exists(temp_xlsx_path): os.remove(temp_xlsx_path)
+        except: pass
 
     coords = [get_absolute_coords(z, c, l) for z, c, l in zip(df_locs['zone'], df_locs['col'], df_locs['lvl'])]
     df_locs['X'], df_locs['Y'], df_locs['Z'] = [c[0] for c in coords], [c[1] for c in coords], [c[2] for c in coords]
@@ -266,14 +239,13 @@ def generate_html():
             "slices": slices_data, "orig_z": [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h]
         })
 
-    # 🌟 核心：统计全量库存
     actual_total_stats = {}
     actual_total_qty = 0
     for locID, items in actual_db.items():
         for it in items:
             brand = str(it.get('brand', '')).strip()
             qty = int(it.get('qty', 0))
-            if brand and brand not in ['[当前空置]', '[⚠️超过4品牌严重混放]']:
+            if brand and brand not in ['[当前空置]', '[️超过4品牌严重混放]']:
                 actual_total_stats[brand] = actual_total_stats.get(brand, 0) + qty
                 actual_total_qty += qty
     print(f"   📦 仓库全量库存统计完成，总计: {actual_total_qty} 件")
@@ -356,7 +328,6 @@ def generate_html():
     js_api_url_string = json.dumps(CONFIG_API_URL)
     js_csv_url_string = json.dumps(CONFIG_CSV_URL)
 
-    # 🌟 核心修复：使用 r''' (Raw String) 彻底解决 JS 中 \n 和 \d+ 的转义崩溃问题
     interactive_control_script = r'''
 <style>
 body { margin: 0; overflow: hidden; font-family: sans-serif; }
@@ -393,7 +364,7 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 </div>
 <div id="super-legend-panel" style="position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.98); padding: 16px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.1); z-index: 9999; width: 380px; border: 1px solid #E2E8F0; max-height: 90vh; overflow-y: auto;">
 <div style="background: #F1F5F9; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 12px;">
-<div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')">🟢 规划</div>
+<div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')"> 规划</div>
 <div id="view-actual-btn" class="switch-btn" onclick="switchGlobalView('ACTUAL')">🔵 实际</div>
 </div>
 <div style="border-bottom: 2px solid #F1F5F9; padding-bottom: 6px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
@@ -451,8 +422,8 @@ Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors);
 
 const translations = {
     zh: {
-        dataUpdate: "📊 数据更新 (NZ Time)", refresh: "刷新", confirmRefresh: "确定刷新？",
-        plan: "🟢 规划", actual: "🔵 实际", planTitle: "📊 预期规划品牌图例", actualTitle: "🔍 实盘现存品牌清点 (全量)",
+        dataUpdate: " 数据更新 (NZ Time)", refresh: "刷新", confirmRefresh: "确定刷新？",
+        plan: "🟢 规划", actual: "🔵 实际", planTitle: " 预期规划品牌图例", actualTitle: "🔍 实盘现存品牌清点 (全量)",
         reset: "恢复初始", confirmReset: "确定要恢复所有初始规划并清除本地和云端保存的修改吗？",
         quickTool: "📐 快速改色工具:", locPlaceholder: "如：Q01-01~Q01-04", brandPlaceholder: "品牌", apply: "修改",
         addBrand: "➕ 增加规划品牌", promptBrandName: "请输入新品牌名称：", promptBrandExists: "该品牌已存在于规划中！",
@@ -462,7 +433,7 @@ const translations = {
     },
     en: {
         dataUpdate: "📊 Data Update (NZ Time)", refresh: "Refresh", confirmRefresh: "Are you sure to refresh?",
-        plan: "🟢 Plan", actual: "🔵 Actual", planTitle: "📊 Planned Brand Legend", actualTitle: "🔍 Actual Inventory (Full)",
+        plan: " Plan", actual: "🔵 Actual", planTitle: "📊 Planned Brand Legend", actualTitle: "🔍 Actual Inventory (Full)",
         reset: "Reset", confirmReset: "Reset all plans and clear local/cloud changes?",
         quickTool: "📐 Quick Color Tool:", locPlaceholder: "e.g.: Q01-01~Q01-04", brandPlaceholder: "Brand", apply: "Apply",
         addBrand: "➕ Add Planned Brand", promptBrandName: "Enter new brand name:", promptBrandExists: "This brand already exists!",
@@ -705,7 +676,6 @@ var checkPlotly = setInterval(function(){
 </script>
 '''
 
-    # 🌟 核心加固：使用字典循环替换，彻底杜绝占位符遗漏
     replacements = {
         "SERVER_CONFIG_INJECT_PLACEHOLDER": js_config_string,
         "SERVER_OVERRIDES_INJECT_PLACEHOLDER": js_overrides_string,
