@@ -9,14 +9,14 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import json
-from zoneinfo import ZoneInfo  # 使用Python内置时区库，无需pip install pytz
+from zoneinfo import ZoneInfo
 
 # ========================================================
 # 核心配置区
 # ========================================================
 PLAN_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vStLtLccpDSfrf_yU_T9WrNcZufN29BqkDsVS2r9ql1INK_61uA8UetkiW4DZ4_dv63o-DHzFz0tOAq/pub?gid=1276542862&single=true&output=csv"
 ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-egK5kKzjLVZx/export?format=xlsx"
-OUTPUT_HTML = "index.html"  # 完美契合 GitHub Pages
+OUTPUT_HTML = "index.html"
 TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f" 
 
 CONFIG_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTAuCBLwYldt_n68OGxAgnzApEabBvFjmnOvxKp39i8eaHDHn3iTRqPfaB6X1txjxLDwcBhq0W1nITC/pub?output=csv"
@@ -151,7 +151,7 @@ def generate_html():
             df_actual = xl_file.parse(sheet_name=0, skiprows=5, header=0)
         
         df_actual = df_actual[df_actual.iloc[:, 1].astype(str).apply(is_valid_location)]
-        print(f"   📊 XLSX 总行数（过滤后）: {len(df_actual)} ")
+        print(f"    XLSX 总行数（过滤后）: {len(df_actual)} ")
         
         for idx, row in df_actual.iterrows():
             if len(row) < 7: continue
@@ -165,9 +165,7 @@ def generate_html():
                 if np.isnan(qty): qty = 0.0
             except: qty = 0.0
             
-            # 🌟 核心修改：忽略数量为负数或0的记录，认为货架上没有该产品
-            if qty <= 0:
-                continue
+            if qty <= 0: continue
             
             if raw_loc not in actual_db: actual_db[raw_loc] = []
             actual_db[raw_loc].append({'sku': clean_sku, 'brand': brand, 'qty': int(qty)})
@@ -241,14 +239,23 @@ def generate_html():
 
     actual_total_stats = {}
     actual_total_qty = 0
+    occupied_locations = 0
+    
     for locID, items in actual_db.items():
+        has_stock = False
         for it in items:
             brand = str(it.get('brand', '')).strip()
             qty = int(it.get('qty', 0))
-            if brand and brand not in ['[当前空置]', '[️超过4品牌严重混放]']:
+            if brand and brand not in ['[当前空置]', '[⚠️超过4品牌严重混放]']:
                 actual_total_stats[brand] = actual_total_stats.get(brand, 0) + qty
                 actual_total_qty += qty
-    print(f"   📦 仓库全量库存统计完成，总计: {actual_total_qty} 件")
+                if qty > 0: has_stock = True
+        if has_stock:
+            occupied_locations += 1
+
+    total_locations = len(python_to_js_cache)
+    occupancy_rate = round((occupied_locations / total_locations * 100), 1) if total_locations > 0 else 0.0
+    print(f"   📦 仓库全量库存: {actual_total_qty} 件 | 📍 库位占用: {occupied_locations}/{total_locations} ({occupancy_rate}%)")
 
     fig = go.Figure()
     min_x, max_x = df_locs['X'].min() - 25, df_locs['X'].max() + 25
@@ -315,6 +322,9 @@ def generate_html():
     js_array_string = json.dumps(python_to_js_cache)
     js_actual_total_stats = json.dumps(actual_total_stats)
     js_actual_total_qty = json.dumps(actual_total_qty)
+    js_total_locations = json.dumps(total_locations)
+    js_occupied_locations = json.dumps(occupied_locations)
+    js_occupancy_rate = json.dumps(occupancy_rate)
 
     default_config_list = [{"org_name": "LINSY", "color": "#D68F68", "label": "LINSY"}, {"org_name": "A区 (oversize沙发区)", "color": "#7DA28A", "label": "A区 (oversize沙发区)"}, {"org_name": "B区 (沙发 Backup区)", "color": "#6C8EA4", "label": "B区 (沙发 Backup区)"}, {"org_name": "G区不良品区", "color": "#949BA2", "label": "G区不良品区"}, {"org_name": "Replica 区域", "color": "#D4CBBE", "label": "Replica 区域"}, {"org_name": "MODE 椅子区", "color": "#9E7E73", "label": "MODE 椅子区"}, {"org_name": "LOFT 区", "color": "#8B7AA3", "label": "LOFT 区"}, {"org_name": "Solidwood 区", "color": "#C29B85", "label": "Solidwood 区"}, {"org_name": "Boori区", "color": "#C87284", "label": "Boori区"}, {"org_name": "BOHOBOHO & Alpaka & Boori区", "color": "#2C2D30", "label": "BOHOBOHO & Alpaka & Boori区"}, {"org_name": "补件区", "color": "#8A5A58", "label": "补件区"}, {"org_name": "loft & solidwood backup区", "color": "#EEDCA5", "label": "loft & solidwood backup区"}]
     
@@ -364,13 +374,24 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 </div>
 <div id="super-legend-panel" style="position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.98); padding: 16px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.1); z-index: 9999; width: 380px; border: 1px solid #E2E8F0; max-height: 90vh; overflow-y: auto;">
 <div style="background: #F1F5F9; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 12px;">
-<div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')"> 规划</div>
+<div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')">🟢 规划</div>
 <div id="view-actual-btn" class="switch-btn" onclick="switchGlobalView('ACTUAL')">🔵 实际</div>
 </div>
 <div style="border-bottom: 2px solid #F1F5F9; padding-bottom: 6px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
 <h4 id="legend-panel-title" style="margin: 0; font-size: 13px;">📊 预期规划品牌图例</h4>
 <button id="reset-master-btn" class="lockable" onclick="resetToDefault()" style="background:#EF4444; color:white; border:none; border-radius:4px; padding:2px 8px; font-size:10px; cursor:pointer;">恢复初始</button>
 </div>
+
+<!-- 🌟 新增：SKU 搜索功能 -->
+<div id="sku-search-box" style="background: #F8FAFC; padding: 8px; border-radius: 8px; border: 1px dashed #5B7B9C; margin-bottom: 12px; display: none;">
+    <label style="font-size: 11px; display:block; margin-bottom:4px; font-weight: bold;">🔍 SKU 搜索:</label>
+    <div style="display: flex; gap: 4px;">
+        <input type="text" id="sku-search-input" placeholder="输入 SKU（如：1234）" style="flex:1; padding: 6px; border: 1px solid #CBD5E1; border-radius: 4px; font-size: 11px;">
+        <button onclick="searchSKU()" style="background: #3B82F6; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">搜索</button>
+    </div>
+    <div id="sku-search-results" style="margin-top: 8px; max-height: 200px; overflow-y: auto;"></div>
+</div>
+
 <div id="planning-tools-box" style="background: #F8FAFC; padding: 8px; border-radius: 8px; border: 1px dashed #5B7B9C; margin-bottom: 12px;">
 <label id="quick-tool-label" style="font-size: 11px; display:block; margin-bottom:4px; font-weight: bold;">📐 快速改色工具:</label>
 <textarea id="target-loc" rows="2" placeholder="如：Q01-01~Q01-04" style="width: 100%; padding: 4px; border: 1px solid #CBD5E1; border-radius: 4px; box-sizing: border-box; font-size: 11px;"></textarea>
@@ -411,6 +432,9 @@ let cell_override_db = SERVER_OVERRIDES_INJECT_PLACEHOLDER || {};
 let actual_brand_colors = ACTUAL_COLORS_INJECT_PLACEHOLDER || {};
 let actual_total_stats = ACTUAL_TOTAL_STATS_PLACEHOLDER || {};
 let actual_total_qty = ACTUAL_TOTAL_QTY_PLACEHOLDER || 0;
+let total_locations = TOTAL_LOCATIONS_PLACEHOLDER || 0;
+let occupied_locations = OCCUPIED_LOCATIONS_PLACEHOLDER || 0;
+let occupancy_rate = OCCUPANCY_RATE_PLACEHOLDER || 0;
 
 const CONFIG_API_URL = CONFIG_API_URL_PLACEHOLDER;
 const CONFIG_CSV_URL = CONFIG_CSV_URL_PLACEHOLDER;
@@ -422,22 +446,28 @@ Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors);
 
 const translations = {
     zh: {
-        dataUpdate: " 数据更新 (NZ Time)", refresh: "刷新", confirmRefresh: "确定刷新？",
-        plan: "🟢 规划", actual: "🔵 实际", planTitle: " 预期规划品牌图例", actualTitle: "🔍 实盘现存品牌清点 (全量)",
+        dataUpdate: "📊 数据更新 (NZ Time)", refresh: "刷新", confirmRefresh: "确定刷新？",
+        plan: "🟢 规划", actual: "🔵 实际", planTitle: "📊 预期规划品牌图例", actualTitle: "🔍 实盘现存品牌清点 (全量)",
         reset: "恢复初始", confirmReset: "确定要恢复所有初始规划并清除本地和云端保存的修改吗？",
         quickTool: "📐 快速改色工具:", locPlaceholder: "如：Q01-01~Q01-04", brandPlaceholder: "品牌", apply: "修改",
         addBrand: "➕ 增加规划品牌", promptBrandName: "请输入新品牌名称：", promptBrandExists: "该品牌已存在于规划中！",
-        promptBrandColor: "请输入品牌颜色 HEX 值 (如 #FF5733)，或留空使用默认蓝色：", totalInventory: "📦 仓库总库存 (全量)",
+        promptBrandColor: "请输入品牌颜色 HEX 值 (如 #FF5733)，或留空使用默认蓝色：", 
+        totalInventory: "📦 仓库总库存 (全量)", 
+        occupancyRate: "📍 库位占用率",
+        skuSearch: "🔍 SKU 搜索:", skuPlaceholder: "输入 SKU（如：1234）", search: "搜索",
         deleteConfirm: "删除", restoreConfirm: "恢复", pwdTitle: "🔐 输入编辑密码", pwdPlaceholder: "请输入密码",
         cancel: "取消", confirm: "确认", unlockAlert: "🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！", wrongPwd: "密码错误！"
     },
     en: {
         dataUpdate: "📊 Data Update (NZ Time)", refresh: "Refresh", confirmRefresh: "Are you sure to refresh?",
-        plan: " Plan", actual: "🔵 Actual", planTitle: "📊 Planned Brand Legend", actualTitle: "🔍 Actual Inventory (Full)",
+        plan: "🟢 Plan", actual: "🔵 Actual", planTitle: "📊 Planned Brand Legend", actualTitle: "🔍 Actual Inventory (Full)",
         reset: "Reset", confirmReset: "Reset all plans and clear local/cloud changes?",
         quickTool: "📐 Quick Color Tool:", locPlaceholder: "e.g.: Q01-01~Q01-04", brandPlaceholder: "Brand", apply: "Apply",
         addBrand: "➕ Add Planned Brand", promptBrandName: "Enter new brand name:", promptBrandExists: "This brand already exists!",
-        promptBrandColor: "Enter HEX color (e.g. #FF5733) or leave empty:", totalInventory: "📦 Total Inventory (Full)",
+        promptBrandColor: "Enter HEX color (e.g. #FF5733) or leave empty:", 
+        totalInventory: "📦 Total Inventory (Full)", 
+        occupancyRate: "📍 Bin Occupancy Rate",
+        skuSearch: "🔍 SKU Search:", skuPlaceholder: "Enter SKU (e.g.: 1234)", search: "Search",
         deleteConfirm: "Delete", restoreConfirm: "Restore", pwdTitle: "🔐 Enter Password", pwdPlaceholder: "Enter password",
         cancel: "Cancel", confirm: "OK", unlockAlert: "🔒 Click the 🔒 button at bottom right to unlock!", wrongPwd: "Wrong password!"
     }
@@ -461,11 +491,77 @@ function applyLanguage() {
     document.getElementById('pwd-cancel-btn').innerText = t('cancel');
     document.getElementById('pwd-confirm-btn').innerText = t('confirm');
     document.getElementById('lang-toggle-btn').innerText = currentLang === 'zh' ? 'EN/中' : '中/EN';
+    
+    // 🌟 更新 SKU 搜索框
+    const skuSearchBox = document.getElementById('sku-search-box');
+    if (skuSearchBox) {
+        if (GLOBAL_CURRENT_VIEW === 'ACTUAL') {
+            skuSearchBox.style.display = 'block';
+            document.querySelector('#sku-search-box label').innerText = t('skuSearch');
+            document.getElementById('sku-search-input').placeholder = t('skuPlaceholder');
+            document.querySelector('#sku-search-box button').innerText = t('search');
+        } else {
+            skuSearchBox.style.display = 'none';
+        }
+    }
+    
     if(GLOBAL_CURRENT_VIEW === 'PLAN') document.getElementById("legend-panel-title").innerText = t('planTitle');
     else document.getElementById("legend-panel-title").innerText = t('actualTitle');
     if (typeof renderControlPanel === 'function') renderControlPanel();
 }
 function toggleLanguage() { currentLang = currentLang === 'zh' ? 'en' : 'zh'; localStorage.setItem('warehouse_lang', currentLang); applyLanguage(); }
+
+// 🌟 SKU 搜索功能
+function searchSKU() {
+    const searchInput = document.getElementById('sku-search-input').value.trim().toLowerCase();
+    const resultsDiv = document.getElementById('sku-search-results');
+    
+    if (!searchInput) {
+        resultsDiv.innerHTML = '<div style="color: #64748B; font-size: 11px; padding: 8px;">请输入 SKU 进行搜索</div>';
+        return;
+    }
+    
+    const results = [];
+    server_data_cache.forEach(node => {
+        if (node.slices && node.slices.length > 0) {
+            node.slices.forEach(slice => {
+                if (slice.items) {
+                    slice.items.forEach(item => {
+                        if (item.sku && item.sku.toLowerCase().includes(searchInput)) {
+                            results.push({
+                                loc: node.loc,
+                                zone: node.zone,
+                                sku: item.sku,
+                                qty: item.qty,
+                                brand: slice.brand
+                            });
+                        }
+                    });
+                }
+            });
+        }
+    });
+    
+    if (results.length === 0) {
+        resultsDiv.innerHTML = `<div style="color: #64748B; font-size: 11px; padding: 8px;">未找到包含 "${searchInput}" 的 SKU</div>`;
+    } else {
+        let html = `<div style="font-size: 11px; font-weight: bold; margin-bottom: 6px; color: #0F172A;">找到 ${results.length} 个结果:</div>`;
+        results.forEach(r => {
+            const color = GLOBAL_COLOR_POOL[r.brand] || '#CBD5E1';
+            html += `
+                <div style="display: flex; align-items: center; gap: 6px; padding: 6px; background: #F1F5F9; border-radius: 4px; margin-bottom: 4px;">
+                    <div style="width: 12px; height: 12px; border-radius: 2px; background: ${color}; flex-shrink: 0;"></div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: bold; font-size: 11px;">${r.sku}</div>
+                        <div style="font-size: 10px; color: #64748B;">${r.loc} | ${r.brand}</div>
+                    </div>
+                    <div style="font-size: 11px; font-weight: bold; color: #0F172A;">${r.qty}</div>
+                </div>
+            `;
+        });
+        resultsDiv.innerHTML = html;
+    }
+}
 
 try {
 let saved_config = localStorage.getItem("warehouse_twin_master_2026");
@@ -519,10 +615,12 @@ if(viewMode === 'PLAN') {
 document.getElementById("legend-panel-title").innerText = t('planTitle'); 
 document.getElementById("planning-tools-box").style.display = "block"; 
 document.getElementById("add-brand-btn").style.display = "block";
+document.getElementById("sku-search-box").style.display = "none";
 } else { 
 document.getElementById("legend-panel-title").innerText = t('actualTitle'); 
 document.getElementById("planning-tools-box").style.display = "none"; 
 document.getElementById("add-brand-btn").style.display = "none";
+document.getElementById("sku-search-box").style.display = "block";
 }
 applyAllDBCacheToCanvas(); renderControlPanel();
 }
@@ -544,6 +642,10 @@ function renderControlPanel() {
         totalRow.style.cssText = "display:flex; justify-content:space-between; padding:6px 8px; font-size:12px; font-weight:bold; color:#0F172A; border-top:2px solid #CBD5E1; margin-top:6px; background:#F1F5F9; border-radius:4px;";
         totalRow.innerHTML = `<span>${t('totalInventory')}</span><span>${actual_total_qty.toLocaleString()}</span>`;
         listContainer.appendChild(totalRow);
+        let occupancyRow = document.createElement("div");
+        occupancyRow.style.cssText = "display:flex; justify-content:space-between; padding:6px 8px; font-size:12px; font-weight:bold; color:#0F172A; border-top:1px solid #CBD5E1; margin-top:4px; background:#F1F5F9; border-radius:4px;";
+        occupancyRow.innerHTML = `<span>${t('occupancyRate')}</span><span>${occupied_locations} / ${total_locations} (${occupancy_rate}%)</span>`;
+        listContainer.appendChild(occupancyRow);
     }
 }
 
@@ -561,9 +663,9 @@ function appendLegendRow(container, name, color, orgName, qty, percent) {
     let statsSpan = document.createElement("span"); statsSpan.style.cssText = "font-size:10px; color:#64748B; white-space:nowrap; flex-shrink:0;";
     if (qty !== undefined && percent !== undefined) statsSpan.innerText = `${qty.toLocaleString()} (${percent})`;
 
-    let editBtn = document.createElement("button"); editBtn.innerText = "✏️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
-    let delBtn = document.createElement("button"); delBtn.innerText = "🗑️"; delBtn.className = "lockable"; delBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`${t('deleteConfirm')} "${name}"?`)) deleteBrand(orgName || name); };
-    let resetBtn = document.createElement("button"); resetBtn.innerText = "🔄"; resetBtn.className = "lockable"; resetBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0;"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`${t('restoreConfirm')} "${name}"?`)) resetBrandLocations(orgName || name); };
+    let editBtn = document.createElement("button"); editBtn.innerText = "✏️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
+    let delBtn = document.createElement("button"); delBtn.innerText = "🗑️"; delBtn.className = "lockable"; delBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`${t('deleteConfirm')} "${name}"?`)) deleteBrand(orgName || name); };
+    let resetBtn = document.createElement("button"); resetBtn.innerText = "🔄"; resetBtn.className = "lockable"; resetBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`${t('restoreConfirm')} "${name}"?`)) resetBrandLocations(orgName || name); };
 
     row.appendChild(colorBox); row.appendChild(label);
     if (qty !== undefined) row.appendChild(statsSpan);
@@ -682,6 +784,9 @@ var checkPlotly = setInterval(function(){
         "ACTUAL_COLORS_INJECT_PLACEHOLDER": js_actual_colors_string,
         "ACTUAL_TOTAL_STATS_PLACEHOLDER": js_actual_total_stats,
         "ACTUAL_TOTAL_QTY_PLACEHOLDER": js_actual_total_qty,
+        "TOTAL_LOCATIONS_PLACEHOLDER": js_total_locations,
+        "OCCUPIED_LOCATIONS_PLACEHOLDER": js_occupied_locations,
+        "OCCUPANCY_RATE_PLACEHOLDER": js_occupancy_rate,
         "CONFIG_API_URL_PLACEHOLDER": js_api_url_string,
         "CONFIG_CSV_URL_PLACEHOLDER": js_csv_url_string,
         "SERVER_DATA_INJECT_PLACEHOLDER": js_array_string,
@@ -700,8 +805,14 @@ if __name__ == "__main__":
         print("="*50)
         print(" GitHub Actions 模式：单次运行 ")
         print("="*50)
-        try: generate_html(); print("✅ 沙盘更新完成！ ")
-        except Exception as e: print(f" 生成失败: {e} "); import traceback; traceback.print_exc(); exit(1)
+        try: 
+            generate_html()
+            print("✅ 沙盘更新完成！ ")
+        except Exception as e: 
+            print(f" 生成失败: {e} ")
+            import traceback
+            traceback.print_exc()
+            exit(1)
     else:
         print("="*50)
         print(" 仓库沙盘双核系统已启动，进入后台监控模式... ")
@@ -716,7 +827,14 @@ if __name__ == "__main__":
                 current_timestamp = time.time()
                 if last_run_timestamp == 0 or not os.path.exists(OUTPUT_HTML) or (current_timestamp - last_run_timestamp) >= REFRESH_INTERVAL_SECONDS:
                     print(f"\n🔄 [{now.strftime('%Y-%m-%d %H:%M:%S')}] 触发刷新机制，正在生成最新沙盘... ")
-                    try: generate_html(); last_run_timestamp = current_timestamp; print("✅ 沙盘更新完成！等待下一次 30 分钟周期... ")
-                    except Exception as e: print(f" 生成失败: {e} "); import traceback; traceback.print_exc()
+                    try: 
+                        generate_html()
+                        last_run_timestamp = current_timestamp
+                        print("✅ 沙盘更新完成！等待下一次 30 分钟周期... ")
+                    except Exception as e: 
+                        print(f" 生成失败: {e} ")
+                        import traceback
+                        traceback.print_exc()
                 time.sleep(60)
-        except KeyboardInterrupt: print("\n\n👋 收到退出信号，仓库沙盘后台监控已安全停止。 ")
+        except KeyboardInterrupt: 
+            print("\n\n👋 收到退出信号，仓库沙盘后台监控已安全停止。 ")
