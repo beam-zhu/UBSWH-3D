@@ -132,7 +132,7 @@ def generate_html():
             valid_locations.append({'loc': loc, 'zone': zone, 'col': int(col_num), 'lvl': int(lvl_num), 'is_ground': False})
     df_locs = pd.DataFrame(valid_locations)
 
-    print("📦 [2/4] 正在下载 Google Drive 最新 xlsx 文件... ")
+    print(" [2/4] 正在下载 Google Drive 最新 xlsx 文件... ")
     actual_db = {}
     temp_xlsx_path = "temp_inventory.xlsx"
     try:
@@ -181,6 +181,9 @@ def generate_html():
     coords = [get_absolute_coords(z, c, l) for z, c, l in zip(df_locs['zone'], df_locs['col'], df_locs['lvl'])]
     df_locs['X'], df_locs['Y'], df_locs['Z'] = [c[0] for c in coords], [c[1] for c in coords], [c[2] for c in coords]
 
+    # ========================================================
+    # 🌟 核心修改：生成地面库位坐标（包含新增的 GL 和 GM14）
+    # ========================================================
     ground_data = []
     ref_a = get_absolute_coords('A', 1, 1); ground_data.append({'loc': 'GA', 'X': ref_a[0] - 5.0, 'Y': ref_a[1], 'Z': 0, 'zone': 'GROUND', 'col': 1, 'lvl': 1, 'is_ground': True})
     ref_b = get_absolute_coords('B', 1, 1); ground_data.append({'loc': 'GBC', 'X': ref_b[0] - 5.0, 'Y': ref_b[1], 'Z': 0, 'zone': 'GROUND', 'col': 2, 'lvl': 1, 'is_ground': True})
@@ -196,6 +199,13 @@ def generate_html():
     ref_m11 = get_absolute_coords('M', 11, 1); ref_m12 = get_absolute_coords('M', 12, 1); ground_data.append({'loc': 'GM11', 'X': ref_m11[0], 'Y': (ref_m11[1] + ref_m12[1])/2.0, 'Z': 0, 'zone': 'GROUND', 'col': 12, 'lvl': 1, 'is_ground': True})
     ref_t = get_absolute_coords('T', 1, 1); ground_data.append({'loc': 'GT', 'X': ref_t[0] + 5.0, 'Y': ref_t[1], 'Z': 0, 'zone': 'GROUND', 'col': 13, 'lvl': 1, 'is_ground': True})
     ref_w = get_absolute_coords('W', 1, 1); ground_data.append({'loc': 'GXW', 'X': ref_w[0] + 5.0, 'Y': ref_w[1], 'Z': 0, 'zone': 'GROUND', 'col': 14, 'lvl': 1, 'is_ground': True})
+
+    # 🌟 新增：GL (L14-01 南侧) 和 GM14 (M13-01 南侧)
+    ref_l14 = get_absolute_coords('L', 14, 1)
+    ground_data.append({'loc': 'GL', 'X': ref_l14[0], 'Y': ref_l14[1] - 4.0, 'Z': 0, 'zone': 'GROUND', 'col': 99, 'lvl': 1, 'is_ground': True})
+    
+    ref_m13 = get_absolute_coords('M', 13, 1)
+    ground_data.append({'loc': 'GM14', 'X': ref_m13[0], 'Y': ref_m13[1] - 4.0, 'Z': 0, 'zone': 'GROUND', 'col': 99, 'lvl': 1, 'is_ground': True})
 
     df_ground = pd.DataFrame(ground_data)
     df_locs = pd.concat([df_locs, df_ground], ignore_index=True)
@@ -217,6 +227,7 @@ def generate_html():
     python_to_js_cache = []
     for idx, row in df_locs.iterrows():
         locID = row['loc']
+        # 🌟 自动匹配：从 actual_db 中获取该库位（包括 GL 和 GM14）的库存数据
         items_in_bin = actual_db.get(locID, [])
         brands_in_bin = list(set([it['brand'] for it in items_in_bin if it['brand']]))
         brand_count = len(brands_in_bin)
@@ -314,7 +325,7 @@ def generate_html():
     cache_buster_meta = '''<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"> <meta http-equiv="Pragma" content="no-cache"> <meta http-equiv="Expires" content="0">'''
     html_content = html_content.replace('<head>', '<head>' + cache_buster_meta)
 
-    print("🎛️ [4/4] 正在编译前端交互引擎... ")
+    print("️ [4/4] 正在编译前端交互引擎... ")
     nz_now = datetime.datetime.now(ZoneInfo('Pacific/Auckland'))
     data_timestamp = nz_now.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -365,7 +376,7 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 </style>
 <button id="nav-toggle-btn" onclick="toggleNav()">☰ 菜单</button>
 <div id="data-timestamp-box" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.95); padding: 10px 14px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 9999; border: 1px solid #E2E8F0; text-align: center;">
-<div id="data-update-label" style="font-size: 10px; color: #666;">📊 数据更新 (NZ Time)</div>
+<div id="data-update-label" style="font-size: 10px; color: #666;"> 数据更新 (NZ Time)</div>
 <div id="data-timestamp" style="font-size: 13px; font-weight: bold; color: #0F172A;">DATA_TIMESTAMP_PLACEHOLDER</div>
 <div style="display:flex; gap:5px; align-items:center; justify-content:center; margin-top: 5px;">
 <button onclick="toggleLanguage()" id="lang-toggle-btn" style="background:#F1F5F9; color:#0F172A; border:1px solid #CBD5E1; border-radius:4px; padding:3px 8px; font-size:11px; cursor:pointer; font-weight:bold;">EN/中</button>
@@ -382,7 +393,6 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 <button id="reset-master-btn" class="lockable" onclick="resetToDefault()" style="background:#EF4444; color:white; border:none; border-radius:4px; padding:2px 8px; font-size:10px; cursor:pointer;">恢复初始</button>
 </div>
 
-<!-- 🌟 新增：SKU 搜索功能 -->
 <div id="sku-search-box" style="background: #F8FAFC; padding: 8px; border-radius: 8px; border: 1px dashed #5B7B9C; margin-bottom: 12px; display: none;">
     <label style="font-size: 11px; display:block; margin-bottom:4px; font-weight: bold;">🔍 SKU 搜索:</label>
     <div style="display: flex; gap: 4px;">
@@ -411,7 +421,7 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 <button class="ctrl-btn" onclick="showPwdModal()" style="background:#FEF3C7; color:#D97706; border-color:#FCD34D; font-size:14px;">🔒</button>
 </div>
 <div class="control-row">
-<button class="ctrl-btn" onclick="zoomCamera(0.8)">➕</button>
+<button class="ctrl-btn" onclick="zoomCamera(0.8)"></button>
 <button class="ctrl-btn" onclick="zoomCamera(1.25)">➖</button>
 <button class="ctrl-btn" onclick="resetCamera()">🏠</button>
 </div>
@@ -446,8 +456,8 @@ Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors);
 
 const translations = {
     zh: {
-        dataUpdate: "📊 数据更新 (NZ Time)", refresh: "刷新", confirmRefresh: "确定刷新？",
-        plan: "🟢 规划", actual: "🔵 实际", planTitle: "📊 预期规划品牌图例", actualTitle: "🔍 实盘现存品牌清点 (全量)",
+        dataUpdate: " 数据更新 (NZ Time)", refresh: "刷新", confirmRefresh: "确定刷新？",
+        plan: "🟢 规划", actual: "🔵 实际", planTitle: " 预期规划品牌图例", actualTitle: "🔍 实盘现存品牌清点 (全量)",
         reset: "恢复初始", confirmReset: "确定要恢复所有初始规划并清除本地和云端保存的修改吗？",
         quickTool: "📐 快速改色工具:", locPlaceholder: "如：Q01-01~Q01-04", brandPlaceholder: "品牌", apply: "修改",
         addBrand: "➕ 增加规划品牌", promptBrandName: "请输入新品牌名称：", promptBrandExists: "该品牌已存在于规划中！",
@@ -456,19 +466,19 @@ const translations = {
         occupancyRate: "📍 库位占用率",
         skuSearch: "🔍 SKU 搜索:", skuPlaceholder: "输入 SKU（如：1234）", search: "搜索",
         deleteConfirm: "删除", restoreConfirm: "恢复", pwdTitle: "🔐 输入编辑密码", pwdPlaceholder: "请输入密码",
-        cancel: "取消", confirm: "确认", unlockAlert: "🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！", wrongPwd: "密码错误！"
+        cancel: "取消", confirm: "确认", unlockAlert: "🔒 请先点击右下角  按钮输入密码解锁编辑功能！", wrongPwd: "密码错误！"
     },
     en: {
         dataUpdate: "📊 Data Update (NZ Time)", refresh: "Refresh", confirmRefresh: "Are you sure to refresh?",
         plan: "🟢 Plan", actual: "🔵 Actual", planTitle: "📊 Planned Brand Legend", actualTitle: "🔍 Actual Inventory (Full)",
         reset: "Reset", confirmReset: "Reset all plans and clear local/cloud changes?",
         quickTool: "📐 Quick Color Tool:", locPlaceholder: "e.g.: Q01-01~Q01-04", brandPlaceholder: "Brand", apply: "Apply",
-        addBrand: "➕ Add Planned Brand", promptBrandName: "Enter new brand name:", promptBrandExists: "This brand already exists!",
+        addBrand: " Add Planned Brand", promptBrandName: "Enter new brand name:", promptBrandExists: "This brand already exists!",
         promptBrandColor: "Enter HEX color (e.g. #FF5733) or leave empty:", 
         totalInventory: "📦 Total Inventory (Full)", 
-        occupancyRate: "📍 Bin Occupancy Rate",
+        occupancyRate: " Bin Occupancy Rate",
         skuSearch: "🔍 SKU Search:", skuPlaceholder: "Enter SKU (e.g.: 1234)", search: "Search",
-        deleteConfirm: "Delete", restoreConfirm: "Restore", pwdTitle: "🔐 Enter Password", pwdPlaceholder: "Enter password",
+        deleteConfirm: "Delete", restoreConfirm: "Restore", pwdTitle: " Enter Password", pwdPlaceholder: "Enter password",
         cancel: "Cancel", confirm: "OK", unlockAlert: "🔒 Click the 🔒 button at bottom right to unlock!", wrongPwd: "Wrong password!"
     }
 };
@@ -492,7 +502,6 @@ function applyLanguage() {
     document.getElementById('pwd-confirm-btn').innerText = t('confirm');
     document.getElementById('lang-toggle-btn').innerText = currentLang === 'zh' ? 'EN/中' : '中/EN';
     
-    // 🌟 更新 SKU 搜索框
     const skuSearchBox = document.getElementById('sku-search-box');
     if (skuSearchBox) {
         if (GLOBAL_CURRENT_VIEW === 'ACTUAL') {
@@ -511,7 +520,6 @@ function applyLanguage() {
 }
 function toggleLanguage() { currentLang = currentLang === 'zh' ? 'en' : 'zh'; localStorage.setItem('warehouse_lang', currentLang); applyLanguage(); }
 
-// 🌟 SKU 搜索功能
 function searchSKU() {
     const searchInput = document.getElementById('sku-search-input').value.trim().toLowerCase();
     const resultsDiv = document.getElementById('sku-search-results');
@@ -529,11 +537,7 @@ function searchSKU() {
                     slice.items.forEach(item => {
                         if (item.sku && item.sku.toLowerCase().includes(searchInput)) {
                             results.push({
-                                loc: node.loc,
-                                zone: node.zone,
-                                sku: item.sku,
-                                qty: item.qty,
-                                brand: slice.brand
+                                loc: node.loc, zone: node.zone, sku: item.sku, qty: item.qty, brand: slice.brand
                             });
                         }
                     });
@@ -548,16 +552,14 @@ function searchSKU() {
         let html = `<div style="font-size: 11px; font-weight: bold; margin-bottom: 6px; color: #0F172A;">找到 ${results.length} 个结果:</div>`;
         results.forEach(r => {
             const color = GLOBAL_COLOR_POOL[r.brand] || '#CBD5E1';
-            html += `
-                <div style="display: flex; align-items: center; gap: 6px; padding: 6px; background: #F1F5F9; border-radius: 4px; margin-bottom: 4px;">
-                    <div style="width: 12px; height: 12px; border-radius: 2px; background: ${color}; flex-shrink: 0;"></div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-weight: bold; font-size: 11px;">${r.sku}</div>
-                        <div style="font-size: 10px; color: #64748B;">${r.loc} | ${r.brand}</div>
-                    </div>
-                    <div style="font-size: 11px; font-weight: bold; color: #0F172A;">${r.qty}</div>
+            html += `<div style="display: flex; align-items: center; gap: 6px; padding: 6px; background: #F1F5F9; border-radius: 4px; margin-bottom: 4px;">
+                <div style="width: 12px; height: 12px; border-radius: 2px; background: ${color}; flex-shrink: 0;"></div>
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight: bold; font-size: 11px;">${r.sku}</div>
+                    <div style="font-size: 10px; color: #64748B;">${r.loc} | ${r.brand}</div>
                 </div>
-            `;
+                <div style="font-size: 11px; font-weight: bold; color: #0F172A;">${r.qty}</div>
+            </div>`;
         });
         resultsDiv.innerHTML = html;
     }
@@ -663,7 +665,7 @@ function appendLegendRow(container, name, color, orgName, qty, percent) {
     let statsSpan = document.createElement("span"); statsSpan.style.cssText = "font-size:10px; color:#64748B; white-space:nowrap; flex-shrink:0;";
     if (qty !== undefined && percent !== undefined) statsSpan.innerText = `${qty.toLocaleString()} (${percent})`;
 
-    let editBtn = document.createElement("button"); editBtn.innerText = "✏️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
+    let editBtn = document.createElement("button"); editBtn.innerText = "️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
     let delBtn = document.createElement("button"); delBtn.innerText = "🗑️"; delBtn.className = "lockable"; delBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`${t('deleteConfirm')} "${name}"?`)) deleteBrand(orgName || name); };
     let resetBtn = document.createElement("button"); resetBtn.innerText = "🔄"; resetBtn.className = "lockable"; resetBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`${t('restoreConfirm')} "${name}"?`)) resetBrandLocations(orgName || name); };
 
@@ -757,7 +759,7 @@ let currentScale = 1.0;
 function zoomCamera(factor) { if (factor < 1) { currentScale = currentScale * 1.2; } else { currentScale = currentScale * 0.8; } if (currentScale > 3.0) currentScale = 3.0; if (currentScale < 0.5) currentScale = 0.5; var plotContainer = document.querySelector('.plotly-graph-div'); if (plotContainer) { plotContainer.style.transform = `scale(${currentScale})`; plotContainer.style.transformOrigin = 'center center'; } }
 function resetCamera() { currentScale = 1.0; var plotContainer = document.querySelector('.plotly-graph-div'); if (plotContainer) { plotContainer.style.transform = 'scale(1)'; } var gd = document.getElementsByClassName('plotly-graph-div')[0]; if (gd) { Plotly.relayout(gd, { 'scene.camera.eye': {x: -0.8, y: -0.8, z: 3.5}, 'scene.camera.center': {x: 0, y: 0, z: 0} }); } }
 const TARGET_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f"; let isUnlocked = false;
-function showPwdModal() { if (isUnlocked) { isUnlocked = false; lockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = "🔒"; } else { document.getElementById('pwd-modal').style.display = 'flex'; document.getElementById('pwd-input').value = ''; document.getElementById('pwd-input').focus(); } }
+function showPwdModal() { if (isUnlocked) { isUnlocked = false; lockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = ""; } else { document.getElementById('pwd-modal').style.display = 'flex'; document.getElementById('pwd-input').value = ''; document.getElementById('pwd-input').focus(); } }
 function closePwdModal() { document.getElementById('pwd-modal').style.display = 'none'; }
 async function verifyPwd() { const pwd = document.getElementById('pwd-input').value; if (!pwd) return; const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd)); const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join(''); if (hashHex === TARGET_HASH) { isUnlocked = true; closePwdModal(); unlockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = "🔓"; } else { alert(t('wrongPwd')); } }
 function lockAllEditBtns() { document.querySelectorAll('.lockable').forEach(btn => btn.classList.add('locked')); }
