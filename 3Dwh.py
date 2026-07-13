@@ -214,14 +214,18 @@ def generate_html():
 
     cloud_runtime_config, cloud_cell_override_db, cloud_actual_colors = None, None, None
     try:
-        print("☁️ 正在同步云端配置... ")
-        df_config = pd.read_csv(CONFIG_CSV_URL)
-        for idx, row in df_config.iterrows():
-            key, val = str(row.get('Key', '')).strip(), str(row.get('Value', '')).strip()
-            if key == 'runtime_config' and val and val != 'nan': cloud_runtime_config = json.loads(val)
-            elif key == 'cell_override_db' and val and val != 'nan': cloud_cell_override_db = json.loads(val)
-            elif key == 'actual_brand_colors' and val and val != 'nan': cloud_actual_colors = json.loads(val)
-    except Exception as e: print(f"⚠️ 读取云端配置失败: {e} ")
+        print("☁️ 正在通过 API 实时同步云端配置... ")
+        api_res = requests.get(CONFIG_API_URL + '?t=' + str(int(time.time())), timeout=15)
+        if api_res.status_code == 200:
+            cloud_data = api_res.json()
+            cloud_runtime_config = cloud_data.get('runtime_config')
+            cloud_cell_override_db = cloud_data.get('cell_override_db')
+            cloud_actual_colors = cloud_data.get('actual_brand_colors')
+            print("✅ 云端配置(API)实时同步成功！ ")
+        else:
+            print(f"⚠️ API 请求失败，状态码: {api_res.status_code}")
+    except Exception as e:
+        print(f"⚠️ 读取云端配置失败: {e} ")
 
     print("🧮 [3/4] 正在生成 3D 桥接数据与画布... ")
     python_to_js_cache = []
@@ -575,25 +579,25 @@ if (saved_actual) { let parsed = JSON.parse(saved_actual); Object.assign(actual_
 } catch(e) {}
 
 async function loadCloudConfig() {
-if (!CONFIG_CSV_URL || CONFIG_CSV_URL === 'null') return;
-try {
-const res = await fetch(CONFIG_CSV_URL + '?t=' + Date.now());
-const csvText = await res.text(); 
-const lines = csvText.split('\n');
-for (let line of lines) {
-line = line.trim();
-if (!line || line.startsWith('Key')) continue;
-const firstComma = line.indexOf(',');
-if (firstComma === -1) continue;
-const key = line.substring(0, firstComma).trim();
-let val = line.substring(firstComma + 1).trim();
-if (val.startsWith('"') && val.endsWith('"')) val = val.substring(1, val.length - 1).replace(/""/g, '"');
-if (key === 'runtime_config' && val) runtime_config = JSON.parse(val);
-else if (key === 'cell_override_db' && val) cell_override_db = JSON.parse(val);
-else if (key === 'actual_brand_colors' && val) { actual_brand_colors = JSON.parse(val); Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors); }
-}
-renderControlPanel(); applyAllDBCacheToCanvas(); lockAllEditBtns(); 
-} catch (e) { console.warn("⚠️ 加载云端配置失败: ", e); }
+    if (!CONFIG_API_URL || CONFIG_API_URL === 'null') return;
+    try {
+        const res = await fetch(CONFIG_API_URL + '?t=' + Date.now());
+        const data = await res.json();
+        
+        if (data.runtime_config) runtime_config = data.runtime_config;
+        if (data.cell_override_db) cell_override_db = data.cell_override_db;
+        if (data.actual_brand_colors) { 
+            actual_brand_colors = data.actual_brand_colors; 
+            Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors); 
+        }
+        
+        console.log("✅ 云端配置(API)实时加载成功！");
+        renderControlPanel();
+        applyAllDBCacheToCanvas();
+        lockAllEditBtns(); 
+    } catch (e) { 
+        console.warn("⚠️ 加载云端配置失败: ", e); 
+    }
 }
 
 function syncConfigToCloud() {
