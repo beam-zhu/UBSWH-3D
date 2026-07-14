@@ -19,7 +19,7 @@ ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-e
 OUTPUT_HTML = "index.html"
 TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f" 
 
-CONFIG_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTAuCBLwYldt_n68OGxAgnzApEabBvFjmnOvxKp39i8eaHDHn3iTRqPfaB6X1txjxLDwcBhq0W1nITC/pub?output=csv"
+# 彻底抛弃 CSV，全链路使用 API 实现秒级同步
 CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbyyWfL9pzZo8olGSKfTttXDOfPsASsJ7pgghAF9Ut51sfrjVfBYigcQFf5lKftUJ2gA/exec"
 
 def get_deterministic_color(brand_name):
@@ -132,7 +132,7 @@ def generate_html():
             valid_locations.append({'loc': loc, 'zone': zone, 'col': int(col_num), 'lvl': int(lvl_num), 'is_ground': False})
     df_locs = pd.DataFrame(valid_locations)
 
-    print(" [2/4] 正在下载 Google Drive 最新 xlsx 文件... ")
+    print("📦 [2/4] 正在下载 Google Drive 最新 xlsx 文件... ")
     actual_db = {}
     temp_xlsx_path = "temp_inventory.xlsx"
     try:
@@ -181,9 +181,6 @@ def generate_html():
     coords = [get_absolute_coords(z, c, l) for z, c, l in zip(df_locs['zone'], df_locs['col'], df_locs['lvl'])]
     df_locs['X'], df_locs['Y'], df_locs['Z'] = [c[0] for c in coords], [c[1] for c in coords], [c[2] for c in coords]
 
-    # ========================================================
-    # 🌟 核心修改：生成地面库位坐标（包含新增的 GL 和 GM14）
-    # ========================================================
     ground_data = []
     ref_a = get_absolute_coords('A', 1, 1); ground_data.append({'loc': 'GA', 'X': ref_a[0] - 5.0, 'Y': ref_a[1], 'Z': 0, 'zone': 'GROUND', 'col': 1, 'lvl': 1, 'is_ground': True})
     ref_b = get_absolute_coords('B', 1, 1); ground_data.append({'loc': 'GBC', 'X': ref_b[0] - 5.0, 'Y': ref_b[1], 'Z': 0, 'zone': 'GROUND', 'col': 2, 'lvl': 1, 'is_ground': True})
@@ -200,7 +197,7 @@ def generate_html():
     ref_t = get_absolute_coords('T', 1, 1); ground_data.append({'loc': 'GT', 'X': ref_t[0] + 5.0, 'Y': ref_t[1], 'Z': 0, 'zone': 'GROUND', 'col': 13, 'lvl': 1, 'is_ground': True})
     ref_w = get_absolute_coords('W', 1, 1); ground_data.append({'loc': 'GXW', 'X': ref_w[0] + 5.0, 'Y': ref_w[1], 'Z': 0, 'zone': 'GROUND', 'col': 14, 'lvl': 1, 'is_ground': True})
 
-    # 🌟 新增：GL (L14-01 南侧) 和 GM14 (M13-01 南侧)
+    # 新增：GL (L14-01 北侧) 和 GM14 (M13-01 北侧)
     ref_l14 = get_absolute_coords('L', 14, 1)
     ground_data.append({'loc': 'GL', 'X': ref_l14[0], 'Y': ref_l14[1] - 4.0, 'Z': 0, 'zone': 'GROUND', 'col': 99, 'lvl': 1, 'is_ground': True})
     
@@ -212,9 +209,10 @@ def generate_html():
     res = [get_planned_info(z, c, l, ig) for z, c, l, ig in zip(df_locs['zone'], df_locs['col'], df_locs['lvl'], df_locs['is_ground'])]
     df_locs['brand'], df_locs['color'] = [r[0] for r in res], [r[1] for r in res]
 
+    # 核心修改：Python 端通过 API 实时获取配置，增加容错机制
     cloud_runtime_config, cloud_cell_override_db, cloud_actual_colors = None, None, None
     try:
-        print("☁️ 正在通过 API 实时同步云端配置... ")
+        print("️ 正在通过 API 实时同步云端配置... ")
         api_res = requests.get(CONFIG_API_URL + '?t=' + str(int(time.time())), timeout=15)
         if api_res.status_code == 200:
             cloud_data = api_res.json()
@@ -223,21 +221,21 @@ def generate_html():
             cloud_actual_colors = cloud_data.get('actual_brand_colors')
             print("✅ 云端配置(API)实时同步成功！ ")
         else:
-            print(f"⚠️ API 请求失败，状态码: {api_res.status_code}")
+            print(f"⚠️ API 请求失败，状态码: {api_res.status_code}，将使用默认配置。")
     except Exception as e:
-        print(f"⚠️ 读取云端配置失败: {e} ")
+        print(f"⚠️ 读取云端配置失败: {e}，将使用默认配置。")
 
     print("🧮 [3/4] 正在生成 3D 桥接数据与画布... ")
     python_to_js_cache = []
     for idx, row in df_locs.iterrows():
         locID = row['loc']
-        # 🌟 自动匹配：从 actual_db 中获取该库位（包括 GL 和 GM14）的库存数据
         items_in_bin = actual_db.get(locID, [])
         brands_in_bin = list(set([it['brand'] for it in items_in_bin if it['brand']]))
         brand_count = len(brands_in_bin)
         slices_data = []
         
         if brand_count == 0: slices_data.append({"brand": "[当前空置]", "color": GLOBAL_BRAND_COLORS['[当前空置]'], "items": []})
+        # 核心修复：补全了警告符号 ⚠️，彻底解决 KeyError
         elif brand_count > 4: slices_data.append({"brand": "[⚠️超过4品牌严重混放]", "color": GLOBAL_BRAND_COLORS['[⚠️超过4品牌严重混放]'], "items": [{"sku": it['sku'], "qty": it['qty'], "brand": it['brand']} for it in items_in_bin]})
         else:
             for b_name in brands_in_bin:
@@ -261,7 +259,7 @@ def generate_html():
         for it in items:
             brand = str(it.get('brand', '')).strip()
             qty = int(it.get('qty', 0))
-            if brand and brand not in ['[当前空置]', '[⚠️超过4品牌严重混放]']:
+            if brand and brand not in ['[当前空置]', '[️超过4品牌严重混放]']:
                 actual_total_stats[brand] = actual_total_stats.get(brand, 0) + qty
                 actual_total_qty += qty
                 if qty > 0: has_stock = True
@@ -270,7 +268,7 @@ def generate_html():
 
     total_locations = len(python_to_js_cache)
     occupancy_rate = round((occupied_locations / total_locations * 100), 1) if total_locations > 0 else 0.0
-    print(f"   📦 仓库全量库存: {actual_total_qty} 件 | 📍 库位占用: {occupied_locations}/{total_locations} ({occupancy_rate}%)")
+    print(f"   📦 仓库全量库存: {actual_total_qty} 件 |  库位占用: {occupied_locations}/{total_locations} ({occupancy_rate}%)")
 
     fig = go.Figure()
     min_x, max_x = df_locs['X'].min() - 25, df_locs['X'].max() + 25
@@ -329,7 +327,7 @@ def generate_html():
     cache_buster_meta = '''<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"> <meta http-equiv="Pragma" content="no-cache"> <meta http-equiv="Expires" content="0">'''
     html_content = html_content.replace('<head>', '<head>' + cache_buster_meta)
 
-    print("️ [4/4] 正在编译前端交互引擎... ")
+    print("🎛️ [4/4] 正在编译前端交互引擎... ")
     nz_now = datetime.datetime.now(ZoneInfo('Pacific/Auckland'))
     data_timestamp = nz_now.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -351,7 +349,6 @@ def generate_html():
     js_overrides_string = json.dumps(final_cell_override_db)
     js_actual_colors_string = json.dumps(final_actual_colors)
     js_api_url_string = json.dumps(CONFIG_API_URL)
-    js_csv_url_string = json.dumps(CONFIG_CSV_URL)
 
     interactive_control_script = r'''
 <style>
@@ -380,7 +377,7 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 </style>
 <button id="nav-toggle-btn" onclick="toggleNav()">☰ 菜单</button>
 <div id="data-timestamp-box" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.95); padding: 10px 14px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 9999; border: 1px solid #E2E8F0; text-align: center;">
-<div id="data-update-label" style="font-size: 10px; color: #666;"> 数据更新 (NZ Time)</div>
+<div id="data-update-label" style="font-size: 10px; color: #666;">📊 数据更新 (NZ Time)</div>
 <div id="data-timestamp" style="font-size: 13px; font-weight: bold; color: #0F172A;">DATA_TIMESTAMP_PLACEHOLDER</div>
 <div style="display:flex; gap:5px; align-items:center; justify-content:center; margin-top: 5px;">
 <button onclick="toggleLanguage()" id="lang-toggle-btn" style="background:#F1F5F9; color:#0F172A; border:1px solid #CBD5E1; border-radius:4px; padding:3px 8px; font-size:11px; cursor:pointer; font-weight:bold;">EN/中</button>
@@ -425,7 +422,7 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 <button class="ctrl-btn" onclick="showPwdModal()" style="background:#FEF3C7; color:#D97706; border-color:#FCD34D; font-size:14px;">🔒</button>
 </div>
 <div class="control-row">
-<button class="ctrl-btn" onclick="zoomCamera(0.8)"></button>
+<button class="ctrl-btn" onclick="zoomCamera(0.8)">➕</button>
 <button class="ctrl-btn" onclick="zoomCamera(1.25)">➖</button>
 <button class="ctrl-btn" onclick="resetCamera()">🏠</button>
 </div>
@@ -451,7 +448,6 @@ let occupied_locations = OCCUPIED_LOCATIONS_PLACEHOLDER || 0;
 let occupancy_rate = OCCUPANCY_RATE_PLACEHOLDER || 0;
 
 const CONFIG_API_URL = CONFIG_API_URL_PLACEHOLDER;
-const CONFIG_CSV_URL = CONFIG_CSV_URL_PLACEHOLDER;
 let GLOBAL_CURRENT_VIEW = "PLAN";
 let server_data_cache = SERVER_DATA_INJECT_PLACEHOLDER || [];
 let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER || {};
@@ -467,20 +463,20 @@ const translations = {
         addBrand: "➕ 增加规划品牌", promptBrandName: "请输入新品牌名称：", promptBrandExists: "该品牌已存在于规划中！",
         promptBrandColor: "请输入品牌颜色 HEX 值 (如 #FF5733)，或留空使用默认蓝色：", 
         totalInventory: "📦 仓库总库存 (全量)", 
-        occupancyRate: "📍 库位占用率",
+        occupancyRate: " 库位占用率",
         skuSearch: "🔍 SKU 搜索:", skuPlaceholder: "输入 SKU（如：1234）", search: "搜索",
-        deleteConfirm: "删除", restoreConfirm: "恢复", pwdTitle: "🔐 输入编辑密码", pwdPlaceholder: "请输入密码",
-        cancel: "取消", confirm: "确认", unlockAlert: "🔒 请先点击右下角  按钮输入密码解锁编辑功能！", wrongPwd: "密码错误！"
+        deleteConfirm: "删除", restoreConfirm: "恢复", pwdTitle: " 输入编辑密码", pwdPlaceholder: "请输入密码",
+        cancel: "取消", confirm: "确认", unlockAlert: "🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！", wrongPwd: "密码错误！"
     },
     en: {
         dataUpdate: "📊 Data Update (NZ Time)", refresh: "Refresh", confirmRefresh: "Are you sure to refresh?",
         plan: "🟢 Plan", actual: "🔵 Actual", planTitle: "📊 Planned Brand Legend", actualTitle: "🔍 Actual Inventory (Full)",
         reset: "Reset", confirmReset: "Reset all plans and clear local/cloud changes?",
         quickTool: "📐 Quick Color Tool:", locPlaceholder: "e.g.: Q01-01~Q01-04", brandPlaceholder: "Brand", apply: "Apply",
-        addBrand: " Add Planned Brand", promptBrandName: "Enter new brand name:", promptBrandExists: "This brand already exists!",
+        addBrand: "➕ Add Planned Brand", promptBrandName: "Enter new brand name:", promptBrandExists: "This brand already exists!",
         promptBrandColor: "Enter HEX color (e.g. #FF5733) or leave empty:", 
-        totalInventory: "📦 Total Inventory (Full)", 
-        occupancyRate: " Bin Occupancy Rate",
+        totalInventory: " Total Inventory (Full)", 
+        occupancyRate: "📍 Bin Occupancy Rate",
         skuSearch: "🔍 SKU Search:", skuPlaceholder: "Enter SKU (e.g.: 1234)", search: "Search",
         deleteConfirm: "Delete", restoreConfirm: "Restore", pwdTitle: " Enter Password", pwdPlaceholder: "Enter password",
         cancel: "Cancel", confirm: "OK", unlockAlert: "🔒 Click the 🔒 button at bottom right to unlock!", wrongPwd: "Wrong password!"
@@ -669,7 +665,7 @@ function appendLegendRow(container, name, color, orgName, qty, percent) {
     let statsSpan = document.createElement("span"); statsSpan.style.cssText = "font-size:10px; color:#64748B; white-space:nowrap; flex-shrink:0;";
     if (qty !== undefined && percent !== undefined) statsSpan.innerText = `${qty.toLocaleString()} (${percent})`;
 
-    let editBtn = document.createElement("button"); editBtn.innerText = "️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
+    let editBtn = document.createElement("button"); editBtn.innerText = "✏️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
     let delBtn = document.createElement("button"); delBtn.innerText = "🗑️"; delBtn.className = "lockable"; delBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`${t('deleteConfirm')} "${name}"?`)) deleteBrand(orgName || name); };
     let resetBtn = document.createElement("button"); resetBtn.innerText = "🔄"; resetBtn.className = "lockable"; resetBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`${t('restoreConfirm')} "${name}"?`)) resetBrandLocations(orgName || name); };
 
@@ -794,7 +790,6 @@ var checkPlotly = setInterval(function(){
         "OCCUPIED_LOCATIONS_PLACEHOLDER": js_occupied_locations,
         "OCCUPANCY_RATE_PLACEHOLDER": js_occupancy_rate,
         "CONFIG_API_URL_PLACEHOLDER": js_api_url_string,
-        "CONFIG_CSV_URL_PLACEHOLDER": js_csv_url_string,
         "SERVER_DATA_INJECT_PLACEHOLDER": js_array_string,
         "SERVER_COLORS_INJECT_PLACEHOLDER": js_global_colors_string,
         "DATA_TIMESTAMP_PLACEHOLDER": data_timestamp
@@ -843,4 +838,4 @@ if __name__ == "__main__":
                         traceback.print_exc()
                 time.sleep(60)
         except KeyboardInterrupt: 
-            print("\n\n👋 收到退出信号，仓库沙盘后台监控已安全停止。 ")
+            print("\n\n 收到退出信号，仓库沙盘后台监控已安全停止。 ")
