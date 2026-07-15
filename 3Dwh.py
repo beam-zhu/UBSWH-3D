@@ -19,14 +19,14 @@ ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-e
 OUTPUT_HTML = "index.html"
 TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f" 
 
-CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbyyWfL9pzZo8olGSKfTttXDOfPsASsJ7pgghAF9Ut51sfrjVfBYigcQFf5lKftUJ2gA/exec"
+# 🌟 核心修改：这里已经填入了你最新提供的 Web App URL
+CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbwRV4pnfbbNezMXCxR-CLCzb69oRXzzO7r8pZtZ6iPbcAyUngwhumuiMgjrAZJebDd7Kw/exec"
 
 def get_deterministic_color(brand_name):
     hash_val = int(hashlib.md5(brand_name.encode('utf-8')).hexdigest(), 16)
     hue = hash_val % 360
     return f"hsl({hue}, 65%, 50%)"
 
-# 🌟 核心修复：去掉了容易出编码问题的 ⚠️ 符号
 GLOBAL_BRAND_COLORS = {
     'LINSY': '#D68F68', 'A区 (oversize沙发区)': '#7DA28A', 'B区 (沙发 Backup区)': '#6C8EA4',
     'G区不良品区': '#949BA2', 'Replica 区域': '#D4CBBE', 'MODE 椅子区': '#9E7E73',
@@ -117,7 +117,7 @@ def is_valid_location(loc):
     return False
 
 def generate_html():
-    print(" [1/4] 正在同步云端规划底座...")
+    print("📡 [1/4] 正在同步云端规划底座...")
     df_raw = pd.read_csv(PLAN_CSV_URL, header=None)
     all_raw_locs = []
     for col in df_raw.columns: all_raw_locs.extend(df_raw[col].dropna().astype(str).tolist())
@@ -132,7 +132,7 @@ def generate_html():
             valid_locations.append({'loc': loc, 'zone': zone, 'col': int(col_num), 'lvl': int(lvl_num), 'is_ground': False})
     df_locs = pd.DataFrame(valid_locations)
 
-    print(" [2/4] 正在下载 Google Drive 最新 xlsx 文件... ")
+    print("📦 [2/4] 正在下载 Google Drive 最新 xlsx 文件... ")
     actual_db = {}
     temp_xlsx_path = "temp_inventory.xlsx"
     try:
@@ -171,7 +171,7 @@ def generate_html():
             actual_db[raw_loc].append({'sku': clean_sku, 'brand': brand, 'qty': int(qty)})
             if brand not in GLOBAL_BRAND_COLORS: GLOBAL_BRAND_COLORS[brand] = get_deterministic_color(brand)
     except Exception as e:
-        print(f"️ 下载 xlsx 失败: {e} ")
+        print(f"⚠️ 下载 xlsx 失败: {e} ")
         if os.environ.get('GITHUB_ACTIONS') == 'true': raise e
     finally:
         try:
@@ -207,9 +207,12 @@ def generate_html():
     res = [get_planned_info(z, c, l, ig) for z, c, l, ig in zip(df_locs['zone'], df_locs['col'], df_locs['lvl'], df_locs['is_ground'])]
     df_locs['brand'], df_locs['color'] = [r[0] for r in res], [r[1] for r in res]
 
-    cloud_runtime_config, cloud_cell_override_db, cloud_actual_colors = None, None, None
+    # 🌟 核心修改：通过 API 实时读取 JSON，彻底抛弃有缓存的 CSV
+    cloud_runtime_config = None
+    cloud_cell_override_db = None
+    cloud_actual_colors = None
     try:
-        print("️ 正在通过 API 实时同步云端配置... ")
+        print("☁️ 正在通过 API 实时同步云端配置... ")
         api_res = requests.get(CONFIG_API_URL + '?t=' + str(int(time.time())), timeout=15)
         if api_res.status_code == 200:
             cloud_data = api_res.json()
@@ -232,7 +235,6 @@ def generate_html():
         slices_data = []
         
         if brand_count == 0: slices_data.append({"brand": "[当前空置]", "color": GLOBAL_BRAND_COLORS['[当前空置]'], "items": []})
-        # 🌟 核心修复：去掉了 ️ 符号，彻底解决 KeyError
         elif brand_count > 4: slices_data.append({"brand": "[超过4品牌严重混放]", "color": GLOBAL_BRAND_COLORS['[超过4品牌严重混放]'], "items": [{"sku": it['sku'], "qty": it['qty'], "brand": it['brand']} for it in items_in_bin]})
         else:
             for b_name in brands_in_bin:
@@ -256,7 +258,6 @@ def generate_html():
         for it in items:
             brand = str(it.get('brand', '')).strip()
             qty = int(it.get('qty', 0))
-            # 🌟 核心修复：同步去掉 ⚠️ 符号
             if brand and brand not in ['[当前空置]', '[超过4品牌严重混放]']:
                 actual_total_stats[brand] = actual_total_stats.get(brand, 0) + qty
                 actual_total_qty += qty
@@ -266,7 +267,7 @@ def generate_html():
 
     total_locations = len(python_to_js_cache)
     occupancy_rate = round((occupied_locations / total_locations * 100), 1) if total_locations > 0 else 0.0
-    print(f"   📦 仓库全量库存: {actual_total_qty} 件 |  库位占用: {occupied_locations}/{total_locations} ({occupancy_rate}%)")
+    print(f"   📦 仓库全量库存: {actual_total_qty} 件 | 📍 库位占用: {occupied_locations}/{total_locations} ({occupancy_rate}%)")
 
     fig = go.Figure()
     min_x, max_x = df_locs['X'].min() - 25, df_locs['X'].max() + 25
@@ -406,7 +407,7 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 </div>
 
 <div id="sku-search-box" style="background: #F8FAFC; padding: 8px; border-radius: 8px; border: 1px dashed #5B7B9C; margin-bottom: 12px; display: none;">
-    <label style="font-size: 11px; display:block; margin-bottom:4px; font-weight: bold;"> SKU 搜索:</label>
+    <label style="font-size: 11px; display:block; margin-bottom:4px; font-weight: bold;">🔍 SKU 搜索:</label>
     <div style="display: flex; gap: 4px;">
         <input type="text" id="sku-search-input" placeholder="输入 SKU（如：1234）" style="flex:1; padding: 6px; border: 1px solid #CBD5E1; border-radius: 4px; font-size: 11px;">
         <button onclick="searchSKU()" style="background: #3B82F6; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">搜索</button>
@@ -415,7 +416,7 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 </div>
 
 <div id="planning-tools-box" style="background: #F8FAFC; padding: 8px; border-radius: 8px; border: 1px dashed #5B7B9C; margin-bottom: 12px;">
-<label id="quick-tool-label" style="font-size: 11px; display:block; margin-bottom:4px; font-weight: bold;"> 快速改色工具:</label>
+<label id="quick-tool-label" style="font-size: 11px; display:block; margin-bottom:4px; font-weight: bold;">📐 快速改色工具:</label>
 <textarea id="target-loc" rows="2" placeholder="如：Q01-01~Q01-04" style="width: 100%; padding: 4px; border: 1px solid #CBD5E1; border-radius: 4px; box-sizing: border-box; font-size: 11px;"></textarea>
 <div style="display: flex; gap: 4px; margin-top: 6px;">
 <input type="text" id="new-brand" placeholder="品牌" style="flex:1; padding: 4px; border: 1px solid #CBD5E1; border-radius: 4px; font-size: 11px;">
@@ -482,15 +483,15 @@ const translations = {
         quickTool: "📐 快速改色工具:", locPlaceholder: "如：Q01-01~Q01-04", brandPlaceholder: "品牌", apply: "修改",
         addBrand: "➕ 增加规划品牌", promptBrandName: "请输入新品牌名称：", promptBrandExists: "该品牌已存在于规划中！",
         promptBrandColor: "请输入品牌颜色 HEX 值 (如 #FF5733)，或留空使用默认蓝色：", 
-        totalInventory: " 仓库总库存 (全量)", 
+        totalInventory: "📦 仓库总库存 (全量)", 
         occupancyRate: "📍 库位占用率",
         skuSearch: "🔍 SKU 搜索:", skuPlaceholder: "输入 SKU（如：1234）", search: "搜索",
         deleteConfirm: "删除", restoreConfirm: "恢复", pwdTitle: "🔐 输入编辑密码", pwdPlaceholder: "请输入密码",
-        cancel: "取消", confirm: "确认", unlockAlert: " 请先点击右下角 🔒 按钮输入密码解锁编辑功能！", wrongPwd: "密码错误！"
+        cancel: "取消", confirm: "确认", unlockAlert: "🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！", wrongPwd: "密码错误！"
     },
     en: {
         dataUpdate: "📊 Data Update (NZ Time)", refresh: "Refresh", confirmRefresh: "Are you sure to refresh?",
-        plan: "🟢 Plan", actual: "🔵 Actual", planTitle: "📊 Planned Brand Legend", actualTitle: " Actual Inventory (Full)",
+        plan: "🟢 Plan", actual: "🔵 Actual", planTitle: "📊 Planned Brand Legend", actualTitle: "🔍 Actual Inventory (Full)",
         reset: "Reset", confirmReset: "Reset all plans and clear local/cloud changes?",
         quickTool: "📐 Quick Color Tool:", locPlaceholder: "e.g.: Q01-01~Q01-04", brandPlaceholder: "Brand", apply: "Apply",
         addBrand: "➕ Add Planned Brand", promptBrandName: "Enter new brand name:", promptBrandExists: "This brand already exists!",
@@ -761,7 +762,7 @@ function resetCamera() { currentScale = 1.0; var plotContainer = document.queryS
 const TARGET_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f"; let isUnlocked = false;
 function showPwdModal() { if (isUnlocked) { isUnlocked = false; lockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = "🔒"; } else { document.getElementById('pwd-modal').style.display = 'flex'; document.getElementById('pwd-input').value = ''; document.getElementById('pwd-input').focus(); } }
 function closePwdModal() { document.getElementById('pwd-modal').style.display = 'none'; }
-async function verifyPwd() { const pwd = document.getElementById('pwd-input').value; if (!pwd) return; const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd)); const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join(''); if (hashHex === TARGET_HASH) { isUnlocked = true; closePwdModal(); unlockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = ""; } else { alert(t('wrongPwd')); } }
+async function verifyPwd() { const pwd = document.getElementById('pwd-input').value; if (!pwd) return; const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd)); const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join(''); if (hashHex === TARGET_HASH) { isUnlocked = true; closePwdModal(); unlockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = "🔓"; } else { alert(t('wrongPwd')); } }
 function lockAllEditBtns() { document.querySelectorAll('.lockable').forEach(btn => btn.classList.add('locked')); }
 function unlockAllEditBtns() { document.querySelectorAll('.lockable').forEach(btn => btn.classList.remove('locked')); }
 
