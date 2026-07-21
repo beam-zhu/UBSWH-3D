@@ -19,7 +19,6 @@ ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-e
 OUTPUT_HTML = "index.html"
 TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f" 
 
-# 🌟 核心修改：这里已经填入了你最新提供的 Web App URL
 CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbwRV4pnfbbNezMXCxR-CLCzb69oRXzzO7r8pZtZ6iPbcAyUngwhumuiMgjrAZJebDd7Kw/exec"
 
 def get_deterministic_color(brand_name):
@@ -192,7 +191,12 @@ def generate_html():
     ref_n2 = get_absolute_coords('N', 2, 1); ref_n3 = get_absolute_coords('N', 3, 1); ground_data.append({'loc': 'GN1', 'X': ref_n2[0], 'Y': (ref_n2[1] + ref_n3[1])/2.0, 'Z': 0, 'zone': 'GROUND', 'col': 8, 'lvl': 1, 'is_ground': True})
     ref_m2 = get_absolute_coords('M', 2, 1); ref_m3 = get_absolute_coords('M', 3, 1); ground_data.append({'loc': 'GM2', 'X': ref_m2[0], 'Y': (ref_m2[1] + ref_m3[1])/2.0, 'Z': 0, 'zone': 'GROUND', 'col': 9, 'lvl': 1, 'is_ground': True})
     ref_m5 = get_absolute_coords('M', 5, 1); ref_m6 = get_absolute_coords('M', 6, 1); ground_data.append({'loc': 'GM5', 'X': ref_m5[0], 'Y': (ref_m5[1] + ref_m6[1])/2.0, 'Z': 0, 'zone': 'GROUND', 'col': 10, 'lvl': 1, 'is_ground': True})
-    ref_m8 = get_absolute_coords('M', 7, 1); ref_m9 = get_absolute_coords('M', 9, 1); ground_data.append({'loc': 'GM8', 'X': ref_m8[0], 'Y': (ref_m8[1] + ref_m9[1])/2.0, 'Z': 0, 'zone': 'GROUND', 'col': 11, 'lvl': 1, 'is_ground': True})
+    
+    # 🌟 核心修复：将 GM8 的参考点改为 M08 和 M09，使其向 M09 方向移动，避开与 M08 的镶嵌
+    ref_m8_pos = get_absolute_coords('M', 8, 1)
+    ref_m9_pos = get_absolute_coords('M', 9, 1)
+    ground_data.append({'loc': 'GM8', 'X': ref_m8_pos[0], 'Y': (ref_m8_pos[1] + ref_m9_pos[1]) / 2.0, 'Z': 0, 'zone': 'GROUND', 'col': 11, 'lvl': 1, 'is_ground': True})
+    
     ref_m11 = get_absolute_coords('M', 11, 1); ref_m12 = get_absolute_coords('M', 12, 1); ground_data.append({'loc': 'GM11', 'X': ref_m11[0], 'Y': (ref_m11[1] + ref_m12[1])/2.0, 'Z': 0, 'zone': 'GROUND', 'col': 12, 'lvl': 1, 'is_ground': True})
     ref_t = get_absolute_coords('T', 1, 1); ground_data.append({'loc': 'GT', 'X': ref_t[0] + 5.0, 'Y': ref_t[1], 'Z': 0, 'zone': 'GROUND', 'col': 13, 'lvl': 1, 'is_ground': True})
     ref_w = get_absolute_coords('W', 1, 1); ground_data.append({'loc': 'GXW', 'X': ref_w[0] + 5.0, 'Y': ref_w[1], 'Z': 0, 'zone': 'GROUND', 'col': 14, 'lvl': 1, 'is_ground': True})
@@ -207,7 +211,6 @@ def generate_html():
     res = [get_planned_info(z, c, l, ig) for z, c, l, ig in zip(df_locs['zone'], df_locs['col'], df_locs['lvl'], df_locs['is_ground'])]
     df_locs['brand'], df_locs['color'] = [r[0] for r in res], [r[1] for r in res]
 
-    # 🌟 核心修改：通过 API 实时读取 JSON，彻底抛弃有缓存的 CSV
     cloud_runtime_config = None
     cloud_cell_override_db = None
     cloud_actual_colors = None
@@ -608,7 +611,35 @@ function syncConfigToCloud() {
 }
 
 setInterval(function() { let now = new Date(); let minute = now.getMinutes(); if (minute % 30 == 0 && now.getSeconds() < 10) { window.location.href = window.location.pathname + '?t=' + Date.now(); } }, 5000);
-function forceRefreshData() { if(confirm(t('confirmRefresh'))) { window.location.href = window.location.pathname + '?t=' + Date.now(); } }
+   function forceRefreshData() { 
+       if(!confirm("确定要触发云端更新并刷新页面吗？\n(这通常需要 1-2 分钟，请耐心等待)")) return;
+       
+       const btnText = document.getElementById('btn-refresh-text');
+       const originalText = btnText.innerText;
+       btnText.innerText = "更新中...";
+       
+       fetch(CONFIG_API_URL, {
+           method: 'POST',
+           body: JSON.stringify({ action: 'trigger_github_build' }),
+           headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+       })
+       .then(res => res.json())
+       .then(data => {
+           if (data.status === 'success') {
+               alert("✅ 云端构建已触发！\n页面将在 5 秒后强制刷新以获取最新数据。");
+               setTimeout(() => {
+                   window.location.href = window.location.pathname + '?t=' + Date.now();
+               }, 5000);
+           } else {
+               alert("⚠️ 触发失败: " + data.message);
+               btnText.innerText = originalText;
+           }
+       })
+       .catch(err => {
+           alert("️ 网络错误，触发失败");
+           btnText.innerText = originalText;
+       });
+   }
 
 function switchGlobalView(viewMode) {
     GLOBAL_CURRENT_VIEW = viewMode;
