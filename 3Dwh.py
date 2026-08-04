@@ -19,7 +19,7 @@ ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-e
 OUTPUT_HTML = "index.html"
 TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f" 
 
-CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbwRV4pnfbbNezMXCxR-CLCzb69oRXzzO7r8pZtZ6iPbcAyUngwhumuiMgjrAZJebDd7Kw/exec"
+CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbyIbqbnkpXRQ-NNOLPlQAkgU-ZEajrJk1i9bR4SLNsoJyBSsvp7vfQxqQOyGR0m9cuCSA/exec"
 
 def get_deterministic_color(brand_name):
     hash_val = int(hashlib.md5(brand_name.encode('utf-8')).hexdigest(), 16)
@@ -170,12 +170,33 @@ def generate_html():
             actual_db[raw_loc].append({'sku': clean_sku, 'brand': brand, 'qty': int(qty)})
             if brand not in GLOBAL_BRAND_COLORS: GLOBAL_BRAND_COLORS[brand] = get_deterministic_color(brand)
     except Exception as e:
-        print(f"⚠️ 下载 xlsx 失败: {e} ")
+        print(f"️ 下载 xlsx 失败: {e} ")
         if os.environ.get('GITHUB_ACTIONS') == 'true': raise e
     finally:
         try:
             if os.path.exists(temp_xlsx_path): os.remove(temp_xlsx_path)
         except: pass
+
+    # 🌟 核心功能：将当前库存快照发送给 GAS 记录 (第一阶段)
+    try:
+        print("📝 正在记录本次库存快照... ")
+        log_items = []
+        for loc, items in actual_db.items():
+            for it in items:
+                log_items.append({
+                    "loc": loc,
+                    "sku": it['sku'],
+                    "brand": it['brand'],
+                    "qty": it['qty']
+                })
+        
+        requests.post(CONFIG_API_URL, json={
+            "action": "log_inventory",
+            "items": log_items
+        }, timeout=15)
+        print(f"✅ 成功发送 {len(log_items)} 条库存数据给云端记录。")
+    except Exception as e:
+        print(f"⚠️ 记录日志失败 (不影响主流程): {e}")
 
     coords = [get_absolute_coords(z, c, l) for z, c, l in zip(df_locs['zone'], df_locs['col'], df_locs['lvl'])]
     df_locs['X'], df_locs['Y'], df_locs['Z'] = [c[0] for c in coords], [c[1] for c in coords], [c[2] for c in coords]
@@ -192,7 +213,7 @@ def generate_html():
     ref_m2 = get_absolute_coords('M', 2, 1); ref_m3 = get_absolute_coords('M', 3, 1); ground_data.append({'loc': 'GM2', 'X': ref_m2[0], 'Y': (ref_m2[1] + ref_m3[1])/2.0, 'Z': 0, 'zone': 'GROUND', 'col': 9, 'lvl': 1, 'is_ground': True})
     ref_m5 = get_absolute_coords('M', 5, 1); ref_m6 = get_absolute_coords('M', 6, 1); ground_data.append({'loc': 'GM5', 'X': ref_m5[0], 'Y': (ref_m5[1] + ref_m6[1])/2.0, 'Z': 0, 'zone': 'GROUND', 'col': 10, 'lvl': 1, 'is_ground': True})
     
-    # 🌟 核心修复：将 GM8 的参考点改为 M08 和 M09，使其向 M09 方向移动，避开与 M08 的镶嵌
+    # GM8 向 M09 方向偏移，避开与 M08 的镶嵌
     ref_m8_pos = get_absolute_coords('M', 8, 1)
     ref_m9_pos = get_absolute_coords('M', 9, 1)
     ground_data.append({'loc': 'GM8', 'X': ref_m8_pos[0], 'Y': (ref_m8_pos[1] + ref_m9_pos[1]) / 2.0, 'Z': 0, 'zone': 'GROUND', 'col': 11, 'lvl': 1, 'is_ground': True})
@@ -270,7 +291,7 @@ def generate_html():
 
     total_locations = len(python_to_js_cache)
     occupancy_rate = round((occupied_locations / total_locations * 100), 1) if total_locations > 0 else 0.0
-    print(f"   📦 仓库全量库存: {actual_total_qty} 件 | 📍 库位占用: {occupied_locations}/{total_locations} ({occupancy_rate}%)")
+    print(f"    仓库全量库存: {actual_total_qty} 件 | 📍 库位占用: {occupied_locations}/{total_locations} ({occupancy_rate}%)")
 
     fig = go.Figure()
     min_x, max_x = df_locs['X'].min() - 25, df_locs['X'].max() + 25
@@ -401,7 +422,7 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 </div>
 <div id="super-legend-panel" style="position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.98); padding: 16px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.1); z-index: 9999; width: 380px; border: 1px solid #E2E8F0; max-height: 90vh; overflow-y: auto;">
 <div style="background: #F1F5F9; padding: 4px; border-radius: 8px; display: flex; gap: 4px; margin-bottom: 12px;">
-<div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')">🟢 规划</div>
+<div id="view-plan-btn" class="switch-btn active" onclick="switchGlobalView('PLAN')"> 规划</div>
 <div id="view-actual-btn" class="switch-btn" onclick="switchGlobalView('ACTUAL')">🔵 实际</div>
 </div>
 <div style="border-bottom: 2px solid #F1F5F9; padding-bottom: 6px; margin-bottom: 10px; display:flex; justify-content:space-between; align-items:center;">
@@ -481,7 +502,7 @@ try {
 const translations = {
     zh: {
         dataUpdate: "📊 数据更新 (NZ Time)", refresh: "刷新", confirmRefresh: "确定刷新？",
-        plan: "🟢 规划", actual: "🔵 实际", planTitle: "📊 预期规划品牌图例", actualTitle: "🔍 实盘现存品牌清点 (全量)",
+        plan: " 规划", actual: "🔵 实际", planTitle: "📊 预期规划品牌图例", actualTitle: "🔍 实盘现存品牌清点 (全量)",
         reset: "恢复初始", confirmReset: "确定要恢复所有初始规划并清除本地和云端保存的修改吗？",
         quickTool: "📐 快速改色工具:", locPlaceholder: "如：Q01-01~Q01-04", brandPlaceholder: "品牌", apply: "修改",
         addBrand: "➕ 增加规划品牌", promptBrandName: "请输入新品牌名称：", promptBrandExists: "该品牌已存在于规划中！",
@@ -501,7 +522,7 @@ const translations = {
         promptBrandColor: "Enter HEX color (e.g. #FF5733) or leave empty:", 
         totalInventory: "📦 Total Inventory (Full)", 
         occupancyRate: "📍 Bin Occupancy Rate",
-        skuSearch: "🔍 SKU Search:", skuPlaceholder: "Enter SKU (e.g.: 1234)", search: "Search",
+        skuSearch: " SKU Search:", skuPlaceholder: "Enter SKU (e.g.: 1234)", search: "Search",
         deleteConfirm: "Delete", restoreConfirm: "Restore", pwdTitle: "🔐 Enter Password", pwdPlaceholder: "Enter password",
         cancel: "Cancel", confirm: "OK", unlockAlert: "🔒 Click the 🔒 button at bottom right to unlock!", wrongPwd: "Wrong password!"
     }
@@ -584,6 +605,37 @@ function searchSKU() {
     }
 }
 
+// 🌟 核心功能：点击刷新按钮触发 GitHub Actions
+function forceRefreshData() { 
+    if(!confirm("确定要触发云端更新并刷新页面吗？\n(这通常需要 1-2 分钟，请耐心等待)")) return;
+    
+    const btnText = document.getElementById('btn-refresh-text');
+    const originalText = btnText.innerText;
+    btnText.innerText = "更新中...";
+    
+    fetch(CONFIG_API_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'trigger_github_build' }),
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert("✅ 云端构建已触发！\n页面将在 5 秒后强制刷新以获取最新数据。");
+            setTimeout(() => {
+                window.location.href = window.location.pathname + '?t=' + Date.now();
+            }, 5000);
+        } else {
+            alert("⚠️ 触发失败: " + data.message);
+            btnText.innerText = originalText;
+        }
+    })
+    .catch(err => {
+        alert("️ 网络错误，触发失败");
+        btnText.innerText = originalText;
+    });
+}
+
 async function loadCloudConfig() {
     if (!CONFIG_API_URL || CONFIG_API_URL === 'null') return;
     try {
@@ -599,7 +651,7 @@ async function loadCloudConfig() {
         renderControlPanel();
         applyAllDBCacheToCanvas();
         lockAllEditBtns(); 
-    } catch (e) { console.warn("⚠️ 加载云端配置失败: ", e); }
+    } catch (e) { console.warn("️ 加载云端配置失败: ", e); }
 }
 
 function syncConfigToCloud() {
@@ -611,35 +663,6 @@ function syncConfigToCloud() {
 }
 
 setInterval(function() { let now = new Date(); let minute = now.getMinutes(); if (minute % 30 == 0 && now.getSeconds() < 10) { window.location.href = window.location.pathname + '?t=' + Date.now(); } }, 5000);
-   function forceRefreshData() { 
-       if(!confirm("确定要触发云端更新并刷新页面吗？\n(这通常需要 1-2 分钟，请耐心等待)")) return;
-       
-       const btnText = document.getElementById('btn-refresh-text');
-       const originalText = btnText.innerText;
-       btnText.innerText = "更新中...";
-       
-       fetch(CONFIG_API_URL, {
-           method: 'POST',
-           body: JSON.stringify({ action: 'trigger_github_build' }),
-           headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-       })
-       .then(res => res.json())
-       .then(data => {
-           if (data.status === 'success') {
-               alert("✅ 云端构建已触发！\n页面将在 5 秒后强制刷新以获取最新数据。");
-               setTimeout(() => {
-                   window.location.href = window.location.pathname + '?t=' + Date.now();
-               }, 5000);
-           } else {
-               alert("⚠️ 触发失败: " + data.message);
-               btnText.innerText = originalText;
-           }
-       })
-       .catch(err => {
-           alert("️ 网络错误，触发失败");
-           btnText.innerText = originalText;
-       });
-   }
 
 function switchGlobalView(viewMode) {
     GLOBAL_CURRENT_VIEW = viewMode;
@@ -870,4 +893,4 @@ if __name__ == "__main__":
                         traceback.print_exc()
                 time.sleep(60)
         except KeyboardInterrupt: 
-            print("\n\n👋 收到退出信号，仓库沙盘后台监控已安全停止。 ")
+            print("\n\n 收到退出信号，仓库沙盘后台监控已安全停止。 ")
