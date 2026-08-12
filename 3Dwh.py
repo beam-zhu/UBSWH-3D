@@ -26,6 +26,17 @@ def gas_post(payload):
     if r.status_code in (301, 302, 303, 307):
         r = requests.post(r.headers.get('Location', CONFIG_API_URL), data=json.dumps(payload), headers=headers, allow_redirects=False, timeout=180)
     return r
+def fetch_with_retry(func, retries=3, wait=8):
+    """网络下载自动重试：防止 Google 偶尔掐断连接导致整轮失败"""
+    last_err = None
+    for i in range(retries):
+        try:
+            return func()
+        except Exception as e:
+            last_err = e
+            print(f"⚠️ 网络连接被重置（第 {i+1}/{retries} 次），{wait} 秒后重试...")
+            time.sleep(wait)
+    raise last_err
 
 # 🌟 分析阈值配置
 STAGNANT_DAYS = 90  # 超过多少天未出库算呆滞
@@ -158,7 +169,7 @@ def analyze_inventory_health(sku_stats, current_actual_db):
 
 def generate_html():
     print("📡 [1/4] 正在同步云端规划底座...")
-    df_raw = pd.read_csv(PLAN_CSV_URL, header=None)
+    df_raw = fetch_with_retry(lambda: pd.read_csv(PLAN_CSV_URL, header=None))
     all_raw_locs = []
     for col in df_raw.columns: all_raw_locs.extend(df_raw[col].dropna().astype(str).tolist())
     valid_locations = []
@@ -178,7 +189,7 @@ def generate_html():
         timestamp = int(time.time())
         url_with_timestamp = f"{ACTUAL_XLSX_URL}&t={timestamp}"
         headers = {'User-Agent': 'Mozilla/5.0', 'Cache-Control': 'no-cache'}
-        response = requests.get(url_with_timestamp, headers=headers, timeout=60)
+        response = fetch_with_retry(lambda: requests.get(url_with_timestamp, headers=headers, timeout=60))
         response.raise_for_status()
         with open(temp_xlsx_path, 'wb') as f: f.write(response.content)
         with pd.ExcelFile(temp_xlsx_path) as xl_file:
@@ -224,8 +235,13 @@ def generate_html():
             stagnant_locs, hot_locs, sku_flags, sku_stats = analyze_inventory_health(raw_stats, actual_db)
             stagnant_sku_count = sum(1 for v in sku_flags.values() if v == '❄')
             hot_sku_count = sum(1 for v in sku_flags.values() if v == '🔥')
+            sku_brand_map = {}
+            for loc, items in actual_db.items():
+                for it in items:
+                    if it['sku'] not in sku_brand_map:
+                        sku_brand_map[it['sku']] = it['brand']
             hot_list = sorted(
-                [{"sku": s, "sold30": st.get("sold30", 0), "cur": st.get("cur", 0)} for s, st in sku_stats.items() if st.get("sold30", 0) > 0],
+                [{"sku": s, "sold30": st.get("sold30", 0), "cur": st.get("cur", 0), "brand": sku_brand_map.get(s, '')} for s, st in sku_stats.items() if st.get("sold30", 0) > 0],
                 key=lambda x: x["sold30"], reverse=True)[:20]
             print(f"✅ 分析完成！呆滞库位 {len(stagnant_locs)} / 热销库位 {len(hot_locs)} / 上榜 {len(hot_list)} 个")
         else:
@@ -677,7 +693,7 @@ function renderHotList() {
     if (hot_list.length) {
         hot_list.forEach(r => {
             hhtml += `<div style="display:flex; justify-content:space-between; font-size:10px; padding:2px 0; border-bottom:1px dashed #FCD34D;">
-                <span>${r.sku}${r.cur === 0 ? ' <b style="color:#EF4444">' + t('soldOut') + '</b>' : ''}</span>
+                <span>${r.sku}${r.brand ? ' · ' + r.brand : ''}${r.cur === 0 ? ' <b style="color:#EF4444">' + t('soldOut') + '</b>' : ''}</span>
                 <span>${fmt('salesFmt', {s: r.sold30, c: r.cur})}</span></div>`;
         });
     } else { hhtml += `<div style="font-size:10px; color:#64748B;">${t('noSales')}</div>`; }
