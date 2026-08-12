@@ -19,6 +19,13 @@ ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-e
 OUTPUT_HTML = "index.html"
 TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f" 
 CONFIG_API_URL = "https://script.google.com/macros/s/AKfycby3XQPPO6H6Nb1xjwi4vMkpWy9hKeA0HYZ_p8g94QGoYG3ZqFfi7URJv5K6p5hm-1FiDQ/exec"
+def gas_post(payload):
+    """防止 302 重定向把 POST 降级成 GET（GitHub 机房 IP 必加）"""
+    headers = {'Content-Type': 'text/plain;charset=utf-8'}
+    r = requests.post(CONFIG_API_URL, data=json.dumps(payload), headers=headers, allow_redirects=False, timeout=180)
+    if r.status_code in (301, 302, 303, 307):
+        r = requests.post(r.headers.get('Location', CONFIG_API_URL), data=json.dumps(payload), headers=headers, allow_redirects=False, timeout=180)
+    return r
 
 # 🌟 分析阈值配置
 STAGNANT_DAYS = 90  # 超过多少天未出库算呆滞
@@ -211,7 +218,7 @@ def generate_html():
     hot_sku_count = 0
     try:
         print(" [2.5/4] 正在进行库存健康度智能分析... ")
-        log_res = requests.post(CONFIG_API_URL, json={"action": "get_analysis"}, timeout=180)
+        log_res = requests.get(CONFIG_API_URL + '?action=get_analysis&t=' + str(int(time.time())), timeout=180)
         if log_res.status_code == 200:
             raw_stats = log_res.json()
             stagnant_locs, hot_locs, sku_flags, sku_stats = analyze_inventory_health(raw_stats, actual_db)
@@ -229,7 +236,7 @@ def generate_html():
     # 记录新日志
     try:
         log_items = [{"loc": loc, "sku": it['sku'], "brand": it['brand'], "qty": it['qty']} for loc, items in actual_db.items() for it in items]
-        requests.post(CONFIG_API_URL, json={"action": "log_inventory", "items": log_items}, timeout=15)
+        gas_post({"action": "log_inventory", "items": log_items})
     except: pass
 
     coords = [get_absolute_coords(z, c, l) for z, c, l in zip(df_locs['zone'], df_locs['col'], df_locs['lvl'])]
