@@ -18,13 +18,16 @@ PLAN_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vStLtLccpDSfrf_y
 ACTUAL_XLSX_URL = "https://docs.google.com/spreadsheets/d/1w1RvdGh_5LfIaxKHv0P-egK5kKzjLVZx/export?format=xlsx"
 OUTPUT_HTML = "index.html"
 TARGET_PASSWORD_HASH = "f0a36b9da192dc4732c232774766160f204bfe18be84c0a0dafce7040334b29f" 
+CONFIG_API_URL = "https://script.google.com/macros/s/AKfycby3XQPPO6H6Nb1xjwi4vMkpWy9hKeA0HYZ_p8g94QGoYG3ZqFfi7URJv5K6p5hm-1FiDQ/exec"
 
-CONFIG_API_URL = "https://script.google.com/macros/s/AKfycbyIbqbnkpXRQ-NNOLPlQAkgU-ZEajrJk1i9bR4SLNsoJyBSsvp7vfQxqQOyGR0m9cuCSA/exec"
+# 🌟 分析阈值配置
+STAGNANT_DAYS = 90  # 超过多少天未出库算呆滞
+HOT_THRESHOLD = 15   # 出库次数超过多少次算热销（可根据数据量调整）
+HOT_RECENT_DAYS = 30  # 热销的“近期活跃”窗口（天）
 
 def get_deterministic_color(brand_name):
     hash_val = int(hashlib.md5(brand_name.encode('utf-8')).hexdigest(), 16)
-    hue = hash_val % 360
-    return f"hsl({hue}, 65%, 50%)"
+    return f"hsl({hash_val % 360}, 65%, 50%)"
 
 GLOBAL_BRAND_COLORS = {
     'LINSY': '#D68F68', 'A区 (oversize沙发区)': '#7DA28A', 'B区 (沙发 Backup区)': '#6C8EA4',
@@ -115,12 +118,42 @@ def is_valid_location(loc):
     if re.match(r'^G[A-Z]+\d*$', loc): return True
     return False
 
+def analyze_inventory_health(sku_stats, current_actual_db):
+    now = datetime.datetime.now(datetime.timezone.utc)
+    stagnant_skus = set()
+    hot_skus = set()
+    for sku, st in sku_stats.items():
+        cur = st.get('cur', 0)
+        sold30 = st.get('sold30', 0)
+        last_dec = st.get('last_dec')
+        first = st.get('first')
+        # 热销：近30天销量(件)达标（脱销品也上榜）
+        if sold30 >= HOT_THRESHOLD:
+            hot_skus.add(sku)
+        # 呆滞：当前有库存且长期未出库
+        if cur > 0:
+            ref = last_dec if last_dec else first
+            if ref:
+                try:
+                    ref_dt = datetime.datetime.fromisoformat(str(ref).replace('Z', '+00:00'))
+                    if (now - ref_dt).days >= STAGNANT_DAYS:
+                        stagnant_skus.add(sku)
+                except Exception:
+                    pass
+    sku_flags = {}
+    for s in hot_skus: sku_flags[s] = '🔥'
+    for s in stagnant_skus: sku_flags[s] = '❄'
+    stagnant_locs = set(); hot_locs = set()
+    for loc, items in current_actual_db.items():
+        if any(it['sku'] in stagnant_skus for it in items): stagnant_locs.add(loc)
+        elif any(it['sku'] in hot_skus for it in items): hot_locs.add(loc)
+    return list(stagnant_locs), list(hot_locs), sku_flags, sku_stats
+
 def generate_html():
     print("📡 [1/4] 正在同步云端规划底座...")
     df_raw = pd.read_csv(PLAN_CSV_URL, header=None)
     all_raw_locs = []
     for col in df_raw.columns: all_raw_locs.extend(df_raw[col].dropna().astype(str).tolist())
-    
     valid_locations = []
     for loc in all_raw_locs:
         loc = loc.strip()
@@ -137,35 +170,24 @@ def generate_html():
     try:
         timestamp = int(time.time())
         url_with_timestamp = f"{ACTUAL_XLSX_URL}&t={timestamp}"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-        }
+        headers = {'User-Agent': 'Mozilla/5.0', 'Cache-Control': 'no-cache'}
         response = requests.get(url_with_timestamp, headers=headers, timeout=60)
         response.raise_for_status()
         with open(temp_xlsx_path, 'wb') as f: f.write(response.content)
         with pd.ExcelFile(temp_xlsx_path) as xl_file:
             df_actual = xl_file.parse(sheet_name=0, skiprows=5, header=0)
-        
         df_actual = df_actual[df_actual.iloc[:, 1].astype(str).apply(is_valid_location)]
-        print(f"    XLSX 总行数（过滤后）: {len(df_actual)} ")
-        
         for idx, row in df_actual.iterrows():
             if len(row) < 7: continue
             raw_loc = str(row.iloc[1]).strip()
             if not raw_loc or raw_loc.lower() in ['nan', 'none', '']: continue 
-            raw_sku = str(row.iloc[2]).strip()
-            clean_sku = raw_sku.split('~')[-1] if '~' in raw_sku else raw_sku
+            clean_sku = str(row.iloc[2]).strip().split('~')[-1] if '~' in str(row.iloc[2]) else str(row.iloc[2]).strip()
             brand = str(row.iloc[3]).strip() if len(row) > 3 else 'Other'
             try:
                 qty = float(row.iloc[6]) if len(row) > 6 else 0.0
                 if np.isnan(qty): qty = 0.0
             except: qty = 0.0
-            
             if qty <= 0: continue
-            
             if raw_loc not in actual_db: actual_db[raw_loc] = []
             actual_db[raw_loc].append({'sku': clean_sku, 'brand': brand, 'qty': int(qty)})
             if brand not in GLOBAL_BRAND_COLORS: GLOBAL_BRAND_COLORS[brand] = get_deterministic_color(brand)
@@ -175,28 +197,40 @@ def generate_html():
     finally:
         try:
             if os.path.exists(temp_xlsx_path): os.remove(temp_xlsx_path)
+             # 🌟 保险丝：实际库存为空时中止生成，避免空页面覆盖正常页面
+            if len(actual_db) == 0:
+                raise Exception("⚠️ 实际库存为空，疑似下载/解析失败，已中止本次生成")
         except: pass
 
-    # 🌟 核心功能：将当前库存快照发送给 GAS 记录 (第一阶段)
+    # 🌟 核心：获取日志并进行智能分析
+    stagnant_locs = []
+    hot_locs = []
+    sku_flags = {}
+    hot_list = []
+    stagnant_sku_count = 0
+    hot_sku_count = 0
     try:
-        print("📝 正在记录本次库存快照... ")
-        log_items = []
-        for loc, items in actual_db.items():
-            for it in items:
-                log_items.append({
-                    "loc": loc,
-                    "sku": it['sku'],
-                    "brand": it['brand'],
-                    "qty": it['qty']
-                })
-        
-        requests.post(CONFIG_API_URL, json={
-            "action": "log_inventory",
-            "items": log_items
-        }, timeout=15)
-        print(f"✅ 成功发送 {len(log_items)} 条库存数据给云端记录。")
+        print(" [2.5/4] 正在进行库存健康度智能分析... ")
+        log_res = requests.post(CONFIG_API_URL, json={"action": "get_analysis"}, timeout=180)
+        if log_res.status_code == 200:
+            raw_stats = log_res.json()
+            stagnant_locs, hot_locs, sku_flags, sku_stats = analyze_inventory_health(raw_stats, actual_db)
+            stagnant_sku_count = sum(1 for v in sku_flags.values() if v == '❄')
+            hot_sku_count = sum(1 for v in sku_flags.values() if v == '🔥')
+            hot_list = sorted(
+                [{"sku": s, "sold30": st.get("sold30", 0), "cur": st.get("cur", 0)} for s, st in sku_stats.items() if st.get("sold30", 0) > 0],
+                key=lambda x: x["sold30"], reverse=True)[:20]
+            print(f"✅ 分析完成！呆滞库位 {len(stagnant_locs)} / 热销库位 {len(hot_locs)} / 上榜 {len(hot_list)} 个")
+        else:
+            print("⚠️ 获取日志失败，跳过分析。")
     except Exception as e:
-        print(f"⚠️ 记录日志失败 (不影响主流程): {e}")
+        print(f"⚠️ 分析过程出错: {e}")
+
+    # 记录新日志
+    try:
+        log_items = [{"loc": loc, "sku": it['sku'], "brand": it['brand'], "qty": it['qty']} for loc, items in actual_db.items() for it in items]
+        requests.post(CONFIG_API_URL, json={"action": "log_inventory", "items": log_items}, timeout=15)
+    except: pass
 
     coords = [get_absolute_coords(z, c, l) for z, c, l in zip(df_locs['zone'], df_locs['col'], df_locs['lvl'])]
     df_locs['X'], df_locs['Y'], df_locs['Z'] = [c[0] for c in coords], [c[1] for c in coords], [c[2] for c in coords]
@@ -212,20 +246,13 @@ def generate_html():
     ref_n2 = get_absolute_coords('N', 2, 1); ref_n3 = get_absolute_coords('N', 3, 1); ground_data.append({'loc': 'GN1', 'X': ref_n2[0], 'Y': (ref_n2[1] + ref_n3[1])/2.0, 'Z': 0, 'zone': 'GROUND', 'col': 8, 'lvl': 1, 'is_ground': True})
     ref_m2 = get_absolute_coords('M', 2, 1); ref_m3 = get_absolute_coords('M', 3, 1); ground_data.append({'loc': 'GM2', 'X': ref_m2[0], 'Y': (ref_m2[1] + ref_m3[1])/2.0, 'Z': 0, 'zone': 'GROUND', 'col': 9, 'lvl': 1, 'is_ground': True})
     ref_m5 = get_absolute_coords('M', 5, 1); ref_m6 = get_absolute_coords('M', 6, 1); ground_data.append({'loc': 'GM5', 'X': ref_m5[0], 'Y': (ref_m5[1] + ref_m6[1])/2.0, 'Z': 0, 'zone': 'GROUND', 'col': 10, 'lvl': 1, 'is_ground': True})
-    
-    # GM8 向 M09 方向偏移，避开与 M08 的镶嵌
-    ref_m8_pos = get_absolute_coords('M', 8, 1)
-    ref_m9_pos = get_absolute_coords('M', 9, 1)
+    ref_m8_pos = get_absolute_coords('M', 8, 1); ref_m9_pos = get_absolute_coords('M', 9, 1)
     ground_data.append({'loc': 'GM8', 'X': ref_m8_pos[0], 'Y': (ref_m8_pos[1] + ref_m9_pos[1]) / 2.0, 'Z': 0, 'zone': 'GROUND', 'col': 11, 'lvl': 1, 'is_ground': True})
-    
     ref_m11 = get_absolute_coords('M', 11, 1); ref_m12 = get_absolute_coords('M', 12, 1); ground_data.append({'loc': 'GM11', 'X': ref_m11[0], 'Y': (ref_m11[1] + ref_m12[1])/2.0, 'Z': 0, 'zone': 'GROUND', 'col': 12, 'lvl': 1, 'is_ground': True})
     ref_t = get_absolute_coords('T', 1, 1); ground_data.append({'loc': 'GT', 'X': ref_t[0] + 5.0, 'Y': ref_t[1], 'Z': 0, 'zone': 'GROUND', 'col': 13, 'lvl': 1, 'is_ground': True})
     ref_w = get_absolute_coords('W', 1, 1); ground_data.append({'loc': 'GXW', 'X': ref_w[0] + 5.0, 'Y': ref_w[1], 'Z': 0, 'zone': 'GROUND', 'col': 14, 'lvl': 1, 'is_ground': True})
-
-    ref_l14 = get_absolute_coords('L', 14, 1)
-    ground_data.append({'loc': 'GL', 'X': ref_l14[0], 'Y': ref_l14[1] - 4.0, 'Z': 0, 'zone': 'GROUND', 'col': 99, 'lvl': 1, 'is_ground': True})
-    ref_m13 = get_absolute_coords('M', 13, 1)
-    ground_data.append({'loc': 'GM14', 'X': ref_m13[0], 'Y': ref_m13[1] - 4.0, 'Z': 0, 'zone': 'GROUND', 'col': 99, 'lvl': 1, 'is_ground': True})
+    ref_l14 = get_absolute_coords('L', 14, 1); ground_data.append({'loc': 'GL', 'X': ref_l14[0], 'Y': ref_l14[1] - 4.0, 'Z': 0, 'zone': 'GROUND', 'col': 99, 'lvl': 1, 'is_ground': True})
+    ref_m13 = get_absolute_coords('M', 13, 1); ground_data.append({'loc': 'GM14', 'X': ref_m13[0], 'Y': ref_m13[1] - 4.0, 'Z': 0, 'zone': 'GROUND', 'col': 99, 'lvl': 1, 'is_ground': True})
 
     df_ground = pd.DataFrame(ground_data)
     df_locs = pd.concat([df_locs, df_ground], ignore_index=True)
@@ -233,21 +260,12 @@ def generate_html():
     df_locs['brand'], df_locs['color'] = [r[0] for r in res], [r[1] for r in res]
 
     cloud_runtime_config = None
-    cloud_cell_override_db = None
-    cloud_actual_colors = None
     try:
-        print("☁️ 正在通过 API 实时同步云端配置... ")
         api_res = requests.get(CONFIG_API_URL + '?t=' + str(int(time.time())), timeout=15)
         if api_res.status_code == 200:
             cloud_data = api_res.json()
             cloud_runtime_config = cloud_data.get('runtime_config')
-            cloud_cell_override_db = cloud_data.get('cell_override_db')
-            cloud_actual_colors = cloud_data.get('actual_brand_colors')
-            print("✅ 云端配置(API)实时同步成功！ ")
-        else:
-            print(f"⚠️ API 请求失败，状态码: {api_res.status_code}，将使用默认配置。")
-    except Exception as e:
-        print(f"⚠️ 读取云端配置失败: {e}，将使用默认配置。")
+    except: pass
 
     print("🧮 [3/4] 正在生成 3D 桥接数据与画布... ")
     python_to_js_cache = []
@@ -257,26 +275,31 @@ def generate_html():
         brands_in_bin = list(set([it['brand'] for it in items_in_bin if it['brand']]))
         brand_count = len(brands_in_bin)
         slices_data = []
-        
         if brand_count == 0: slices_data.append({"brand": "[当前空置]", "color": GLOBAL_BRAND_COLORS['[当前空置]'], "items": []})
         elif brand_count > 4: slices_data.append({"brand": "[超过4品牌严重混放]", "color": GLOBAL_BRAND_COLORS['[超过4品牌严重混放]'], "items": [{"sku": it['sku'], "qty": it['qty'], "brand": it['brand']} for it in items_in_bin]})
         else:
             for b_name in brands_in_bin:
                 b_color = GLOBAL_BRAND_COLORS.get(b_name, "#CBD5E1") 
-                slices_data.append({"brand": b_name, "color": b_color, "items": [{"sku": it['sku'], "qty": it['qty']} for it in items_in_bin if it['brand'] == b_name]})
+                slices_data.append({"brand": b_name, "color": b_color, "items": [{"sku": it['sku'], "qty": it['qty'], "flag": sku_flags.get(it['sku'], '')} for it in items_in_bin if it['brand'] == b_name]})
                 
         h = LVL_HEIGHT * 0.92
         cz = row['Z']
+        
+        # 🌟 注入分析状态
+        status = 'normal'
+        if locID in stagnant_locs: status = 'stagnant'
+        elif locID in hot_locs: status = 'hot'
+        
         python_to_js_cache.append({
             "loc": str(locID), "zone": str(row['zone']), "col": int(row['col']), "lvl": int(row['lvl']),
             "is_ground": bool(row['is_ground']), "native_brand": str(row['brand']), "native_color": str(row['color']),
-            "slices": slices_data, "orig_z": [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h]
+            "slices": slices_data, "orig_z": [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h],
+            "health_status": status # 新增状态字段
         })
 
     actual_total_stats = {}
     actual_total_qty = 0
     occupied_locations = 0
-    
     for locID, items in actual_db.items():
         has_stock = False
         for it in items:
@@ -286,11 +309,12 @@ def generate_html():
                 actual_total_stats[brand] = actual_total_stats.get(brand, 0) + qty
                 actual_total_qty += qty
                 if qty > 0: has_stock = True
-        if has_stock:
-            occupied_locations += 1
+        if has_stock: occupied_locations += 1
 
     total_locations = len(python_to_js_cache)
     occupancy_rate = round((occupied_locations / total_locations * 100), 1) if total_locations > 0 else 0.0
+    
+
     print(f"    仓库全量库存: {actual_total_qty} 件 | 📍 库位占用: {occupied_locations}/{total_locations} ({occupancy_rate}%)")
 
     fig = go.Figure()
@@ -312,6 +336,10 @@ def generate_html():
         for e in edges: border_x.extend([e[0], e[3], None]); border_y.extend([e[1], e[4], None]); border_z.extend([e[2], e[5], None])
     fig.add_trace(go.Scatter3d(x=border_x, y=border_y, z=border_z, mode='lines', line=dict(color='#1E293B', width=2), hoverinfo='skip', showlegend=False, name='_BORDERS_'))
 
+    # 🌟 用于存放呆滞/热销标签的坐标
+    snow_x, snow_y, snow_z = [], [], []
+    fire_x, fire_y, fire_z = [], [], []
+
     for idx, row in df_locs.iterrows():
         is_v = row['zone'] in ['H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q']
         if row['is_ground']: cw, cd, h = 2.0 * SHRINK, 2.0 * SHRINK, LVL_HEIGHT * 0.92
@@ -324,19 +352,48 @@ def generate_html():
         y = [cy-cd, cy-cd, cy+cd, cy+cd, cy-cd, cy-cd, cy+cd, cy+cd]
         z = [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h]
         
-        fig.add_trace(go.Mesh3d(x=x, y=y, z=z, name='_SHELF_CUBE_', i=[7,0,0,0,4,4,1,1,2,2,3,3], j=[0,1,2,3,5,7,2,5,3,6,0,7], k=[4,4,3,4,6,5,5,6,6,7,7,4], color=row['color'], customdata=[row['loc']]*8, text=[f"库位: {row['loc']}"]*8, lighting=dict(ambient=0.7, diffuse=0.85, specular=0.05), flatshading=True, hoverinfo='text', showlegend=False))
+        # 根据健康状态决定颜色（如果是呆滞/热销，覆盖原有颜色）
+        display_color = row['color']
+        status = row.get('health_status', 'normal') # 注意：这里 df_locs 没有 health_status，我们需要从 python_to_js_cache 找，或者重新判断
+        # 简单处理：直接在 python_to_js_cache 里找
+        cache_item = next((item for item in python_to_js_cache if item['loc'] == row['loc']), None)
+        status = cache_item['health_status'] if cache_item else 'normal'
         
+        fig.add_trace(go.Mesh3d(x=x, y=y, z=z, name='_SHELF_CUBE_', i=[7,0,0,0,4,4,1,1,2,2,3,3], j=[0,1,2,3,5,7,2,5,3,6,0,7], k=[4,4,3,4,6,5,5,6,6,7,7,4], color=row['color'], customdata=[row['loc']]*8, text=[f"库位: {row['loc']}"]*8, lighting=dict(ambient=0.7, diffuse=0.85, specular=0.05), flatshading=True, hoverinfo='text', showlegend=False, hoverlabel=dict(bgcolor='#111827', font=dict(color='#F9FAFB', size=12))))
+        
+        # 收集标记坐标（不再改色）
+        if status == 'stagnant':
+            snow_x.append(cx); snow_y.append(cy); snow_z.append(cz + h + 1.0)
+        elif status == 'hot':
+            fire_x.append(cx); fire_y.append(cy); fire_z.append(cz + h + 1.0)
+            
+        fig.add_trace(go.Mesh3d(x=x, y=y, z=z, name='_SHELF_CUBE_', i=[7,0,0,0,4,4,1,1,2,2,3,3], j=[0,1,2,3,5,7,2,5,3,6,0,7], k=[4,4,3,4,6,5,5,6,6,7,7,4], color=display_color, customdata=[row['loc']]*8, text=[f"库位: {row['loc']}"]*8, lighting=dict(ambient=0.7, diffuse=0.85, specular=0.05), flatshading=True, hoverinfo='text', showlegend=False))
+        
+        # 收集标记坐标（不再改色）
+        if status == 'stagnant':
+            snow_x.append(cx); snow_y.append(cy); snow_z.append(cz + h + 1.0)
+        elif status == 'hot':
+            fire_x.append(cx); fire_y.append(cy); fire_z.append(cz + h + 1.0)
+
         hover_cx = cx + 0.1 if row['zone'] in ['H', 'K', 'P'] else (cx - 0.1 if row['zone'] in ['J', 'L', 'Q'] else cx)
         hover_cw = cw + 0.1
         hover_x = [hover_cx-hover_cw, hover_cx+hover_cw, hover_cx+hover_cw, hover_cx-hover_cw, hover_cx-hover_cw, hover_cx+hover_cw, hover_cx+hover_cw, hover_cx-hover_cw]
         hover_y = [cy-cd, cy-cd, cy+cd, cy+cd, cy-cd, cy-cd, cy+cd, cy+cd]
         hover_z = [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h]
         hover_text = f"库位: {row['loc']} (地面)" if row['is_ground'] else f"库位: {row['loc']} <br>区域: {row['zone']}区 <br>品牌: {row['brand']}"
+        if status == 'stagnant': hover_text += "<br>❄ 呆滞库存"
+        if status == 'hot': hover_text += "<br>🔥 热销库存"
         
-        fig.add_trace(go.Mesh3d(x=hover_x, y=hover_y, z=hover_z, name=f'_HOVER_{row["loc"]}', i=[7,0,0,0,4,4,1,1,2,2,3,3], j=[0,1,2,3,5,7,2,5,3,6,0,7], k=[4,4,3,4,6,5,5,6,6,7,7,4], color='white', opacity=0.01, hoverinfo='text', text=[hover_text] * 8, showlegend=False))
+        fig.add_trace(go.Mesh3d(x=hover_x, y=hover_y, z=hover_z, name=f'_HOVER_{row["loc"]}', i=[7,0,0,0,4,4,1,1,2,2,3,3], j=[0,1,2,3,5,7,2,5,3,6,0,7], k=[4,4,3,4,6,5,5,6,6,7,7,4], color='white', opacity=0.01, hoverinfo='text', text=[hover_text] * 8, showlegend=False, hoverlabel=dict(bgcolor='#111827', font=dict(color='#F9FAFB', size=12))))
         
         if row['is_ground']:
             fig.add_trace(go.Scatter3d(x=[row['X']], y=[row['Y']], z=[row['Z'] + h + 0.5], mode='text', text=[row['loc']], textposition="top center", textfont=dict(size=12, color="#0F172A", family="Arial Black"), showlegend=False, hoverinfo='skip'))
+
+    # 渲染呆滞/热销标签
+    if snow_x:
+        fig.add_trace(go.Scatter3d(x=snow_x, y=snow_y, z=snow_z, mode='text', text=['❄']*len(snow_x), textposition="top center", textfont=dict(size=13, color='#00A8E8'), showlegend=False, hoverinfo='skip'))
+    if fire_x:
+        fig.add_trace(go.Scatter3d(x=fire_x, y=fire_y, z=fire_z, mode='text', text=['🔥']*len(fire_x), textposition="top center", textfont=dict(size=13, color='#FF7F00'), showlegend=False, hoverinfo='skip'))
 
     ZONE_Z_OFFSET_MAP = {'A': 2.0, 'B': 16.0, 'C': 2.0, 'D': 11.0, 'E': 2.0, 'F': 7.0, 'G': 2.0, 'H': 2.0, 'J': 6.0, 'K': 10.0, 'L': 2.0, 'M': 6.0, 'N': 2.0, 'P': 6.0, 'Q': 2.0, 'T': 2.0, 'W': 6.0, 'X': 10.0, 'Y': 2.0}
     for zone, group in df_locs.groupby('zone'):
@@ -350,7 +407,7 @@ def generate_html():
     cache_buster_meta = '''<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"> <meta http-equiv="Pragma" content="no-cache"> <meta http-equiv="Expires" content="0">'''
     html_content = html_content.replace('<head>', '<head>' + cache_buster_meta)
 
-    print("🎛️ [4/4] 正在编译前端交互引擎... ")
+    print("️ [4/4] 正在编译前端交互引擎... ")
     nz_now = datetime.datetime.now(ZoneInfo('Pacific/Auckland'))
     data_timestamp = nz_now.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -361,6 +418,8 @@ def generate_html():
     js_total_locations = json.dumps(total_locations)
     js_occupied_locations = json.dumps(occupied_locations)
     js_occupancy_rate = json.dumps(occupancy_rate)
+    js_health_stats = json.dumps({"stagnant": stagnant_sku_count, "hot": hot_sku_count})
+    js_hot_list = json.dumps(hot_list)
 
     default_config_list = [
         {"org_name": "LINSY", "color": "#D68F68", "label": "LINSY"}, 
@@ -378,12 +437,10 @@ def generate_html():
     ]
     
     final_runtime_config = cloud_runtime_config if cloud_runtime_config else default_config_list
-    final_cell_override_db = cloud_cell_override_db if cloud_cell_override_db else {}  
-    final_actual_colors = cloud_actual_colors if cloud_actual_colors else {}
 
     js_config_string = json.dumps(final_runtime_config)
-    js_overrides_string = json.dumps(final_cell_override_db)
-    js_actual_colors_string = json.dumps(final_actual_colors)
+    js_overrides_string = json.dumps({})
+    js_actual_colors_string = json.dumps({})
     js_api_url_string = json.dumps(CONFIG_API_URL)
 
     interactive_control_script = r'''
@@ -410,6 +467,8 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 .locked { display: none !important; }
 #pwd-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100002; justify-content: center; align-items: center; }
 .pwd-box { background: white; padding: 30px; border-radius: 12px; max-width: 400px; width: 90%; text-align: center; }
+.health-box { background: #FEF3C7; border: 1px solid #FCD34D; border-radius: 6px; padding: 8px; margin-top: 10px; font-size: 11px; }
+.health-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
 </style>
 <button id="nav-toggle-btn" onclick="toggleNav()">☰ 菜单</button>
 <div id="data-timestamp-box" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.95); padding: 10px 14px; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 9999; border: 1px solid #E2E8F0; text-align: center;">
@@ -418,6 +477,10 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 <div style="display:flex; gap:5px; align-items:center; justify-content:center; margin-top: 5px;">
 <button onclick="toggleLanguage()" id="lang-toggle-btn" style="background:#F1F5F9; color:#0F172A; border:1px solid #CBD5E1; border-radius:4px; padding:3px 8px; font-size:11px; cursor:pointer; font-weight:bold;">EN/中</button>
 <button onclick="forceRefreshData()" style="background:#3B82F6; color:white; border:none; border-radius:4px; padding:3px 8px; font-size:11px; cursor:pointer;">🔄 <span id="btn-refresh-text">刷新</span></button>
+</div>
+<div style="display:flex; gap:5px; align-items:center; justify-content:center; margin-top: 5px;">
+<button onclick="fetchRealtimeDear()" id="dear-realtime-btn" style="background:#8B5CF6; color:white; border:none; border-radius:4px; padding:3px 8px; font-size:11px; cursor:pointer; font-weight:bold;">⚡ API实时刷新</button>
+<button onclick="restoreSheetData()" id="return-sheet-btn" style="background:#6B7280; color:white; border:none; border-radius:4px; padding:3px 8px; font-size:11px; cursor:pointer;">🔙 返回Sheet</button>
 </div>
 </div>
 <div id="super-legend-panel" style="position: absolute; top: 20px; left: 20px; background: rgba(255,255,255,0.98); padding: 16px; border-radius: 12px; box-shadow: 0 6px 20px rgba(0,0,0,0.1); z-index: 9999; width: 380px; border: 1px solid #E2E8F0; max-height: 90vh; overflow-y: auto;">
@@ -448,6 +511,14 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 <button id="apply-btn" class="lockable" onclick="applyLocationChange()" style="background: #5B7B9C; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">修改</button>
 </div>
 </div>
+
+<div id="health-analysis-box" class="health-box" style="display: none;">
+    <div id="health-title" style="font-weight: bold; margin-bottom: 6px; color: #92400E;">🧠 库存健康度分析</div>
+    <div class="health-row"><span id="stagnant-label">❄ 呆滞 SKU (>90天未动):</span><span id="stagnant-count" style="font-weight:bold; color:#EF4444;">0</span></div>
+    <div class="health-row"><span id="hot-label">🔥 热销 SKU (近30天≥15件):</span><span id="hot-count" style="font-weight:bold; color:#10B981;">0</span></div>
+    <div id="hot-list-box" style="margin-top:6px; max-height:160px; overflow-y:auto;"></div>
+</div>
+
 <div id="legend-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
 <button id="add-brand-btn" class="lockable" onclick="addNewBrand()" style="width:100%; padding:8px; background:#10B981; color:white; border:none; border-radius:6px; font-size:12px; font-weight:bold; cursor:pointer; margin-top:10px;">➕ 增加规划品牌</button>
 </div>
@@ -482,36 +553,41 @@ let actual_total_qty = ACTUAL_TOTAL_QTY_PLACEHOLDER || 0;
 let total_locations = TOTAL_LOCATIONS_PLACEHOLDER || 0;
 let occupied_locations = OCCUPIED_LOCATIONS_PLACEHOLDER || 0;
 let occupancy_rate = OCCUPANCY_RATE_PLACEHOLDER || 0;
+let health_stats = HEALTH_STATS_PLACEHOLDER || {};
+let hot_list = HOT_LIST_PLACEHOLDER || [];
 
 const CONFIG_API_URL = CONFIG_API_URL_PLACEHOLDER;
 let GLOBAL_CURRENT_VIEW = "PLAN";
 let server_data_cache = SERVER_DATA_INJECT_PLACEHOLDER || [];
 let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER || {};
 
-Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors);
+let original_cache = JSON.parse(JSON.stringify(server_data_cache)); 
+let isRealtimeMode = false;
 
-try {
-    let saved_actual = localStorage.getItem("warehouse_twin_actual_colors_2026");
-    if (saved_actual) { 
-        let parsed = JSON.parse(saved_actual); 
-        Object.assign(actual_brand_colors, parsed); 
-        Object.assign(GLOBAL_COLOR_POOL, parsed); 
-    }
-} catch(e) {}
+Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors);
 
 const translations = {
     zh: {
         dataUpdate: "📊 数据更新 (NZ Time)", refresh: "刷新", confirmRefresh: "确定刷新？",
-        plan: " 规划", actual: "🔵 实际", planTitle: "📊 预期规划品牌图例", actualTitle: "🔍 实盘现存品牌清点 (全量)",
+        plan: "🟢 规划", actual: "🔵 实际", planTitle: "📊 预期规划品牌图例", actualTitle: "🔍 实盘现存品牌清点 (全量)",
         reset: "恢复初始", confirmReset: "确定要恢复所有初始规划并清除本地和云端保存的修改吗？",
         quickTool: "📐 快速改色工具:", locPlaceholder: "如：Q01-01~Q01-04", brandPlaceholder: "品牌", apply: "修改",
         addBrand: "➕ 增加规划品牌", promptBrandName: "请输入新品牌名称：", promptBrandExists: "该品牌已存在于规划中！",
-        promptBrandColor: "请输入品牌颜色 HEX 值 (如 #FF5733)，或留空使用默认蓝色：", 
-        totalInventory: "📦 仓库总库存 (全量)", 
-        occupancyRate: "📍 库位占用率",
+        promptBrandColor: "请输入品牌颜色 HEX 值 (如 #FF5733)，或留空使用默认蓝色：",
+        totalInventory: "📦 仓库总库存 (全量)", occupancyRate: "📍 库位占用率",
         skuSearch: "🔍 SKU 搜索:", skuPlaceholder: "输入 SKU（如：1234）", search: "搜索",
         deleteConfirm: "删除", restoreConfirm: "恢复", pwdTitle: "🔐 输入编辑密码", pwdPlaceholder: "请输入密码",
-        cancel: "取消", confirm: "确认", unlockAlert: "🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！", wrongPwd: "密码错误！"
+        cancel: "取消", confirm: "确认", unlockAlert: "🔒 请先点击右下角 🔒 按钮输入密码解锁编辑功能！", wrongPwd: "密码错误！",
+        apiRefresh: "⚡ API实时刷新", returnSheet: "🔙 返回Sheet",
+        healthTitle: "🧠 库存健康度分析", stagnantSku: "❄ 呆滞 SKU (>90天未动):", hotSku: "🔥 热销 SKU (近30天≥15件):",
+        hotListTitle: "🔥 近30天销量榜 TOP20（件）", soldOut: "已脱销", salesFmt: "销 {s} / 存 {c}", noSales: "近30天暂无销量记录",
+        realtimeConfirm: "将从 DEAR 实时拉取全量库存，可能需要 10-20 秒。\n(此模式仅用于盘点查看，不会写入日志)\n\n确定继续？",
+        fetching: "拉取中...", realtimeUpdated: "✅ 实时沙盘已更新！\n成功匹配 ", binsMatched: " 个库位。",
+        realtimeFail: "⚠️ 拉取失败: ", netError: "⚠️ 网络错误", restored: "✅ 已恢复到 Google Sheet 定时数据",
+        bannerText: "⚡ 当前为 DEAR 实时盘点模式 (数据未写入日志)",
+        searchPrompt: "请输入 SKU 进行搜索", searchNonePrefix: "未找到包含 \"", searchNoneSuffix: "\" 的 SKU",
+        searchFoundPrefix: "找到 ", searchFoundSuffix: " 个结果:",
+        loc: "库位", zone: "区域", brand: "品牌", ground: "(地面)", stagnantTag: "❄ 呆滞库存", hotTag: "🔥 热销库存"
     },
     en: {
         dataUpdate: "📊 Data Update (NZ Time)", refresh: "Refresh", confirmRefresh: "Are you sure to refresh?",
@@ -519,12 +595,21 @@ const translations = {
         reset: "Reset", confirmReset: "Reset all plans and clear local/cloud changes?",
         quickTool: "📐 Quick Color Tool:", locPlaceholder: "e.g.: Q01-01~Q01-04", brandPlaceholder: "Brand", apply: "Apply",
         addBrand: "➕ Add Planned Brand", promptBrandName: "Enter new brand name:", promptBrandExists: "This brand already exists!",
-        promptBrandColor: "Enter HEX color (e.g. #FF5733) or leave empty:", 
-        totalInventory: "📦 Total Inventory (Full)", 
-        occupancyRate: "📍 Bin Occupancy Rate",
-        skuSearch: " SKU Search:", skuPlaceholder: "Enter SKU (e.g.: 1234)", search: "Search",
+        promptBrandColor: "Enter HEX color (e.g. #FF5733) or leave empty:",
+        totalInventory: "📦 Total Inventory (Full)", occupancyRate: "📍 Bin Occupancy Rate",
+        skuSearch: "🔍 SKU Search:", skuPlaceholder: "Enter SKU (e.g.: 1234)", search: "Search",
         deleteConfirm: "Delete", restoreConfirm: "Restore", pwdTitle: "🔐 Enter Password", pwdPlaceholder: "Enter password",
-        cancel: "Cancel", confirm: "OK", unlockAlert: "🔒 Click the 🔒 button at bottom right to unlock!", wrongPwd: "Wrong password!"
+        cancel: "Cancel", confirm: "OK", unlockAlert: "🔒 Click the 🔒 button at bottom right to unlock!", wrongPwd: "Wrong password!",
+        apiRefresh: " API Realtime", returnSheet: "🔙 Back to Sheet",
+        healthTitle: "🧠 Inventory Health Analysis", stagnantSku: "❄ Stagnant SKU (>90d no sales):", hotSku: "🔥 Hot SKU (≥15 pcs/30d):",
+        hotListTitle: "🔥 30-Day Sales TOP20 (pcs)", soldOut: "SOLD OUT", salesFmt: "{s} sold / {c} left", noSales: "No sales in the last 30 days",
+        realtimeConfirm: "Fetching live inventory from DEAR (10-20s).\n(View-only, will NOT be logged)\n\nContinue?",
+        fetching: "Fetching...", realtimeUpdated: "✅ Realtime data loaded!\nMatched ", binsMatched: " bins.",
+        realtimeFail: "⚠️ Fetch failed: ", netError: "⚠️ Network error", restored: "✅ Restored to Google Sheet data",
+        bannerText: "⚡ DEAR Realtime Mode (not logged)",
+        searchPrompt: "Enter a SKU to search", searchNonePrefix: "No SKU containing \"", searchNoneSuffix: "\" found",
+        searchFoundPrefix: "Found ", searchFoundSuffix: " results:",
+        loc: "Bin", zone: "Zone", brand: "Brand", ground: "(Ground)", stagnantTag: "❄ Stagnant", hotTag: "🔥 Hot"
     }
 };
 let currentLang = localStorage.getItem('warehouse_lang') || 'zh';
@@ -546,6 +631,11 @@ function applyLanguage() {
     document.getElementById('pwd-cancel-btn').innerText = t('cancel');
     document.getElementById('pwd-confirm-btn').innerText = t('confirm');
     document.getElementById('lang-toggle-btn').innerText = currentLang === 'zh' ? 'EN/中' : '中/EN';
+    setTxt('dear-realtime-btn', t('apiRefresh'));
+    setTxt('return-sheet-btn', t('returnSheet'));
+    setTxt('health-title', t('healthTitle'));
+    setTxt('stagnant-label', t('stagnantSku'));
+    setTxt('hot-label', t('hotSku'));
     
     const skuSearchBox = document.getElementById('sku-search-box');
     if (skuSearchBox) {
@@ -554,22 +644,66 @@ function applyLanguage() {
             document.querySelector('#sku-search-box label').innerText = t('skuSearch');
             document.getElementById('sku-search-input').placeholder = t('skuPlaceholder');
             document.querySelector('#sku-search-box button').innerText = t('search');
-        } else {
-            skuSearchBox.style.display = 'none';
-        }
+        } else { skuSearchBox.style.display = 'none'; }
     }
     
     if(GLOBAL_CURRENT_VIEW === 'PLAN') document.getElementById("legend-panel-title").innerText = t('planTitle');
     else document.getElementById("legend-panel-title").innerText = t('actualTitle');
     if (typeof renderControlPanel === 'function') renderControlPanel();
+    if (GLOBAL_CURRENT_VIEW === 'ACTUAL') renderHotList();
+    var gd0 = document.getElementsByClassName('plotly-graph-div')[0];
+    if (gd0 && gd0.data && typeof applyAllDBCacheToCanvas === 'function') applyAllDBCacheToCanvas();
 }
 function toggleLanguage() { currentLang = currentLang === 'zh' ? 'en' : 'zh'; localStorage.setItem('warehouse_lang', currentLang); applyLanguage(); }
+function setTxt(id, val) { const el = document.getElementById(id); if (el) el.innerText = val; }
+function fmt(key, vars) { let s = t(key); for (const k in vars) { s = s.split('{' + k + '}').join(vars[k]); } return s; }
+
+function renderHotList() {
+    const box = document.getElementById('hot-list-box');
+    if (!box) return;
+    let hhtml = `<div style="font-weight:bold; margin-bottom:4px; color:#92400E;">${t('hotListTitle')}</div>`;
+    if (hot_list.length) {
+        hot_list.forEach(r => {
+            hhtml += `<div style="display:flex; justify-content:space-between; font-size:10px; padding:2px 0; border-bottom:1px dashed #FCD34D;">
+                <span>${r.sku}${r.cur === 0 ? ' <b style="color:#EF4444">' + t('soldOut') + '</b>' : ''}</span>
+                <span>${fmt('salesFmt', {s: r.sold30, c: r.cur})}</span></div>`;
+        });
+    } else { hhtml += `<div style="font-size:10px; color:#64748B;">${t('noSales')}</div>`; }
+    box.innerHTML = hhtml;
+}
+
+function translateHoverTraces(gd) {
+    gd.data.forEach(tr => {
+        if (tr.name && String(tr.name).startsWith('_HOVER_')) {
+            const loc = String(tr.name).substring(7);
+            const node = server_data_cache.find(n => n.loc === loc);
+            if (node) {
+                let txt;
+                if (node.is_ground) txt = `${t('loc')}: ${loc} ${t('ground')}`;
+                else txt = `${t('loc')}: ${loc} <br>${t('zone')}: ${node.zone} <br>${t('brand')}: ${node.native_brand}`;
+                tr.text = Array(8).fill(txt);
+            }
+        }
+    });
+}
+function translateZoneLabels(gd) {
+    gd.data.forEach(tr => {
+        if (tr.type === 'scatter3d' && tr.mode === 'text' && tr.text && tr.text.length) {
+            let m = String(tr.text[0]).match(/^([A-Z])区$/);
+            let m2 = String(tr.text[0]).match(/^Zone ([A-Z])$/);
+            if (m || m2) {
+                const z = m ? m[1] : m2[1];
+                tr.text = currentLang === 'en' ? ['Zone ' + z] : [z + '区'];
+            }
+        }
+    });
+}
 
 function searchSKU() {
     const searchInput = document.getElementById('sku-search-input').value.trim().toLowerCase();
     const resultsDiv = document.getElementById('sku-search-results');
     if (!searchInput) {
-        resultsDiv.innerHTML = '<div style="color: #64748B; font-size: 11px; padding: 8px;">请输入 SKU 进行搜索</div>';
+        resultsDiv.innerHTML = `<div style="color: #64748B; font-size: 11px; padding: 8px;">${t('searchPrompt')}</div>`;
         return;
     }
     const results = [];
@@ -587,9 +721,9 @@ function searchSKU() {
         }
     });
     if (results.length === 0) {
-        resultsDiv.innerHTML = `<div style="color: #64748B; font-size: 11px; padding: 8px;">未找到包含 "${searchInput}" 的 SKU</div>`;
+        resultsDiv.innerHTML = `<div style="color: #64748B; font-size: 11px; padding: 8px;">${t('searchNonePrefix')}${searchInput}${t('searchNoneSuffix')}</div>`;
     } else {
-        let html = `<div style="font-size: 11px; font-weight: bold; margin-bottom: 6px; color: #0F172A;">找到 ${results.length} 个结果:</div>`;
+        let html = `<div style="font-size: 11px; font-weight: bold; margin-bottom: 6px; color: #0F172A;">${t('searchFoundPrefix')}${results.length}${t('searchFoundSuffix')}</div>`;
         results.forEach(r => {
             const color = GLOBAL_COLOR_POOL[r.brand] || '#CBD5E1';
             html += `<div style="display: flex; align-items: center; gap: 6px; padding: 6px; background: #F1F5F9; border-radius: 4px; margin-bottom: 4px;">
@@ -605,35 +739,18 @@ function searchSKU() {
     }
 }
 
-// 🌟 核心功能：点击刷新按钮触发 GitHub Actions
 function forceRefreshData() { 
     if(!confirm("确定要触发云端更新并刷新页面吗？\n(这通常需要 1-2 分钟，请耐心等待)")) return;
-    
     const btnText = document.getElementById('btn-refresh-text');
     const originalText = btnText.innerText;
     btnText.innerText = "更新中...";
-    
-    fetch(CONFIG_API_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'trigger_github_build' }),
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-    })
-    .then(res => res.json())
-    .then(data => {
+    fetch(CONFIG_API_URL, { method: 'POST', body: JSON.stringify({ action: 'trigger_github_build' }), headers: { 'Content-Type': 'text/plain;charset=utf-8' } })
+    .then(res => res.json()).then(data => {
         if (data.status === 'success') {
             alert("✅ 云端构建已触发！\n页面将在 5 秒后强制刷新以获取最新数据。");
-            setTimeout(() => {
-                window.location.href = window.location.pathname + '?t=' + Date.now();
-            }, 5000);
-        } else {
-            alert("⚠️ 触发失败: " + data.message);
-            btnText.innerText = originalText;
-        }
-    })
-    .catch(err => {
-        alert("️ 网络错误，触发失败");
-        btnText.innerText = originalText;
-    });
+            setTimeout(() => { window.location.href = window.location.pathname + '?t=' + Date.now(); }, 5000);
+        } else { alert("️ 触发失败: " + data.message); btnText.innerText = originalText; }
+    }).catch(err => { alert("⚠️ 网络错误，触发失败"); btnText.innerText = originalText; });
 }
 
 async function loadCloudConfig() {
@@ -643,15 +760,9 @@ async function loadCloudConfig() {
         const data = await res.json();
         if (data.runtime_config) runtime_config = data.runtime_config;
         if (data.cell_override_db) cell_override_db = data.cell_override_db;
-        if (data.actual_brand_colors) { 
-            actual_brand_colors = data.actual_brand_colors; 
-            Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors); 
-        }
-        console.log("✅ 云端配置(API)实时加载成功！");
-        renderControlPanel();
-        applyAllDBCacheToCanvas();
-        lockAllEditBtns(); 
-    } catch (e) { console.warn("️ 加载云端配置失败: ", e); }
+        if (data.actual_brand_colors) { actual_brand_colors = data.actual_brand_colors; Object.assign(GLOBAL_COLOR_POOL, actual_brand_colors); }
+        renderControlPanel(); applyAllDBCacheToCanvas(); lockAllEditBtns(); 
+    } catch (e) { console.warn("⚠️ 加载云端配置失败: ", e); }
 }
 
 function syncConfigToCloud() {
@@ -673,11 +784,19 @@ function switchGlobalView(viewMode) {
         document.getElementById("planning-tools-box").style.display = "block"; 
         document.getElementById("add-brand-btn").style.display = "block";
         document.getElementById("sku-search-box").style.display = "none";
+        document.getElementById("health-analysis-box").style.display = "none";
     } else { 
         document.getElementById("legend-panel-title").innerText = t('actualTitle'); 
         document.getElementById("planning-tools-box").style.display = "none"; 
         document.getElementById("add-brand-btn").style.display = "none";
         document.getElementById("sku-search-box").style.display = "block";
+        document.getElementById("health-analysis-box").style.display = "block";
+        // 更新健康度数据
+        document.getElementById('stagnant-count').innerText = health_stats.stagnant || 0;
+        document.getElementById('hot-count').innerText = health_stats.hot || 0;
+        document.getElementById('stagnant-count').innerText = health_stats.stagnant || 0;
+        document.getElementById('hot-count').innerText = health_stats.hot || 0;
+        renderHotList();
     }
     applyAllDBCacheToCanvas(); renderControlPanel();
 }
@@ -719,11 +838,9 @@ function appendLegendRow(container, name, color, orgName, qty, percent) {
     const label = document.createElement("span"); label.style.cssText = "font-size:11px; font-weight:bold; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"; label.innerText = name; label.title = name;
     let statsSpan = document.createElement("span"); statsSpan.style.cssText = "font-size:10px; color:#64748B; white-space:nowrap; flex-shrink:0;";
     if (qty !== undefined && percent !== undefined) statsSpan.innerText = `${qty.toLocaleString()} (${percent})`;
-
     let editBtn = document.createElement("button"); editBtn.innerText = "✏️"; editBtn.className = "lockable"; editBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; editBtn.onclick = function(e) { e.stopPropagation(); editBrand(orgName || name); };
-    let delBtn = document.createElement("button"); delBtn.innerText = "🗑️"; delBtn.className = "lockable"; delBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`${t('deleteConfirm')} "${name}"?`)) deleteBrand(orgName || name); };
+    let delBtn = document.createElement("button"); delBtn.innerText = "️"; delBtn.className = "lockable"; delBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; delBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`${t('deleteConfirm')} "${name}"?`)) deleteBrand(orgName || name); };
     let resetBtn = document.createElement("button"); resetBtn.innerText = "🔄"; resetBtn.className = "lockable"; resetBtn.style.cssText = "background:none; border:none; cursor:pointer; flex-shrink:0; font-size:14px;"; resetBtn.onclick = function(e) { e.stopPropagation(); if(confirm(`${t('restoreConfirm')} "${name}"?`)) resetBrandLocations(orgName || name); };
-
     row.appendChild(colorBox); row.appendChild(label);
     if (qty !== undefined) row.appendChild(statsSpan);
     if (GLOBAL_CURRENT_VIEW === 'PLAN') { row.appendChild(editBtn); row.appendChild(delBtn); row.appendChild(resetBtn); }
@@ -755,6 +872,8 @@ function updateBrandColor(brand, newColor) {
 }
 function applyAllDBCacheToCanvas() { 
     var gd = document.getElementsByClassName('plotly-graph-div')[0]; if(!gd) return; 
+    translateHoverTraces(gd);
+    translateZoneLabels(gd);
     let originalTraces = gd.data, basePlatformAndScatters = [], shelfCubesMap = {}; 
     for(let i=0; i<originalTraces.length; i++) { let t = originalTraces[i]; if(t.name === '_SHELF_CUBE_' || t.name === '_DYNAMIC_SLICE_') { if(t.customdata) shelfCubesMap[t.customdata[0]] = t; } else basePlatformAndScatters.push(t); } 
     let finalDynamicTraces = [...basePlatformAndScatters]; 
@@ -770,9 +889,14 @@ function applyAllDBCacheToCanvas() {
             for(let s=0; s<slices.length; s++) { 
                 let currentSlice = slices[s], segmentHeight = fullHeight / slices.length; let sliceMinZ = minZ + (s * segmentHeight), sliceMaxZ = sliceMinZ + segmentHeight; 
                 let currentZArray = [...origZ]; for(let v=0; v<8; v++) { if(origZ[v] === minZ) currentZArray[v] = sliceMinZ; else currentZArray[v] = sliceMaxZ; } 
-                let sliceColor = GLOBAL_COLOR_POOL[currentSlice.brand] || currentSlice.color; let hoverHTML = `<b>${locID}</b><br>${currentSlice.brand}<br>`; 
-                currentSlice.items.forEach(it => { hoverHTML += `${it.sku}: ${it.qty}<br>`; }); 
-                finalDynamicTraces.push({ type: 'mesh3d', x: templateCube.x, y: templateCube.y, z: currentZArray, i: templateCube.i, j: templateCube.j, k: templateCube.k, color: sliceColor, customdata: Array(8).fill(locID), text: Array(8).fill(hoverHTML), name: '_DYNAMIC_SLICE_', hoverinfo: 'text', showlegend: false }); 
+                let sliceColor = GLOBAL_COLOR_POOL[currentSlice.brand] || currentSlice.color; 
+                // 🌟 根据健康状态覆盖颜色
+                
+                let hoverHTML = `<b>${locID}</b><br>${currentSlice.brand}<br>`; 
+                if (node.health_status === 'stagnant') hoverHTML += t('stagnantTag') + "<br>";
+                if (node.health_status === 'hot') hoverHTML += t('hotTag') + "<br>";
+                currentSlice.items.forEach(it => { hoverHTML += `${it.sku}${it.flag ? ' ' + it.flag : ''}: ${it.qty}<br>`; });  
+                finalDynamicTraces.push({ type: 'mesh3d', x: templateCube.x, y: templateCube.y, z: currentZArray, i: templateCube.i, j: templateCube.j, k: templateCube.k, color: sliceColor, customdata: Array(8).fill(locID), text: Array(8).fill(hoverHTML), name: '_DYNAMIC_SLICE_', hoverinfo: 'text', showlegend: false, hoverlabel: {bgcolor:'#111827', font:{color:'#F9FAFB', size:12}} }); 
             } 
         } 
     }); gd.data = finalDynamicTraces; Plotly.redraw(gd); 
@@ -819,6 +943,97 @@ function closePwdModal() { document.getElementById('pwd-modal').style.display = 
 async function verifyPwd() { const pwd = document.getElementById('pwd-input').value; if (!pwd) return; const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pwd)); const hashHex = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join(''); if (hashHex === TARGET_HASH) { isUnlocked = true; closePwdModal(); unlockAllEditBtns(); document.querySelector('#control-panel button:last-child').innerText = "🔓"; } else { alert(t('wrongPwd')); } }
 function lockAllEditBtns() { document.querySelectorAll('.lockable').forEach(btn => btn.classList.add('locked')); }
 function unlockAllEditBtns() { document.querySelectorAll('.lockable').forEach(btn => btn.classList.remove('locked')); }
+function updateRealtimeBanner(active) {
+    let banner = document.getElementById('realtime-banner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'realtime-banner';
+        banner.style.cssText = 'position:fixed; top:0; left:50%; transform:translateX(-50%); background:#EF4444; color:white; padding:6px 16px; font-size:12px; font-weight:bold; z-index:10002; display:none; border-radius:0 0 8px 8px;';
+        document.body.appendChild(banner);
+    }
+    if (active) { banner.innerText = t('bannerText'); banner.style.display = 'block'; }
+    else { banner.style.display = 'none'; }
+}
+
+async function fetchRealtimeDear() {
+    if(!confirm(t('realtimeConfirm'))) return;
+    const btn = document.getElementById('dear-realtime-btn');
+    const originalText = btn.innerText;
+    btn.innerText = t('fetching');
+    btn.disabled = true;
+    if (!isRealtimeMode) {
+        try { original_cache = JSON.parse(JSON.stringify(server_data_cache)); } catch(e) {}
+    }
+    try {
+        const res = await fetch(CONFIG_API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'fetch_dear_realtime' }),
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        const result = await res.json();
+        window.__dearDebug = result.debug || '';
+        if (result.status === 'success') { applyDearRealtimeData(result.data); }
+        else { alert(t('realtimeFail') + result.message); }
+    } catch (e) { alert(t('netError')); }
+    finally { btn.innerText = originalText; btn.disabled = false; }
+}
+
+function applyDearRealtimeData(binMap) {
+    const skuBrandMap = {};
+    server_data_cache.forEach(node => {
+        if (node.slices) node.slices.forEach(slice => slice.items.forEach(it => { if (it.sku && slice.brand) skuBrandMap[it.sku] = slice.brand; }));
+    });
+    const cleanBinMap = {};
+    for (const bin in binMap) {
+        const cleanBin = String(bin).replace(/-/g, '').replace(/\s/g, '').toUpperCase();
+        cleanBinMap[cleanBin] = binMap[bin];
+    }
+    let matchedBins = 0;
+    server_data_cache.forEach(node => {
+        const cleanLocID = String(node.loc).replace(/-/g, '').replace(/\s/g, '').toUpperCase();
+        let items = cleanBinMap[cleanLocID];
+        if (items && items.length > 0) {
+            matchedBins++;
+            node.slices = [];
+            const skuMap = {};
+            items.forEach(i => {
+                const sku = String(i.sku).includes('~') ? String(i.sku).split('~').pop() : String(i.sku);
+                skuMap[sku] = (skuMap[sku] || 0) + i.qty;
+            });
+            const brandMap = {};
+            for (const sku in skuMap) {
+                const brand = skuBrandMap[sku] || 'Unknown';
+                if (!brandMap[brand]) brandMap[brand] = [];
+                brandMap[brand].push({ sku: sku, qty: skuMap[sku] });
+            }
+            for (const bName in brandMap) {
+                node.slices.push({ brand: bName, color: GLOBAL_COLOR_POOL[bName] || '#CBD5E1', items: brandMap[bName] });
+            }
+        } else {
+            node.slices = [{brand: "[当前空置]", color: GLOBAL_COLOR_POOL['[当前空置]'] || '#E2E8F0', items: []}];
+        }
+    });
+    if (GLOBAL_CURRENT_VIEW === 'PLAN') { switchGlobalView('ACTUAL'); } else { applyAllDBCacheToCanvas(); }
+    updateRealtimeBanner(true);
+    isRealtimeMode = true;
+    if (matchedBins === 0) {
+        const sampleBins = Object.keys(binMap).slice(0, 8).join(', ');
+        const sampleLocs = server_data_cache.slice(0, 8).map(n => n.loc).join(', ');
+        alert('⚠️ 实时数据拉取成功，但匹配到 0 个库位！\n\nDEAR 的 Bin 样例：\n' + sampleBins + '\n\n沙盘库位样例：\n' + sampleLocs + '\n\nDEAR 真实字段结构：\n' + (window.__dearDebug || '(无)') + '\n\n请截图此弹窗发给我');
+    } else {
+        alert(t('realtimeUpdated') + matchedBins + t('binsMatched'));
+    }
+}
+
+function restoreSheetData() {
+    if (isRealtimeMode) {
+        server_data_cache = JSON.parse(JSON.stringify(original_cache));
+        applyAllDBCacheToCanvas();
+        updateRealtimeBanner(false);
+        isRealtimeMode = false;
+        alert(t('restored'));
+    }
+}
 
 if (window.innerWidth <= 768) { document.getElementById('super-legend-panel').classList.remove('nav-open'); }
 var checkPlotly = setInterval(function(){ 
@@ -844,6 +1059,8 @@ var checkPlotly = setInterval(function(){
         "TOTAL_LOCATIONS_PLACEHOLDER": js_total_locations,
         "OCCUPIED_LOCATIONS_PLACEHOLDER": js_occupied_locations,
         "OCCUPANCY_RATE_PLACEHOLDER": js_occupancy_rate,
+        "HEALTH_STATS_PLACEHOLDER": js_health_stats,
+        "HOT_LIST_PLACEHOLDER": js_hot_list,
         "CONFIG_API_URL_PLACEHOLDER": js_api_url_string,
         "SERVER_DATA_INJECT_PLACEHOLDER": js_array_string,
         "SERVER_COLORS_INJECT_PLACEHOLDER": js_global_colors_string,
