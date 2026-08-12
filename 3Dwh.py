@@ -260,11 +260,16 @@ def generate_html():
     df_locs['brand'], df_locs['color'] = [r[0] for r in res], [r[1] for r in res]
 
     cloud_runtime_config = None
+    cloud_cell_override_db = None
+    cloud_actual_colors = None
     try:
         api_res = requests.get(CONFIG_API_URL + '?t=' + str(int(time.time())), timeout=15)
         if api_res.status_code == 200:
             cloud_data = api_res.json()
             cloud_runtime_config = cloud_data.get('runtime_config')
+            cloud_cell_override_db = cloud_data.get('cell_override_db')
+            cloud_actual_colors = cloud_data.get('actual_brand_colors')
+            print("✅ 云端配置(API)实时同步成功！")
     except: pass
 
     print("🧮 [3/4] 正在生成 3D 桥接数据与画布... ")
@@ -439,8 +444,8 @@ def generate_html():
     final_runtime_config = cloud_runtime_config if cloud_runtime_config else default_config_list
 
     js_config_string = json.dumps(final_runtime_config)
-    js_overrides_string = json.dumps({})
-    js_actual_colors_string = json.dumps({})
+    js_overrides_string = json.dumps(cloud_cell_override_db if cloud_cell_override_db else {})
+    js_actual_colors_string = json.dumps(cloud_actual_colors if cloud_actual_colors else {})
     js_api_url_string = json.dumps(CONFIG_API_URL)
 
     interactive_control_script = r'''
