@@ -524,7 +524,7 @@ body { margin: 0; overflow: hidden; font-family: sans-serif; }
 <div id="sku-search-box" style="background: #F8FAFC; padding: 8px; border-radius: 8px; border: 1px dashed #5B7B9C; margin-bottom: 12px; display: none;">
     <label style="font-size: 11px; display:block; margin-bottom:4px; font-weight: bold;">🔍 SKU 搜索:</label>
     <div style="display: flex; gap: 4px;">
-        <input type="text" id="sku-search-input" placeholder="输入 SKU（如：1234）" style="flex:1; padding: 6px; border: 1px solid #CBD5E1; border-radius: 4px; font-size: 11px;">
+        <input type="text" id="sku-search-input" onkeydown="if(event.key==='Enter') searchSKU()" placeholder="输入 SKU（如：1234）" style="flex:1; padding: 6px; border: 1px solid #CBD5E1; border-radius: 4px; font-size: 11px;">
         <button onclick="searchSKU()" style="background: #3B82F6; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; cursor: pointer;">搜索</button>
     </div>
     <div id="sku-search-results" style="margin-top: 8px; max-height: 200px; overflow-y: auto;"></div>
