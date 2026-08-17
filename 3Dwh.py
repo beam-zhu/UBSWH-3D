@@ -6,9 +6,11 @@ import datetime
 import hashlib
 import requests
 import pandas as pd
+import space_engine
 import numpy as np
 import plotly.graph_objects as go
 import json
+import io
 from zoneinfo import ZoneInfo
 
 # ========================================================
@@ -169,7 +171,7 @@ def analyze_inventory_health(sku_stats, current_actual_db):
 
 def generate_html():
     print("📡 [1/4] 正在同步云端规划底座...")
-    df_raw = fetch_with_retry(lambda: pd.read_csv(PLAN_CSV_URL, header=None))
+    df_raw = fetch_with_retry(lambda: pd.read_csv(io.StringIO(requests.get(PLAN_CSV_URL, timeout=20).content.decode('utf-8')), header=None))
     all_raw_locs = []
     for col in df_raw.columns: all_raw_locs.extend(df_raw[col].dropna().astype(str).tolist())
     valid_locations = []
@@ -297,6 +299,64 @@ def generate_html():
 
     print("🧮 [3/4] 正在生成 3D 桥接数据与画布... ")
     python_to_js_cache = []
+    
+    # 🌟 3DUP 源头切分：获取空间知识库
+    try:
+        space_kb = space_engine.get_space_kb_dict()
+    except Exception as e:
+        print("⚠️ 3DUP 知识库获取失败:", e)
+        space_kb = {}
+
+    # 🌟 3DUP 生成下一轮巡仓模板（预填式，现场只改差异）
+    try:
+        import csv as _csv
+        old_by_loc = {}
+        for r in space_engine.get_sheet_rows():
+            l0 = str(r.get('库位', '')).strip()
+            if l0 and l0 != '库位': old_by_loc[l0] = r
+        out_rows = []
+        for _, row in df_locs.iterrows():
+            locID = str(row['loc'])
+            if bool(row['is_ground']) or int(row['lvl']) < 2: continue
+            if locID in old_by_loc:
+                o = old_by_loc[locID]
+                out_rows.append([locID, o.get('占用', ''), o.get('是否能放货', ''), o.get('SKU', ''), o.get('备注', ''), o.get('查验时间', '')])
+                continue
+            cap = space_kb.get('cap', {}).get(locID, 2) if space_kb else 2
+            note = '单库位只能放1' if cap == 1 else ('通道横梁，超长，最多能放3个托盘' if cap == 3 else '')
+            items = actual_db.get(locID, [])
+            if not items:
+                out_rows.append([locID, '', 'Y', '', note, '系统预填'])
+                continue
+            vols = []
+            for it in items:
+                sku = str(it.get('sku', ''))
+                if '~' in sku: sku = sku.split('~')[-1]
+                qty = int(it.get('qty', 0))
+                ipp = space_kb.get('ipp', {}).get(sku) if space_kb else None
+                vols.append((sku, qty, (qty / ipp) if ipp else 1.0))
+            vols.sort(key=lambda x: -x[2])
+            pallets = []
+            for sku, qty, vol in vols:
+                for p in pallets:
+                    if p['vol'] + vol <= 1.0:
+                        p['items'].append((sku, qty)); p['vol'] += vol; break
+                else:
+                    pallets.append({'vol': vol, 'items': [(sku, qty)]})
+            parts = []
+            for p in pallets:
+                seg = ','.join(f"{s}*{q}" for s, q in p['items'])
+                parts.append('(' + seg + ')' if len(p['items']) > 1 else seg)
+            occ = min(cap, max(1, len(pallets)))
+            out_rows.append([locID, occ, 'Y' if occ < cap else 'N', '+'.join(parts), note, '系统预填'])
+        with open('巡仓模板.csv', 'w', encoding='utf-8-sig', newline='') as f:
+            w = _csv.writer(f)
+            w.writerow(['库位', '占用', '是否能放货', 'SKU', '备注', '查验时间'])
+            w.writerows(out_rows)
+        print(f"📋 巡仓模板已生成: 巡仓模板.csv ({len(out_rows)} 个库位)")
+    except Exception as e:
+        print("⚠️ 巡仓模板生成失败(不影响主程序):", e)
+
     for idx, row in df_locs.iterrows():
         locID = row['loc']
         items_in_bin = actual_db.get(locID, [])
@@ -318,11 +378,33 @@ def generate_html():
         if locID in stagnant_locs: status = 'stagnant'
         elif locID in hot_locs: status = 'hot'
         
+        # 🌟 3DUP 源头切分：只学习2层及以上（1层保持原样），已移除超配警告
+        space_dec = ''
+        if space_kb and int(row['lvl']) >= 2 and not bool(row['is_ground']):
+            cap = space_kb.get('cap', {}).get(locID, 2)
+            if cap == 2:
+                if space_kb.get('halfObs', {}).get(locID):
+                    space_dec = 'half'
+                else:
+                    needed = 0
+                    known = True
+                    for it in items_in_bin:
+                        sku = str(it.get('sku', ''))
+                        if '~' in sku: sku = sku.split('~')[-1]
+                        ipp = space_kb.get('ipp', {}).get(sku)
+                        if ipp is None:
+                            known = False
+                            break
+                        needed += it.get('qty', 0) / ipp
+                    if known and items_in_bin and needed <= 1.2:
+                        space_dec = 'half'
+
         python_to_js_cache.append({
             "loc": str(locID), "zone": str(row['zone']), "col": int(row['col']), "lvl": int(row['lvl']),
             "is_ground": bool(row['is_ground']), "native_brand": str(row['brand']), "native_color": str(row['color']),
             "slices": slices_data, "orig_z": [cz, cz, cz, cz, cz+h, cz+h, cz+h, cz+h],
-            "health_status": status # 新增状态字段
+            "health_status": status,
+            "space_dec": space_dec # 🌟 新增字段
         })
 
     actual_total_stats = {}
@@ -448,6 +530,10 @@ def generate_html():
     js_occupancy_rate = json.dumps(occupancy_rate)
     js_health_stats = json.dumps({"stagnant": stagnant_sku_count, "hot": hot_sku_count})
     js_hot_list = json.dumps(hot_list)
+    try:
+        print("🧪 3DUP 测试: 学会了", len(space_engine.get_space_kb_dict().get('ipp', {})), "个SKU")
+    except Exception as e:
+        print("🧪 3DUP 测试失败:", e)
 
     default_config_list = [
         {"org_name": "LINSY", "color": "#D68F68", "label": "LINSY"}, 
@@ -586,9 +672,9 @@ let hot_list = HOT_LIST_PLACEHOLDER || [];
 
 const CONFIG_API_URL = CONFIG_API_URL_PLACEHOLDER;
 let GLOBAL_CURRENT_VIEW = "PLAN";
+var SPACE_KB = SPACE_KB_PLACEHOLDER;
 let server_data_cache = SERVER_DATA_INJECT_PLACEHOLDER || [];
 let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER || {};
-
 let original_cache = JSON.parse(JSON.stringify(server_data_cache)); 
 let isRealtimeMode = false;
 
@@ -914,19 +1000,89 @@ function applyAllDBCacheToCanvas() {
             templateCube.color = targetColor; templateCube.name = '_SHELF_CUBE_'; templateCube.z = node.orig_z; templateCube.text = Array(8).fill(`<b>${locID}</b><br>${targetLabel}`); finalDynamicTraces.push(templateCube); 
         } else { 
             let slices = node.slices || []; var origZ = node.orig_z; var minZ = Math.min(...origZ), maxZ = Math.max(...origZ), fullHeight = maxZ - minZ; 
+            
+            // 🌟 3DUP 智能切分：自动判断货架朝向 (横放还是竖放)
+            let spaceDec = node.space_dec || '';
+            let useX = true; // 默认切 X 轴
+            
+            if (spaceDec === 'half' || spaceDec === 'over') {
+                let minX = Math.min(...templateCube.x);
+                let maxX = Math.max(...templateCube.x);
+                let minY = Math.min(...templateCube.y);
+                let maxY = Math.max(...templateCube.y);
+                let dx = maxX - minX; // X 轴跨度
+                let dy = maxY - minY; // Y 轴跨度
+                useX = (dx >= dy); // 跨度大的那个轴是货架的“宽”，切它！
+            }
+
+            let currentXArray = templateCube.x.slice();
+            let currentYArray = templateCube.y.slice();
+            let ghostXArray = templateCube.x.slice();
+            let ghostYArray = templateCube.y.slice();
+            
+            if (spaceDec === 'half' || spaceDec === 'over') {
+                if (useX) {
+                    // 货架宽度在 X 轴，切 X 轴
+                    let minX = Math.min(...currentXArray);
+                    let maxX = Math.max(...currentXArray);
+                    let midX = (minX + maxX) / 2;
+                    for(let v=0; v<currentXArray.length; v++) {
+                        if (Math.abs(currentXArray[v] - maxX) < 0.001) currentXArray[v] = midX;
+                    }
+                    for(let v=0; v<ghostXArray.length; v++) {
+                        if (Math.abs(ghostXArray[v] - minX) < 0.001) ghostXArray[v] = midX;
+                    }
+                } else {
+                    // 货架宽度在 Y 轴，切 Y 轴
+                    let minY = Math.min(...currentYArray);
+                    let maxY = Math.max(...currentYArray);
+                    let midY = (minY + maxY) / 2;
+                    for(let v=0; v<currentYArray.length; v++) {
+                        if (Math.abs(currentYArray[v] - maxY) < 0.001) currentYArray[v] = midY;
+                    }
+                    for(let v=0; v<ghostYArray.length; v++) {
+                        if (Math.abs(ghostYArray[v] - minY) < 0.001) ghostYArray[v] = midY;
+                    }
+                }
+            }
+
             for(let s=0; s<slices.length; s++) { 
                 let currentSlice = slices[s], segmentHeight = fullHeight / slices.length; let sliceMinZ = minZ + (s * segmentHeight), sliceMaxZ = sliceMinZ + segmentHeight; 
                 let currentZArray = [...origZ]; for(let v=0; v<8; v++) { if(origZ[v] === minZ) currentZArray[v] = sliceMinZ; else currentZArray[v] = sliceMaxZ; } 
                 let sliceColor = GLOBAL_COLOR_POOL[currentSlice.brand] || currentSlice.color; 
-                // 🌟 根据健康状态覆盖颜色
                 
                 let hoverHTML = `<b>${locID}</b><br>${currentSlice.brand}<br>`; 
                 if (node.health_status === 'stagnant') hoverHTML += t('stagnantTag') + "<br>";
                 if (node.health_status === 'hot') hoverHTML += t('hotTag') + "<br>";
                 currentSlice.items.forEach(it => { hoverHTML += `${it.sku}${it.flag ? ' ' + it.flag : ''}: ${it.qty}<br>`; });  
-                finalDynamicTraces.push({ type: 'mesh3d', x: templateCube.x, y: templateCube.y, z: currentZArray, i: templateCube.i, j: templateCube.j, k: templateCube.k, color: sliceColor, customdata: Array(8).fill(locID), text: Array(8).fill(hoverHTML), name: '_DYNAMIC_SLICE_', hoverinfo: 'text', showlegend: false, hoverlabel: {bgcolor:'#111827', font:{color:'#F9FAFB', size:12}} }); 
+                
+                // 🌟 使用动态判断后的 X 和 Y 数组
+                finalDynamicTraces.push({ type: 'mesh3d', x: currentXArray, y: currentYArray, z: currentZArray, i: templateCube.i, j: templateCube.j, k: templateCube.k, color: sliceColor, customdata: Array(8).fill(locID), text: Array(8).fill(hoverHTML), name: '_DYNAMIC_SLICE_', hoverinfo: 'text', showlegend: false, hoverlabel: {bgcolor:'#111827', font:{color:'#F9FAFB', size:12}} }); 
             } 
-        } 
+            
+            // 🌟 生成右半边占位块
+            if (spaceDec === 'half' || spaceDec === 'over') {
+                let ghostColor = (spaceDec === 'over') ? 'rgba(239, 68, 68, 0.6)' : '#CBD5E1';
+                let ghostHover = (spaceDec === 'over') ? `<b>${locID}</b><br>⚠️ 超配警告` : `<b>${locID}</b><br>[空置半格]`;
+                finalDynamicTraces.push({ 
+                    type: 'mesh3d', 
+                    x: ghostXArray, 
+                    y: ghostYArray, 
+                    z: origZ, 
+                    i: templateCube.i, 
+                    j: templateCube.j, 
+                    k: templateCube.k, 
+                    color: ghostColor, 
+                    customdata: Array(8).fill(locID), 
+                    text: Array(8).fill(ghostHover), 
+                    name: '_SPACE_GHOST_', 
+                    hoverinfo: 'text', 
+                    showlegend: false, 
+                    opacity: (spaceDec === 'over') ? 0.7 : 0.9,
+                    hoverlabel: {bgcolor:'#111827', font:{color:'#F9FAFB', size:12}} 
+                });
+            }
+        }  
     }); gd.data = finalDynamicTraces; Plotly.redraw(gd); 
 }
 function parseSinglePattern(pat, locID) { 
@@ -1075,9 +1231,226 @@ var checkPlotly = setInterval(function(){
         loadCloudConfig(); 
     }
 }, 400);
+// ============ 3DUP 智能搜索v4（合并进左侧面板）+ 访问统计（独立外挂，整块可删） ============
+(function(){
+  try {
+    var SDC = (typeof server_data_cache !== 'undefined') ? server_data_cache : [];
+
+    function buildIndex(){
+      var idx = {};
+      SDC.forEach(function(node){
+        (node.slices||[]).forEach(function(sl){
+          (sl.items||[]).forEach(function(it){
+            var sku = String(it.sku||''); if(sku.indexOf('~')>=0) sku = sku.split('~').pop();
+            var q = it.qty||0; if(!sku || q<=0) return;
+            var e = idx[sku] || (idx[sku] = {sku: sku, locs:{}, total:0, zones:{}, brand: it.brand||sl.brand||''});
+            e.locs[node.loc] = (e.locs[node.loc]||0)+q;
+            e.total += q;
+            e.zones[node.zone] = (e.zones[node.zone]||0)+1;
+          });
+        });
+      });
+      return idx;
+    }
+    function parseQuery(q){
+      var m;
+      if ((m = q.match(/(\d+)\s*个?\s*(库位|location|位)/i))) return {type:'loc', n: parseInt(m[1])};
+      if ((m = q.match(/(库存|数量|qty)[^0-9]*(\d+)/i))) return {type:'qty', n: parseInt(m[2])};
+      if ((m = q.match(/([A-Z])\s*区/i))) return {type:'zone', z: m[1].toUpperCase()};
+      return {type:'kw', kw: q.toUpperCase()};
+    }
+    function clearHL(){
+      var gd = document.getElementsByClassName('plotly-graph-div')[0]; if(!gd||!gd.data) return;
+      var changed = false;
+      gd.data.forEach(function(tr){
+        if (tr._hl_orig){
+          tr.x = tr._hl_orig.x; tr.y = tr._hl_orig.y; tr.z = tr._hl_orig.z;
+          tr.opacity = tr._hl_orig.opacity; tr.color = tr._hl_orig.color;
+          delete tr._hl_orig;
+          changed = true;
+        }
+      });
+      if (changed) Plotly.redraw(gd);
+    }
+    function highlightLocs(locs){
+      clearHL();
+      var gd = document.getElementsByClassName('plotly-graph-div')[0]; if(!gd||!gd.data) return;
+      locs.forEach(function(loc){
+        var h = null;
+        for(var i=0;i<gd.data.length;i++){ if(gd.data[i].name === '_HOVER_'+loc){ h = gd.data[i]; break; } }
+        if(!h || !h.x) return;
+        if(!h._hl_orig) h._hl_orig = {x: h.x.slice(), y: h.y.slice(), z: h.z.slice(), opacity: h.opacity, color: h.color};
+        var cx=0, cy=0, cz=0, n=h.x.length;
+        for(var v=0; v<n; v++){ cx+=h.x[v]; cy+=h.y[v]; cz+=h.z[v]; }
+        cx/=n; cy/=n; cz/=n;
+        for(var v=0; v<n; v++){
+          h.x[v] = cx + (h.x[v]-cx)*1.06;
+          h.y[v] = cy + (h.y[v]-cy)*1.06;
+          h.z[v] = cz + (h.z[v]-cz)*1.06;
+        }
+        h.opacity = 0.35;
+        h.color = '#FDE047';
+      });
+      Plotly.redraw(gd);
+    }
+    function highlightSku(sku){
+      var locs = [];
+      SDC.forEach(function(node){
+        (node.slices||[]).forEach(function(sl){ (sl.items||[]).forEach(function(it){
+          var s = String(it.sku||''); if(s.indexOf('~')>=0) s = s.split('~').pop();
+          if(s === sku && (it.qty||0) > 0) locs.push(node.loc);
+        });});
+      });
+      highlightLocs(locs);
+    }
+
+    var results = null, statsShown = false;
+    function headLine(title){
+      return '<div style="margin-bottom:4px;color:#94A3B8;font-size:10px;">' + title
+        + ' <span id="ss-close" style="color:#EF4444;cursor:pointer;margin-left:8px;">✕ 清空</span></div>';
+    }
+    function bindResults(){
+      if(!results) return;
+      var x = results.querySelector('#ss-close'); if(x) x.onclick = function(){ results.innerHTML=''; };
+    }
+    function run(q){
+      if(!results) return;
+      statsShown = false;
+      var sel = document.getElementById('ss-brand');
+      var brandSel = sel ? sel.value : '';
+      q = (q||'').trim(); if(!q && !brandSel){ results.innerHTML=''; return; }
+      var idx = buildIndex(), pq = parseQuery(q || '库位'), rows = [];
+      for (var sku in idx){
+        var e = idx[sku], lc = Object.keys(e.locs).length;
+        if (brandSel && e.brand !== brandSel) continue;
+        if (!q) { rows.push(e); continue; }
+        if (pq.type==='loc' && lc >= pq.n) rows.push(e);
+        else if (pq.type==='qty' && e.total >= pq.n) rows.push(e);
+        else if (pq.type==='zone' && e.zones[pq.z]) rows.push(e);
+        else if (pq.type==='kw' && (sku.toUpperCase().indexOf(pq.kw)>=0 || (e.brand||'').toUpperCase().indexOf(pq.kw)>=0)) rows.push(e);
+      }
+      rows.sort(function(a,b){ return Object.keys(b.locs).length - Object.keys(a.locs).length || b.total - a.total; });
+      var title = (brandSel ? ('['+brandSel+'] ') : '') + (pq.type==='loc' ? ('库位数 ≥ '+pq.n+' 的 SKU') : pq.type==='qty' ? ('总库存 ≥ '+pq.n+' 的 SKU') : pq.type==='zone' ? (pq.z+' 区出现的 SKU') : ('包含 “'+pq.kw+'” 的 SKU'));
+      var html = headLine('🔎 '+title+'：命中 '+rows.length+' 个');
+      rows.slice(0,100).forEach(function(e){
+        var ls = Object.keys(e.locs).map(function(l){ return l + '×' + e.locs[l]; }).join('; ');
+        html += '<div style="padding:5px 4px;border-bottom:1px solid #E2E8F0;"><b style="color:#B45309;">'+e.sku+'</b> <span style="color:#64748B;">'+Object.keys(e.locs).length+'个库位 | '+e.total+'件</span><br><span style="color:#1D4ED8;font-size:12px;font-weight:600;">'+ls+'</span></div>';
+      });
+      if(!rows.length) html += '<div style="color:#94A3B8;">没有匹配的 SKU</div>';
+      results.innerHTML = html;
+      bindResults();
+    }
+
+    // ---- 合并进左侧面板 ----
+    function init(){
+      var sbox = document.getElementById('sku-search-box');
+      if(!sbox || sbox._ssDone) return;
+      results = document.getElementById('sku-search-results');
+      if(!results) return;
+      sbox._ssDone = true;
+      var sel = document.createElement('select');
+      sel.id = 'ss-brand';
+      sel.style.cssText = 'width:100%;margin-bottom:4px;padding:6px;border:1px solid #CBD5E1;border-radius:4px;font-size:11px;background:white;';
+      sel.innerHTML = '<option value="">全部品牌</option>';
+      var brands = {};
+      SDC.forEach(function(node){ (node.slices||[]).forEach(function(sl){ if(sl.brand && sl.brand.indexOf('[')!==0) brands[sl.brand]=1; }); });
+      Object.keys(brands).sort().forEach(function(b){ sel.innerHTML += '<option value="'+b+'">'+b+'</option>'; });
+      sbox.insertBefore(sel, sbox.children[1]);
+      var inp = document.getElementById('sku-search-input');
+      inp.placeholder = '智能搜索：超过2个库位的sku / 库存大于100 / H区 / 1722';
+      inp.onkeydown = function(e){ if(e.key==='Enter') run(this.value); };
+      var btn = sbox.querySelector('button');
+      if(btn) btn.onclick = function(){ run(inp.value); };
+      sel.onchange = function(){ run(inp.value); };
+    }
+    setInterval(init, 1000);
+
+    // ---- A档 访问量记录 ----
+    (function(){
+      if (typeof CONFIG_API_URL === 'undefined' || !CONFIG_API_URL) return;
+      var name = localStorage.getItem('wh_viewer_name') || '';
+      if (!name) {
+        name = (prompt('首次访问：请输入你的名字（用于访问记录）', '访客') || '访客').trim() || '访客';
+        localStorage.setItem('wh_viewer_name', name);
+      }
+      fetch(CONFIG_API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({action:'log_visit', name: name})}).catch(function(){});
+    })();
+
+    // ---- 📊 访问统计按钮 ----
+    var sb = document.createElement('button');
+    sb.innerText = '📊';
+    sb.title = '访问统计（需密码解锁）';
+    sb.style.cssText = 'position:fixed; bottom:12px; left:12px; z-index:10003; width:36px; height:34px; border-radius:8px; border:1px solid #374151; background:#111827; color:#F9FAFB; cursor:pointer;';
+    document.body.appendChild(sb);
+    sb.onclick = function(){
+      if (!(typeof isUnlocked !== 'undefined' && isUnlocked)) { alert('请先点 🔒 输入密码解锁，再查看访问统计。'); return; }
+      if(!results) return;
+      if (statsShown) { results.innerHTML=''; statsShown = false; return; }
+      fetch(CONFIG_API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({action:'get_visits'})})
+        .then(function(r){ return r.json(); })
+        .then(function(res){
+          if (res.status !== 'success') { alert('读取失败: ' + (res.message||'')); return; }
+          var rows = res.data || [], byDay = {};
+          rows.forEach(function(r){ var d = String(r[0]).slice(0,10); byDay[d] = (byDay[d]||0)+1; });
+          var html = headLine('📊 总浏览 ' + rows.length + ' 次');
+          Object.keys(byDay).sort().reverse().slice(0,14).forEach(function(d){ html += '<div style="color:#475569;">' + d + '：<b>' + byDay[d] + '</b> 次</div>'; });
+          html += '<div style="margin:6px 0 4px;color:#94A3B8;">最近访问：</div>';
+          rows.slice(-15).reverse().forEach(function(r){ html += '<div style="color:#64748B;">' + r[0] + ' — ' + r[1] + '</div>'; });
+          var sbox = document.getElementById('sku-search-box');
+          if (sbox) sbox.style.display = 'block';
+          results.innerHTML = html;
+          statsShown = true;
+          bindResults();
+        }).catch(function(){ alert('网络错误'); });
+    };
+
+    // ---- 左侧面板折叠 ----
+    (function(){
+      function setup(){
+        var hbox = document.getElementById('health-analysis-box');
+        if(!hbox || hbox._collDone) return;
+        hbox._collDone = true;
+        var title = document.getElementById('health-title');
+        if(!title) return;
+        var content = [];
+        for (var i=0;i<hbox.children.length;i++){ if (hbox.children[i] !== title) content.push(hbox.children[i]); }
+        var open = true;
+        title.style.cursor = 'pointer';
+        title.innerHTML += ' <span id="health-toggle" style="float:right;color:#6B7280;font-size:10px;">▾ 收起</span>';
+        title.onclick = function(){
+          open = !open;
+          content.forEach(function(el){ el.style.display = open ? '' : 'none'; });
+          var tg = document.getElementById('health-toggle');
+          if (tg) tg.innerText = open ? '▾ 收起' : '▸ 展开';
+        };
+        var hl = document.getElementById('hot-list-box');
+        if (hl){
+          hl.addEventListener('click', function(ev){
+            var t = ev.target;
+            if (t && String(t.textContent).indexOf('TOP20') >= 0){
+              var willOpen = hl.getAttribute('data-open') === '0';
+              hl.setAttribute('data-open', willOpen ? '1' : '0');
+              for (var i=0;i<hl.children.length;i++){
+                var ch = hl.children[i];
+                if (ch !== t && !t.contains(ch) && !ch.contains(t)) ch.style.display = willOpen ? '' : 'none';
+              }
+            }
+          });
+        }
+      }
+      setInterval(setup, 1000);
+    })();
+    console.log('🔎 智能搜索v4 已就绪（合并进左侧面板）');
+  } catch(e){ console.warn('智能搜索初始化失败(不影响主程序):', e); }
+})();
+// ============ 3DUP 智能搜索v4 结束 ============
 </script>
 '''
-
+    try:
+        js_space_kb = json.dumps(space_engine.get_space_kb_dict(), ensure_ascii=True)
+    except Exception as e:
+        print("⚠️ 3DUP 知识库生成失败(不影响主程序):", e)
+        js_space_kb = "{}"
     replacements = {
         "SERVER_CONFIG_INJECT_PLACEHOLDER": js_config_string,
         "SERVER_OVERRIDES_INJECT_PLACEHOLDER": js_overrides_string,
@@ -1089,6 +1462,7 @@ var checkPlotly = setInterval(function(){
         "OCCUPANCY_RATE_PLACEHOLDER": js_occupancy_rate,
         "HEALTH_STATS_PLACEHOLDER": js_health_stats,
         "HOT_LIST_PLACEHOLDER": js_hot_list,
+        "SPACE_KB_PLACEHOLDER": js_space_kb,
         "CONFIG_API_URL_PLACEHOLDER": js_api_url_string,
         "SERVER_DATA_INJECT_PLACEHOLDER": js_array_string,
         "SERVER_COLORS_INJECT_PLACEHOLDER": js_global_colors_string,
