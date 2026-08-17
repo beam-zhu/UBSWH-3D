@@ -1259,7 +1259,10 @@ var checkPlotly = setInterval(function(){
     function parseQuery(q){
       var m;
       if ((m = q.match(/(\d+)\s*个?\s*(库位|location|位)/i))) return {type:'loc', n: parseInt(m[1])};
-      if ((m = q.match(/(库存|数量|qty)[^0-9]*(\d+)/i))) return {type:'qty', n: parseInt(m[2])};
+      if ((m = q.match(/(库存|数量|qty)\s*(为|等于|是)\s*(\d+)/i))) return {type:'qtyeq', n: parseInt(m[3])};
+      if ((m = q.match(/(库存|数量|qty)\s*(小于|低于)\s*(\d+)/i))) return {type:'qtylt', n: parseInt(m[3])};
+      if ((m = q.match(/(库存|数量|qty)\s*(大于|超过)\s*(\d+)/i))) return {type:'qty', n: parseInt(m[3])};
+      if ((m = q.match(/(库存|数量|qty)[^0-9]*(\d+)/i))) return {type:'qtyeq', n: parseInt(m[2])};
       if ((m = q.match(/([A-Z])\s*区/i))) return {type:'zone', z: m[1].toUpperCase()};
       return {type:'kw', kw: q.toUpperCase()};
     }
@@ -1330,11 +1333,13 @@ var checkPlotly = setInterval(function(){
         if (!q) { rows.push(e); continue; }
         if (pq.type==='loc' && lc >= pq.n) rows.push(e);
         else if (pq.type==='qty' && e.total >= pq.n) rows.push(e);
+        else if (pq.type==='qtyeq' && e.total === pq.n) rows.push(e);
+        else if (pq.type==='qtylt' && e.total < pq.n) rows.push(e);
         else if (pq.type==='zone' && e.zones[pq.z]) rows.push(e);
         else if (pq.type==='kw' && (sku.toUpperCase().indexOf(pq.kw)>=0 || (e.brand||'').toUpperCase().indexOf(pq.kw)>=0)) rows.push(e);
       }
       rows.sort(function(a,b){ return Object.keys(b.locs).length - Object.keys(a.locs).length || b.total - a.total; });
-      var title = (brandSel ? ('['+brandSel+'] ') : '') + (pq.type==='loc' ? ('库位数 ≥ '+pq.n+' 的 SKU') : pq.type==='qty' ? ('总库存 ≥ '+pq.n+' 的 SKU') : pq.type==='zone' ? (pq.z+' 区出现的 SKU') : ('包含 “'+pq.kw+'” 的 SKU'));
+      var title = (brandSel ? ('['+brandSel+'] ') : '') + (pq.type==='loc' ? ('库位数 ≥ '+pq.n+' 的 SKU') : pq.type==='qty' ? ('总库存 ≥ '+pq.n+' 的 SKU') : pq.type==='qtyeq' ? ('总库存 = '+pq.n+' 的 SKU') : pq.type==='qtylt' ? ('总库存 < '+pq.n+' 的 SKU') : pq.type==='zone' ? (pq.z+' 区出现的 SKU') : ('包含 “'+pq.kw+'” 的 SKU'));
       var html = headLine('🔎 '+title+'：命中 '+rows.length+' 个');
       rows.slice(0,100).forEach(function(e){
         var ls = Object.keys(e.locs).map(function(l){ return l + '×' + e.locs[l]; }).join('; ');
