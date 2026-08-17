@@ -6,7 +6,11 @@ import datetime
 import hashlib
 import requests
 import pandas as pd
-import space_engine
+try:
+    import space_engine
+except Exception:
+    space_engine = None
+    print("⚠️ space_engine 未加载（半格功能自动关闭，不影响主程序）")
 import numpy as np
 import plotly.graph_objects as go
 import json
