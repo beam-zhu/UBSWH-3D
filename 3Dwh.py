@@ -200,7 +200,9 @@ def generate_html():
         with open(temp_xlsx_path, 'wb') as f: f.write(response.content)
         with pd.ExcelFile(temp_xlsx_path) as xl_file:
             df_actual = xl_file.parse(sheet_name=0, skiprows=5, header=0)
-        df_actual = df_actual[df_actual.iloc[:, 1].astype(str).apply(is_valid_location)]
+        _mask_valid = df_actual.iloc[:, 1].astype(str).apply(is_valid_location)
+        df_extra_raw = df_actual[~_mask_valid]
+        df_actual = df_actual[_mask_valid]
         for idx, row in df_actual.iterrows():
             if len(row) < 7: continue
             raw_loc = str(row.iloc[1]).strip()
@@ -527,6 +529,27 @@ def generate_html():
 
     js_global_colors_string = json.dumps(GLOBAL_BRAND_COLORS)
     js_array_string = json.dumps(python_to_js_cache)
+    # 🌟 额外非规划区库存（只供搜索，不建模，如AB01）
+    
+    extra_search = []
+    try:
+        for _, r in df_extra_raw.iterrows():
+            locID = str(r.iloc[1]).strip()
+            is_ab = (len(locID) == 4 and locID[:2].isalpha() and locID[2:].isdigit())
+            is_3letter = (len(locID) == 3 and locID.isalpha() and locID.isupper())
+            if not (is_ab or is_3letter): continue
+            try:
+                qty = int(float(r.iloc[6]))
+            except Exception:
+                qty = 0
+            if qty <= 0: continue
+            sku = str(r.iloc[2]).strip()
+            if '~' in sku: sku = sku.split('~')[-1]
+            extra_search.append({"loc": locID, "sku": sku, "qty": qty, "brand": str(r.iloc[3]).strip()})
+    except Exception as e:
+        print("⚠️ 额外库存解析失败(不影响主程序):", e)
+    js_extra_search = json.dumps(extra_search)
+    print(f"    🔎 额外非规划区库存: {len(extra_search)} 条", sorted(set(x['loc'] for x in extra_search)))
     js_actual_total_stats = json.dumps(actual_total_stats)
     js_actual_total_qty = json.dumps(actual_total_qty)
     js_total_locations = json.dumps(total_locations)
@@ -677,6 +700,7 @@ let hot_list = HOT_LIST_PLACEHOLDER || [];
 const CONFIG_API_URL = CONFIG_API_URL_PLACEHOLDER;
 let GLOBAL_CURRENT_VIEW = "PLAN";
 var SPACE_KB = SPACE_KB_PLACEHOLDER;
+var EXTRA_SEARCH_DATA = EXTRA_SEARCH_PLACEHOLDER;
 let server_data_cache = SERVER_DATA_INJECT_PLACEHOLDER || [];
 let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER || {};
 let original_cache = JSON.parse(JSON.stringify(server_data_cache)); 
@@ -1254,6 +1278,15 @@ var checkPlotly = setInterval(function(){
           });
         });
       });
+            (typeof EXTRA_SEARCH_DATA !== 'undefined' ? EXTRA_SEARCH_DATA : []).forEach(function(it){
+        var sku = String(it.sku||''); if(sku.indexOf('~')>=0) sku = sku.split('~').pop();
+        var q = it.qty||0; if(!sku || q<=0) return;
+        var e = idx[sku] || (idx[sku] = {sku: sku, locs:{}, total:0, zones:{}, brand: it.brand||''});
+        e.locs[it.loc] = (e.locs[it.loc]||0)+q;
+        e.total += q;
+        var z = it.loc.replace(/\d+$/,'');
+        e.zones[z] = (e.zones[z]||0)+1;
+      });
       return idx;
     }
     function parseQuery(q){
@@ -1471,6 +1504,7 @@ var checkPlotly = setInterval(function(){
         "OCCUPANCY_RATE_PLACEHOLDER": js_occupancy_rate,
         "HEALTH_STATS_PLACEHOLDER": js_health_stats,
         "HOT_LIST_PLACEHOLDER": js_hot_list,
+        "EXTRA_SEARCH_PLACEHOLDER": js_extra_search,
         "SPACE_KB_PLACEHOLDER": js_space_kb,
         "CONFIG_API_URL_PLACEHOLDER": js_api_url_string,
         "SERVER_DATA_INJECT_PLACEHOLDER": js_array_string,
