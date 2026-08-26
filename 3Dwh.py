@@ -546,6 +546,13 @@ def generate_html():
             sku = str(r.iloc[2]).strip()
             if '~' in sku: sku = sku.split('~')[-1]
             extra_search.append({"loc": locID, "sku": sku, "qty": qty, "brand": str(r.iloc[3]).strip()})
+        planned_locs = set(str(x['loc']) for x in python_to_js_cache)
+        for locID, items in actual_db.items():
+            locID = str(locID)
+            if locID in planned_locs: continue
+            if not (len(locID) == 3 and locID.isalpha() and locID.isupper()): continue
+            for it in items:
+                extra_search.append({"loc": locID, "sku": str(it.get('sku','')), "qty": int(it.get('qty',0)), "brand": str(it.get('brand',''))})
     except Exception as e:
         print("⚠️ 额外库存解析失败(不影响主程序):", e)
     js_extra_search = json.dumps(extra_search)
