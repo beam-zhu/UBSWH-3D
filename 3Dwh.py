@@ -1493,6 +1493,29 @@ var checkPlotly = setInterval(function(){
   } catch(e){ console.warn('智能搜索初始化失败(不影响主程序):', e); }
 })();
 // ============ 3DUP 智能搜索v4 结束 ============
+// ============ 3DUP 去除货架顶部火苗（独立外挂，整块可删） ============
+(function(){
+  function stripFlames(){
+    var gd = document.getElementsByClassName('plotly-graph-div')[0];
+    if(!gd || !gd.data) return;
+    var removed = false;
+    gd.data = gd.data.filter(function(tr){
+      if (tr && tr.type === 'scatter3d') {
+        var t0 = '';
+        if (tr.text) t0 = Array.isArray(tr.text) ? tr.text.join('') : String(tr.text);
+        var nm = String(tr.name || '');
+        if (t0.indexOf('🔥') >= 0 || /FLAME|HOT_MARK|HEALTH_MARK/i.test(nm)) { removed = true; return false; }
+      }
+      return true;
+    });
+    if (removed) Plotly.redraw(gd);
+  }
+  setInterval(stripFlames, 2000);
+  var gd0 = document.getElementsByClassName('plotly-graph-div')[0];
+  if (gd0 && gd0.on) gd0.on('plotly_redraw', stripFlames);
+  console.log('🧯 货架顶部火苗已移除（悬停提示保留）');
+})();
+// ============ 3DUP 去除货架顶部火苗 结束 ============
 </script>
 '''
     try:
