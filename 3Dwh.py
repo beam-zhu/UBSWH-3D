@@ -1037,7 +1037,7 @@ function applyAllDBCacheToCanvas() {
             let slices = node.slices || []; var origZ = node.orig_z; var minZ = Math.min(...origZ), maxZ = Math.max(...origZ), fullHeight = maxZ - minZ; 
             
             // 🌟 3DUP 智能切分：自动判断货架朝向 (横放还是竖放)
-            let spaceDec = node.space_dec || '';
+            let spaceDec = ''; // 🌟 半格显示已关闭（后台继续记录学习，不画半货架）
             let useX = true; // 默认切 X 轴
             
             if (spaceDec === 'half' || spaceDec === 'over') {
