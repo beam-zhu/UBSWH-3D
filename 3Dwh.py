@@ -1202,6 +1202,10 @@ function applyDearRealtimeData(binMap) {
     server_data_cache.forEach(node => {
         if (node.slices) node.slices.forEach(slice => slice.items.forEach(it => { if (it.sku && slice.brand) skuBrandMap[it.sku] = slice.brand; }));
     });
+    (typeof EXTRA_SEARCH_DATA !== 'undefined' ? EXTRA_SEARCH_DATA : []).forEach(it => {
+        if (it.sku && it.brand && !skuBrandMap[it.sku]) skuBrandMap[it.sku] = it.brand;
+    });
+    GLOBAL_COLOR_POOL['新入库待识别'] = '#0EA5E9';
     const cleanBinMap = {};
     for (const bin in binMap) {
         const cleanBin = String(bin).replace(/-/g, '').replace(/\s/g, '').toUpperCase();
@@ -1221,7 +1225,7 @@ function applyDearRealtimeData(binMap) {
             });
             const brandMap = {};
             for (const sku in skuMap) {
-                const brand = skuBrandMap[sku] || 'Unknown';
+                const brand = skuBrandMap[sku] || '新入库待识别';
                 if (!brandMap[brand]) brandMap[brand] = [];
                 brandMap[brand].push({ sku: sku, qty: skuMap[sku] });
             }
