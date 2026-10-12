@@ -248,8 +248,27 @@ def generate_html():
                 for it in items:
                     if it['sku'] not in sku_brand_map:
                         sku_brand_map[it['sku']] = it['brand']
+            extra_cur = {}
+            try:
+                for _, r in df_extra_raw.iterrows():
+                    _lid = str(r.iloc[1]).strip().upper()
+                    _i = 0
+                    while _i < len(_lid) and _lid[_i].isalpha(): _i += 1
+                    _p, _s2 = _lid[:_i], _lid[_i:]
+                    _ok = (len(_lid) == 3 and _lid.isalpha()) or (1 <= len(_p) <= 2 and 1 <= len(_s2) <= 2 and _s2.isdigit())
+                    if not _ok: continue
+                    try:
+                        _q = int(float(r.iloc[6]))
+                    except Exception:
+                        _q = 0
+                    if _q <= 0: continue
+                    _sku = str(r.iloc[2]).strip()
+                    if '~' in _sku: _sku = _sku.split('~')[-1]
+                    extra_cur[_sku] = extra_cur.get(_sku, 0) + _q
+            except Exception:
+                extra_cur = {}
             hot_list = sorted(
-                [{"sku": s, "sold30": st.get("sold30", 0), "cur": st.get("cur", 0), "brand": sku_brand_map.get(s, '')} for s, st in sku_stats.items() if st.get("sold30", 0) > 0],
+                [{"sku": s, "sold30": st.get("sold30", 0), "cur": st.get("cur", 0) + extra_cur.get(s, 0), "brand": sku_brand_map.get(s, '')} for s, st in sku_stats.items() if st.get("sold30", 0) > 0],
                 key=lambda x: x["sold30"], reverse=True)[:20]
             print(f"✅ 分析完成！呆滞库位 {len(stagnant_locs)} / 热销库位 {len(hot_locs)} / 上榜 {len(hot_list)} 个")
         else:
@@ -531,13 +550,18 @@ def generate_html():
     js_array_string = json.dumps(python_to_js_cache)
     # 🌟 额外非规划区库存（只供搜索，不建模，如AB01）
     
+    def _is_extra_loc(s):
+        s = str(s).strip().upper()
+        if len(s) == 3 and s.isalpha(): return True
+        i = 0
+        while i < len(s) and s[i].isalpha(): i += 1
+        pref, suf = s[:i], s[i:]
+        return (1 <= len(pref) <= 2) and (1 <= len(suf) <= 2) and suf.isdigit()
     extra_search = []
     try:
         for _, r in df_extra_raw.iterrows():
             locID = str(r.iloc[1]).strip()
-            is_ab = (len(locID) == 4 and locID[:2].isalpha() and locID[2:].isdigit())
-            is_3letter = (len(locID) == 3 and locID.isalpha() and locID.isupper())
-            if not (is_ab or is_3letter): continue
+            if not _is_extra_loc(locID): continue
             try:
                 qty = int(float(r.iloc[6]))
             except Exception:
@@ -550,7 +574,7 @@ def generate_html():
         for locID, items in actual_db.items():
             locID = str(locID)
             if locID in planned_locs: continue
-            if not (len(locID) == 3 and locID.isalpha() and locID.isupper()): continue
+            if not _is_extra_loc(locID): continue
             for it in items:
                 extra_search.append({"loc": locID, "sku": str(it.get('sku','')), "qty": int(it.get('qty',0)), "brand": str(it.get('brand',''))})
     except Exception as e:
