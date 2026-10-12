@@ -249,6 +249,7 @@ def generate_html():
                     if it['sku'] not in sku_brand_map:
                         sku_brand_map[it['sku']] = it['brand']
             extra_cur = {}
+            extra_brand = {}
             try:
                 for _, r in df_extra_raw.iterrows():
                     _lid = str(r.iloc[1]).strip().upper()
@@ -265,10 +266,12 @@ def generate_html():
                     _sku = str(r.iloc[2]).strip()
                     if '~' in _sku: _sku = _sku.split('~')[-1]
                     extra_cur[_sku] = extra_cur.get(_sku, 0) + _q
+                    _b = str(r.iloc[3]).strip()
+                    if _b and _sku not in extra_brand: extra_brand[_sku] = _b
             except Exception:
-                extra_cur = {}
+                extra_cur, extra_brand = {}, {}
             hot_list = sorted(
-                [{"sku": s, "sold30": st.get("sold30", 0), "cur": st.get("cur", 0) + extra_cur.get(s, 0), "brand": sku_brand_map.get(s, '')} for s, st in sku_stats.items() if st.get("sold30", 0) > 0],
+                [{"sku": s, "sold30": st.get("sold30", 0), "cur": st.get("cur", 0) + extra_cur.get(s, 0), "brand": sku_brand_map.get(s, '') or extra_brand.get(s, '')} for s, st in sku_stats.items() if st.get("sold30", 0) > 0],
                 key=lambda x: x["sold30"], reverse=True)[:20]
             print(f"✅ 分析完成！呆滞库位 {len(stagnant_locs)} / 热销库位 {len(hot_locs)} / 上榜 {len(hot_list)} 个")
         else:
