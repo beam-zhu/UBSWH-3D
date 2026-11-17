@@ -1327,8 +1327,27 @@ var checkPlotly = setInterval(function(){
       });
       return idx;
     }
+    function buildLocIndex(){
+      var li = {};
+      SDC.forEach(function(node){
+        (node.slices||[]).forEach(function(sl){
+          (sl.items||[]).forEach(function(it){
+            var sku = String(it.sku||''); if(sku.indexOf('~')>=0) sku = sku.split('~').pop();
+            var q = it.qty||0; if(!sku || q<=0) return;
+            (li[node.loc] = li[node.loc] || []).push({sku: sku, qty: q, brand: sl.brand||''});
+          });
+        });
+      });
+      (typeof EXTRA_SEARCH_DATA !== 'undefined' ? EXTRA_SEARCH_DATA : []).forEach(function(it){
+        var q = it.qty||0; if(!it.sku || q<=0) return;
+        (li[it.loc] = li[it.loc] || []).push({sku: String(it.sku), qty: q, brand: it.brand||''});
+      });
+      return li;
+    }
     function parseQuery(q){
       var m;
+      var qu = q.toUpperCase().replace(/\s/g,'');
+      if (/^([A-Z]{1,3}\d{1,2}(-\d{1,2})?|[A-Z]{3})$/.test(qu)) return {type:'locq', loc: qu};
       if ((m = q.match(/(\d+)\s*个?\s*(库位|location|位)/i))) return {type:'loc', n: parseInt(m[1])};
       if ((m = q.match(/(库存|数量|qty)\s*(为|等于|是)\s*(\d+)/i))) return {type:'qtyeq', n: parseInt(m[3])};
       if ((m = q.match(/(库存|数量|qty)\s*(小于|低于)\s*(\d+)/i))) return {type:'qtylt', n: parseInt(m[3])};
@@ -1398,6 +1417,25 @@ var checkPlotly = setInterval(function(){
       var brandSel = sel ? sel.value : '';
       q = (q||'').trim(); if(!q && !brandSel){ results.innerHTML=''; return; }
       var idx = buildIndex(), pq = parseQuery(q || '库位'), rows = [];
+      if (pq.type === 'locq') {
+        var li = buildLocIndex();
+        var items = li[pq.loc];
+        var html2 = headLine('📍 ' + pq.loc + ' 内容：' + (items ? items.length + ' 个SKU' : '0 个SKU'));
+        if (items && items.length) {
+          items.sort(function(a,b){ return b.qty - a.qty; });
+          var tot = 0;
+          items.forEach(function(it){
+            tot += it.qty;
+            html2 += '<div style="padding:5px 4px;border-bottom:1px solid #E2E8F0;"><b style="color:#B45309;">' + it.sku + '</b> <span style="color:#64748B;">' + it.qty + '件</span><br><span style="color:#1D4ED8;font-size:12px;font-weight:600;">' + (it.brand || '未知') + '</span></div>';
+          });
+          html2 += '<div style="margin-top:6px;color:#64748B;font-size:11px;">合计 ' + tot + ' 件</div>';
+        } else {
+          html2 += '<div style="color:#94A3B8;">该库位无库存记录（空置或不存在）</div>';
+        }
+        results.innerHTML = html2;
+        bindResults();
+        return;
+      }
       for (var sku in idx){
         var e = idx[sku], lc = Object.keys(e.locs).length;
         if (brandSel && e.brand !== brandSel) continue;
