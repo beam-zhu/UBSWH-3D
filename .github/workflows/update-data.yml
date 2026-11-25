@@ -2,7 +2,7 @@ name: Auto Update Warehouse Data
 
 on:
   schedule:
-    - cron: '*/30 * * * *'  # 确保引号是英文单引号
+    - cron: '7,37 * * * *'   # 每30分钟一次，但错开整点高峰(:07和:37)，大幅减少被跳过
   workflow_dispatch:
   push:
     branches: [ "main" ]
