@@ -273,6 +273,20 @@ def generate_html():
             hot_list = sorted(
                 [{"sku": s, "sold30": st.get("sold30", 0), "cur": st.get("cur", 0) + extra_cur.get(s, 0), "brand": sku_brand_map.get(s, '') or extra_brand.get(s, '')} for s, st in sku_stats.items() if st.get("sold30", 0) > 0],
                 key=lambda x: x["sold30"], reverse=True)[:20]
+            stagnant_list = []
+            for s, st in sku_stats.items():
+                _cur = st.get("cur", 0) + extra_cur.get(s, 0)
+                if _cur <= 0: continue
+                _last = st.get("last_dec") or st.get("first") or ''
+                if not _last: continue
+                try:
+                    _dt = datetime.fromisoformat(str(_last).replace('Z', '+00:00')).replace(tzinfo=None)
+                    _days = (datetime.now() - _dt).days
+                except Exception:
+                    continue
+                if _days > 90:
+                    stagnant_list.append({"sku": s, "brand": sku_brand_map.get(s, '') or extra_brand.get(s, ''), "cur": _cur, "days": _days})
+            stagnant_list.sort(key=lambda x: x["days"], reverse=True)
             print(f"✅ 分析完成！呆滞库位 {len(stagnant_locs)} / 热销库位 {len(hot_locs)} / 上榜 {len(hot_list)} 个")
         else:
             print("⚠️ 获取日志失败，跳过分析。")
@@ -735,6 +749,7 @@ const CONFIG_API_URL = CONFIG_API_URL_PLACEHOLDER;
 let GLOBAL_CURRENT_VIEW = "PLAN";
 var SPACE_KB = SPACE_KB_PLACEHOLDER;
 var EXTRA_SEARCH_DATA = EXTRA_SEARCH_PLACEHOLDER;
+var STAGNANT_LIST = STAGNANT_LIST_PLACEHOLDER;
 let server_data_cache = SERVER_DATA_INJECT_PLACEHOLDER || [];
 let GLOBAL_COLOR_POOL = SERVER_COLORS_INJECT_PLACEHOLDER || {};
 let original_cache = JSON.parse(JSON.stringify(server_data_cache)); 
@@ -1297,6 +1312,72 @@ var checkPlotly = setInterval(function(){
         loadCloudConfig(); 
     }
 }, 400);
+// ============ 3DUP 呆滞SKU下拉列表 v2（实时拉取，独立外挂） ============
+(function(){
+  function brandOf(sku){
+    var b = '';
+    for (var i=0;i<server_data_cache.length && !b;i++){
+      var sl = server_data_cache[i].slices||[];
+      for (var j=0;j<sl.length && !b;j++){
+        var its = sl[j].items||[];
+        for (var k=0;k<its.length;k++){ if (String(its[k].sku)===sku){ b = sl[j].brand; break; } }
+      }
+    }
+    if (!b && typeof EXTRA_SEARCH_DATA !== 'undefined'){
+      for (var m=0;m<EXTRA_SEARCH_DATA.length;m++){ if (String(EXTRA_SEARCH_DATA[m].sku)===sku){ b = EXTRA_SEARCH_DATA[m].brand; break; } }
+    }
+    return b || '未知';
+  }
+  function setupStag(){
+    var label = document.getElementById('stagnant-label');
+    if(!label || label._stagDone) return;
+    label._stagDone = true;
+    var row = label.parentElement;
+    row.style.cursor = 'pointer';
+    var arrow = document.createElement('span');
+    arrow.style.cssText = 'float:right;color:#6B7280;font-size:10px;';
+    arrow.innerText = '▸ 查看';
+    row.appendChild(arrow);
+    var box = document.createElement('div');
+    box.id = 'stagnant-list-box';
+    box.style.cssText = 'display:none;margin-top:6px;max-height:160px;overflow-y:auto;';
+    row.insertAdjacentElement('afterend', box);
+    row.onclick = function(){
+      var open = box.style.display === 'block';
+      box.style.display = open ? 'none' : 'block';
+      arrow.innerText = open ? '▸ 查看' : '▾ 收起';
+      if (!open && !box._filled) {
+        box._filled = true;
+        box.innerHTML = '<div style="color:#94A3B8;font-size:11px;">正在读取呆滞清单…</div>';
+        fetch(CONFIG_API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({action:'get_analysis'})})
+          .then(function(r){ return r.json(); })
+          .then(function(res){
+            var now = Date.now(), list = [];
+            for (var sku in res){
+              var st = res[sku] || {};
+              var cur = Number(st.cur)||0;
+              if (cur <= 0) continue;
+              var last = st.last_dec || st.first || '';
+              if (!last || last === 'undefined') continue;
+              var days = Math.floor((now - new Date(last).getTime()) / 86400000);
+              if (days > 90) list.push({sku: sku, cur: cur, days: days, brand: brandOf(sku)});
+            }
+            list.sort(function(a,b){ return b.days - a.days; });
+            if (!list.length){ box.innerHTML = '<div style="color:#94A3B8;font-size:11px;">当前没有呆滞 SKU 🎉</div>'; return; }
+            var html = '';
+            list.forEach(function(it){
+              html += '<div style="padding:4px 2px;border-bottom:1px dashed #FCD34D;font-size:11px;color:#475569;"><b style="color:#0EA5E9;">' + it.sku + '</b> · ' + it.brand + ' <span style="float:right;">' + it.days + '天未动 / 存 ' + it.cur + '</span></div>';
+            });
+            box.innerHTML = html;
+          })
+          .catch(function(){ box.innerHTML = '<div style="color:#EF4444;font-size:11px;">读取失败，请稍后再试</div>'; box._filled = false; });
+      }
+    };
+  }
+  setInterval(setupStag, 1000);
+  console.log('❄ 呆滞下拉列表 v2 已就绪');
+})();
+// ============ 3DUP 呆滞SKU下拉列表 v2 结束 ============
 // ============ 3DUP 智能搜索v4（合并进左侧面板）+ 访问统计（独立外挂，整块可删） ============
 (function(){
   try {
@@ -1604,6 +1685,7 @@ var checkPlotly = setInterval(function(){
         "HEALTH_STATS_PLACEHOLDER": js_health_stats,
         "HOT_LIST_PLACEHOLDER": js_hot_list,
         "EXTRA_SEARCH_PLACEHOLDER": js_extra_search,
+        "STAGNANT_LIST_PLACEHOLDER": json.dumps(globals().get('stagnant_list', [])),
         "SPACE_KB_PLACEHOLDER": js_space_kb,
         "CONFIG_API_URL_PLACEHOLDER": js_api_url_string,
         "SERVER_DATA_INJECT_PLACEHOLDER": js_array_string,
