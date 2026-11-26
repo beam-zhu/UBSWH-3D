@@ -50,11 +50,11 @@ jobs:
 
       # 步骤 6: 配置 GitHub Pages
       - name: Setup Pages
-        uses: actions/configure-pages@v4
+        uses: actions/configure-pages@v5
 
       # 步骤 7: 上传生成的文件（整个根目录，包含 index.html）
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: '.'
 
