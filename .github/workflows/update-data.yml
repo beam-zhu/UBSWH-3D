@@ -58,7 +58,17 @@ jobs:
         with:
           path: '.'
 
-      # 步骤 8: 正式部署到 GitHub Pages
+      # 步骤 7.5: 等 GitHub 后端同步工件索引（根治 "Found 0 artifact(s)"）
+      - name: Wait for artifact propagation
+        run: sleep 20
+
+      # 步骤 8: 正式部署到 GitHub Pages（第一次尝试，允许失败不中断）
       - name: Deploy to GitHub Pages
         id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      # 步骤 9: 自动重试（仅当第一次失败时才跑）
+      - name: Deploy auto retry
+        if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
